@@ -4,6 +4,13 @@ A low-poly meadow that fills the screen. Tap or click anywhere and the alchemist
 
 Draw a circle, a triangle (pointing up or down), a square, a rhombus or a five-point star (pentagram) in one stroke (tracing over it again before lifting the finger still counts) to make a transmutation circle; it is stored at the bottom of the screen (up to 6). Tap a stored circle, then tap the map to use it (for now it only shows an impact ring and spends the circle).
 
+## Play
+
+- Latest `main`: https://cirquimia.pages.dev
+- Every pull request gets its own preview URL (see the PR's "Deployments" / "View deployment" link). Branch `foo/bar` is also served at `https://foo-bar.cirquimia.pages.dev`.
+
+Deploys run from `.github/workflows/deploy.yml` (Cloudflare Pages via Wrangler). They need the repo secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; without them the workflow only builds.
+
 ## Run
 
 ```bash
