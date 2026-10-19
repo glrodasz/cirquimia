@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Cirquimia Meadow Test</title>
+    <style>
+      :root { --sky: #c9d3d1; --hud-bg: rgba(255,255,255,.72); --hud-fg: #23322a; --hud-border: rgba(35,50,42,.15); }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
+      }
+      :root[data-theme="dark"] { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); touch-action: none; overscroll-behavior: none; }
+      canvas { display: block; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
+      #dev-gear { position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 9px; border-radius: 50%; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); cursor: pointer; z-index: 3; opacity: .75; transition: opacity .2s, transform .3s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      #dev-gear:hover, #dev-gear.open { opacity: 1; }
+      #dev-gear.open { transform: rotate(60deg); }
+      #dev-gear svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+      #dev-panel { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 48px); right: max(12px, env(safe-area-inset-right)); width: min(320px, calc(100vw - 24px)); max-height: calc(100dvh - 80px - max(16px, env(safe-area-inset-bottom)) - 70px); overflow: auto; box-sizing: border-box; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font: 400 12.5px/1.35 system-ui, -apple-system, sans-serif; z-index: 3; touch-action: pan-y; overscroll-behavior: contain; }
+      #dev-panel[hidden] { display: none; }
+      #dev-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13.5px; }
+      #dev-panel section { border-top: 1px solid var(--hud-border); padding: 10px 0 4px; }
+      #dev-panel h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+      #dev-panel h4 { margin: 10px 0 4px; font-size: 11.5px; font-weight: 600; }
+      #dev-panel button { font: inherit; color: inherit; background: transparent; border: 1px solid var(--hud-border); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+      #dev-panel button:hover { border-color: currentColor; }
+      #dev-panel button:focus-visible, #dev-panel input:focus-visible, #dev-gear:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
+      #dev-panel .dev-close { border: 0; font-size: 20px; line-height: 1; padding: 2px 8px; }
+      #dev-panel .dev-primary { width: 100%; padding: 9px 10px; font-weight: 600; background: #3f5a57; color: #f1f5f2; border-color: #3f5a57; margin-bottom: 8px; }
+      #dev-panel .dev-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+      #dev-panel .dev-row input[type=text] { flex: 1; min-width: 0; font: 500 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: inherit; background: transparent; border: 1px solid var(--hud-border); border-radius: 8px; padding: 6px 8px; }
+      #dev-panel .dev-stats { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 6px 0; }
+      #dev-panel .dev-stats dt { opacity: .75; }
+      #dev-panel .dev-stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+      #dev-panel .dev-ok { color: #3f8a5c; }
+      #dev-panel .dev-warn { color: #c0562f; }
+      #dev-panel ul { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+      #dev-panel .dev-mat { display: inline-block; min-width: 54px; margin-right: 6px; font-weight: 600; }
+      #dev-panel .dev-roca { color: #6f7b7e; } #dev-panel .dev-tierra { color: #8a7454; } #dev-panel .dev-agua { color: #3f7f8f; }
+      #dev-panel .dev-fuego { color: #c0562f; } #dev-panel .dev-magia { color: #3d9a8a; } #dev-panel .dev-restos { color: #7a6656; }
+      #dev-panel .dev-note { margin: 4px 0; opacity: .7; font-size: 11.5px; }
+      #dev-panel .dev-slider { display: grid; grid-template-columns: 1fr 96px 38px; gap: 8px; align-items: center; margin: 3px 0; }
+      #dev-panel .dev-slider input { width: 100%; accent-color: #3f5a57; }
+      #dev-panel .dev-slider output { text-align: right; font-variant-numeric: tabular-nums; }
+      #dev-panel .dev-check { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+      #fps { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
+      #fps[hidden] { display: none; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; } }
+      :root[data-theme="dark"] #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; }
+      #ink { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+      #ammo { position: fixed; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 8px; min-height: 54px; pointer-events: none; }
+      #ammo .slot { pointer-events: auto; width: 54px; height: 54px; padding: 6px; border-radius: 50%; border: 1px solid var(--hud-border); background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #b5761f; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s, box-shadow .15s; }
+      #ammo .slot svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linejoin: round; }
+      #ammo .slot.triangle { color: #b0482c; }
+      #ammo .slot.square { color: #3f6f8a; }
+      #ammo .slot.triangleDown { color: #8a3f5c; }
+      #ammo .slot.rhombus { color: #4f7a52; }
+      #ammo .slot.pentagram { color: #6a4f8a; }
+      #ammo .slot.selected { transform: translateY(-8px) scale(1.08); box-shadow: 0 0 0 3px #ffc45c, 0 6px 18px rgba(255,170,60,.5); }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #ammo .slot { color: #ffd27a; } :root:not([data-theme="light"]) #ammo .slot.triangle { color: #ff9a76; } :root:not([data-theme="light"]) #ammo .slot.square { color: #8cc4dc; } :root:not([data-theme="light"]) #ammo .slot.triangleDown { color: #e899b6; } :root:not([data-theme="light"]) #ammo .slot.rhombus { color: #9fd0a2; } :root:not([data-theme="light"]) #ammo .slot.pentagram { color: #c3a8e8; } }
+      :root[data-theme="dark"] #ammo .slot { color: #ffd27a; } :root[data-theme="dark"] #ammo .slot.triangle { color: #ff9a76; } :root[data-theme="dark"] #ammo .slot.square { color: #8cc4dc; } :root[data-theme="dark"] #ammo .slot.triangleDown { color: #e899b6; } :root[data-theme="dark"] #ammo .slot.rhombus { color: #9fd0a2; } :root[data-theme="dark"] #ammo .slot.pentagram { color: #c3a8e8; }
+      body.aiming canvas { cursor: crosshair; }
+    </style>
+  </head>
+  <body>
+    <div id="hud" hidden>
+      <button id="tilt" type="button">Miniatura: on</button>
+      <span id="fps">-- fps</span>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,279 @@
+import * as THREE from 'three';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { World } from './world';
+import { mountDevTools } from './devtools';
+import { Character } from './character';
+import { TapMarker } from './marker';
+import { heightAt } from './noise';
+import { tiltShiftShader } from './tiltShift';
+import { recognize, type Point } from './gestures';
+import { Ink } from './ink';
+import { AmmoBar } from './ammo';
+
+// Camera framing: a raised three-quarter view, deliberately softer than true isometric.
+const FOV = 32;
+const ELEVATION = THREE.MathUtils.degToRad(54);
+const AZIMUTH = THREE.MathUtils.degToRad(24);
+const VIEW_HEIGHT_LANDSCAPE = 6.5; // world units visible vertically on wide screens
+const VIEW_WIDTH_PORTRAIT = 5.4; // world units visible horizontally on tall screens
+// Taps are clamped to this fraction of the screen so the alchemist never walks off the edge.
+const INSET_X = 0.9;
+const INSET_Y = 0.82;
+
+// "Bruma" palette: muted, cool blue-green morning light.
+const SKY = new THREE.Color('#c9d3d1');
+const isTouch = matchMedia('(pointer: coarse)').matches;
+
+// No canvas MSAA: the scene is drawn into a multisampled target and only a fullscreen quad reaches the canvas.
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = SKY;
+scene.fog = new THREE.Fog(SKY, 30, 70);
+
+const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 200);
+
+scene.add(new THREE.HemisphereLight('#e4eef0', '#4f5f5a', 1.5));
+const sun = new THREE.DirectionalLight('#f2f4f0', 1.9);
+sun.position.set(8, 15, 6);
+sun.castShadow = true;
+// Shadow sharpness is set as world units per shadow texel; fitCamera() sizes the shadow box to what
+// the screen shows and the map to match, so a smaller screen footprint means a smaller map, same look.
+const SHADOW_TEXEL = 48 / (isTouch ? 1024 : 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 60;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+
+const world = new World(scene);
+const hero = new Character(world.obstacles);
+scene.add(hero.root);
+const marker = new TapMarker();
+const impact = new TapMarker('#ffb35c', 3.5);
+scene.add(marker.mesh, impact.mesh);
+const ink = new Ink();
+const ammo = new AmmoBar();
+
+// A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
+mountDevTools(world, () => {
+  hero.root.position.set(0, heightAt(0, 0), 0);
+  hero.setTarget(hero.root.position);
+});
+
+// Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
+// Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
+const sceneTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType });
+const blurTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+const hBlur = new THREE.ShaderMaterial(tiltShiftShader('horizontal'));
+const vBlur = new THREE.ShaderMaterial(tiltShiftShader('vertical'));
+const hQuad = new FullScreenQuad(hBlur);
+const vQuad = new FullScreenQuad(vBlur);
+const BLUR_STRENGTH = vBlur.uniforms.strength.value;
+let tiltShift = true;
+let focusY = 0.5;
+
+const tiltButton = document.getElementById('tilt') as HTMLButtonElement;
+tiltButton.addEventListener('click', (e) => {
+  e.stopPropagation();
+  tiltShift = !tiltShift;
+  tiltButton.textContent = `Miniatura: ${tiltShift ? 'on' : 'off'}`;
+});
+tiltButton.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+function fitCamera() {
+  const w = innerWidth;
+  const h = innerHeight;
+  const aspect = w / h;
+  camera.aspect = aspect;
+  const viewHeight = Math.max(VIEW_HEIGHT_LANDSCAPE, VIEW_WIDTH_PORTRAIT / aspect);
+  const distance = viewHeight / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
+  camera.position.set(
+    Math.sin(AZIMUTH) * Math.cos(ELEVATION) * distance,
+    Math.sin(ELEVATION) * distance,
+    Math.cos(AZIMUTH) * Math.cos(ELEVATION) * distance,
+  );
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  const fog = scene.fog as THREE.Fog;
+  fog.near = distance * 1.2;
+  fog.far = distance * 2.8;
+
+  renderer.setSize(w, h, false);
+  const bufferW = Math.floor(w * renderer.getPixelRatio());
+  const bufferH = Math.floor(h * renderer.getPixelRatio());
+  sceneTarget.setSize(bufferW, bufferH);
+  blurTarget.setSize(bufferW, bufferH);
+  hBlur.uniforms.texel.value.set(1 / bufferW, 0);
+  vBlur.uniforms.texel.value.set(0, 1 / bufferH);
+
+  fitShadow();
+  keepHeroOnScreen();
+}
+
+/** Shadow box just big enough for the ground the screen shows (plus terrain relief), at a fixed texel size. */
+function fitShadow() {
+  let reach = 0;
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 4 - 1;
+    for (const [x, y] of [[t, -1], [t, 1], [-1, t], [1, t]]) {
+      ndc.set(x, y);
+      raycaster.setFromCamera(ndc, camera);
+      if (raycaster.ray.intersectPlane(groundPlane.set(groundPlane.normal, 0), hit)) reach = Math.max(reach, Math.hypot(hit.x, hit.z));
+    }
+  }
+  const half = Math.min(reach + 2, 24);
+  const shadowCam = sun.shadow.camera;
+  shadowCam.left = shadowCam.bottom = -half;
+  shadowCam.right = shadowCam.top = half;
+  shadowCam.updateProjectionMatrix();
+  const size = Math.ceil((2 * half) / SHADOW_TEXEL);
+  if (size !== sun.shadow.mapSize.x) {
+    sun.shadow.mapSize.setScalar(size);
+    sun.shadow.map?.dispose();
+    sun.shadow.map = null;
+  }
+}
+
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const hit = new THREE.Vector3();
+
+/** Screen point (NDC) to a point on the terrain, refining against the height field. */
+function groundFromNdc(x: number, y: number, out: THREE.Vector3): boolean {
+  ndc.set(THREE.MathUtils.clamp(x, -INSET_X, INSET_X), THREE.MathUtils.clamp(y, -INSET_Y, INSET_Y));
+  raycaster.setFromCamera(ndc, camera);
+  groundPlane.constant = 0;
+  for (let i = 0; i < 3; i++) {
+    if (!raycaster.ray.intersectPlane(groundPlane, out)) return false;
+    groundPlane.constant = -heightAt(out.x, out.z);
+  }
+  return true;
+}
+
+function keepHeroOnScreen() {
+  const p = hero.root.position.clone().project(camera);
+  if (Math.abs(p.x) > INSET_X || Math.abs(p.y) > INSET_Y) {
+    if (groundFromNdc(p.x, p.y, hit)) {
+      hero.root.position.copy(hit);
+      hero.setTarget(hit);
+    }
+  }
+}
+
+/** A quick tap walks there, or fires the selected circle at that spot. */
+function tapAt(clientX: number, clientY: number) {
+  const x = (clientX / innerWidth) * 2 - 1;
+  const y = -(clientY / innerHeight) * 2 + 1;
+  if (!groundFromNdc(x, y, hit)) return;
+  if (ammo.aiming) {
+    ammo.spend();
+    impact.show(hit.x, hit.z);
+    return;
+  }
+  hero.setTarget(hit);
+  marker.show(hero.target.x, hero.target.z);
+}
+
+// One finger at a time: a short press is a tap, anything that travels further is a drawing.
+const DRAW_THRESHOLD = 12; // px
+let activePointer: number | null = null;
+let drawing = false;
+let stroke: Point[] = [];
+const canvas = renderer.domElement;
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (activePointer !== null) return;
+  activePointer = e.pointerId;
+  canvas.setPointerCapture(e.pointerId);
+  drawing = false;
+  stroke = [{ x: e.clientX, y: e.clientY }];
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== activePointer) return;
+  // Coalesced events keep the line smooth when the browser batches touch input per frame.
+  const events = e.getCoalescedEvents?.() ?? [e];
+  for (const ev of events.length ? events : [e]) {
+    const p = { x: ev.clientX, y: ev.clientY };
+    stroke.push(p);
+    if (drawing) ink.add(p);
+  }
+  if (!drawing && Math.hypot(e.clientX - stroke[0].x, e.clientY - stroke[0].y) > DRAW_THRESHOLD) {
+    drawing = true;
+    ink.begin(stroke);
+  }
+});
+canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
+  if (!drawing) {
+    tapAt(e.clientX, e.clientY);
+    return;
+  }
+  drawing = false;
+  const shape = recognize(stroke);
+  if (shape && !ammo.full) {
+    ink.end(shape);
+    ammo.add(shape.kind, shape.cx, shape.cy);
+  } else {
+    ink.end(null);
+  }
+});
+canvas.addEventListener('pointercancel', (e) => {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
+  if (drawing) ink.end(null);
+  drawing = false;
+});
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+addEventListener('resize', fitCamera);
+fitCamera();
+
+const fpsLabel = document.getElementById('fps')!;
+let frames = 0;
+let fpsTime = 0;
+const clock = new THREE.Timer();
+const projected = new THREE.Vector3();
+
+renderer.setAnimationLoop((time) => {
+  clock.update(time);
+  const dt = Math.min(clock.getDelta(), 1 / 20);
+  hero.update(dt);
+  world.update(dt);
+  marker.update(dt);
+  impact.update(dt);
+  ink.update(dt);
+
+  renderer.setRenderTarget(sceneTarget);
+  renderer.render(scene, camera);
+  if (tiltShift) {
+    projected.copy(hero.root.position).project(camera);
+    focusY += ((projected.y + 1) / 2 - focusY) * Math.min(1, dt * 4);
+    hBlur.uniforms.focus.value = vBlur.uniforms.focus.value = focusY;
+    hBlur.uniforms.tDiffuse.value = sceneTarget.texture;
+    renderer.setRenderTarget(blurTarget);
+    hQuad.render(renderer);
+  }
+  // With the miniature off the vertical pass still runs at strength 0: a plain copy that tone maps.
+  vBlur.uniforms.strength.value = tiltShift ? BLUR_STRENGTH : 0;
+  vBlur.uniforms.tDiffuse.value = tiltShift ? blurTarget.texture : sceneTarget.texture;
+  renderer.setRenderTarget(null);
+  vQuad.render(renderer);
+
+  frames++;
+  fpsTime += dt;
+  if (fpsTime >= 0.5) {
+    fpsLabel.textContent = `${Math.round(frames / fpsTime)} fps`;
+    frames = 0;
+    fpsTime = 0;
+  }
+});

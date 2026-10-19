@@ -1,0 +1,256 @@
+import * as THREE from 'three';
+import { heightAt } from './noise';
+import type { Obstacle } from './meadow';
+
+/** The model is built at roughly 1.8 units tall (7.5 heads) and scaled down to fit the meadow. */
+const MODEL_SCALE = 0.3;
+const SPEED = 1.6;
+const STRIDE = 1.75 * MODEL_SCALE; // world units covered per full walk cycle
+const ARRIVE_RADIUS = 0.03;
+const TURN_RATE = 12;
+const BODY_RADIUS = 0.12;
+
+const LEG_UPPER = 0.46;
+const LEG_LOWER = 0.44;
+const HIP_Y = 0.95;
+const ARM_UPPER = 0.3;
+const ARM_LOWER = 0.27;
+const SHOULDER_Y = 1.46;
+
+// Uniform colours: a muted slate-blue greatcoat with brass trim, dark trousers, tall black boots, white gloves.
+const COAT = '#3a4c63';
+const COAT_DARK = '#2c3a4d';
+const BRASS = '#b9a064';
+const TROUSERS = '#2b313b';
+const BOOTS = '#202227';
+const GLOVES = '#eceee8';
+const SKIN = '#ecc6a6';
+const HAIR = '#4a3a30';
+const LEATHER = '#2e2925';
+const SILVER = '#c8cfd4';
+
+const materials = new Map<string, THREE.MeshLambertMaterial>();
+function mat(hex: string, emissive = '#000000', side: THREE.Side = THREE.FrontSide) {
+  const key = hex + emissive + side;
+  let m = materials.get(key);
+  if (!m) materials.set(key, (m = new THREE.MeshLambertMaterial({ color: hex, emissive, flatShading: true, side })));
+  return m;
+}
+
+function part(geo: THREE.BufferGeometry, hex: string, emissive?: string, side?: THREE.Side) {
+  const mesh = new THREE.Mesh(geo, mat(hex, emissive, side));
+  mesh.castShadow = true;
+  return mesh;
+}
+
+/** A limb segment hanging down from its pivot. */
+function segment(length: number, rTop: number, rBottom: number, hex: string) {
+  return part(new THREE.CylinderGeometry(rTop, rBottom, length, 6).translate(0, -length / 2, 0), hex);
+}
+
+interface Limb {
+  upper: THREE.Group;
+  lower: THREE.Group;
+}
+
+function buildLeg(side: number): Limb {
+  const upper = new THREE.Group();
+  upper.position.set(side * 0.09, HIP_Y, 0);
+  upper.add(segment(LEG_UPPER, 0.075, 0.06, TROUSERS));
+  const lower = new THREE.Group();
+  lower.position.y = -LEG_UPPER;
+  // Knee-high riding boots: the whole shin is boot, with a slightly flared top.
+  lower.add(segment(LEG_LOWER, 0.066, 0.05, BOOTS));
+  const foot = part(new THREE.BoxGeometry(0.1, 0.07, 0.21), BOOTS);
+  foot.position.set(0, -LEG_LOWER - 0.02, 0.045);
+  lower.add(foot);
+  upper.add(lower);
+  return { upper, lower };
+}
+
+function buildArm(side: number): Limb {
+  const upper = new THREE.Group();
+  upper.position.set(side * 0.21, SHOULDER_Y, 0);
+  upper.rotation.z = side * 0.08;
+  upper.add(segment(ARM_UPPER, 0.055, 0.045, COAT));
+  const lower = new THREE.Group();
+  lower.position.y = -ARM_UPPER;
+  lower.add(segment(ARM_LOWER, 0.044, 0.04, COAT));
+  const cuff = part(new THREE.CylinderGeometry(0.047, 0.047, 0.05, 6), COAT_DARK);
+  cuff.position.y = -ARM_LOWER + 0.03;
+  lower.add(cuff);
+  // White gloves: the alchemist's working tool.
+  const hand = part(new THREE.IcosahedronGeometry(0.045, 0), GLOVES);
+  hand.scale.set(0.9, 1.15, 0.8);
+  hand.position.y = -ARM_LOWER - 0.035;
+  lower.add(hand);
+  upper.add(lower);
+  return { upper, lower };
+}
+
+/** A small low-poly state alchemist in uniform, with human proportions, that walks to a target point on the meadow. */
+export class Character {
+  readonly root = new THREE.Group();
+  readonly target = new THREE.Vector3();
+  private readonly model = new THREE.Group();
+  private readonly torso = new THREE.Group();
+  private readonly coatTail: THREE.Mesh;
+  private readonly legL = buildLeg(-1);
+  private readonly legR = buildLeg(1);
+  private readonly armL = buildArm(-1);
+  private readonly armR = buildArm(1);
+  private heading = 0;
+  private walkPhase = 0;
+  private walkBlend = 0;
+  private time = 0;
+
+  constructor(private readonly obstacles: Obstacle[]) {
+    // Greatcoat: fitted chest, then long tails down to the knee, open at the front so the legs can stride.
+    const chest = part(new THREE.CylinderGeometry(0.2, 0.155, 0.52, 7), COAT);
+    chest.position.y = 1.26;
+    const tailLength = 0.52;
+    this.coatTail = part(
+      new THREE.CylinderGeometry(0.16, 0.25, tailLength, 8, 1, true, 0.42, Math.PI * 2 - 0.84).translate(0, -tailLength / 2, 0),
+      COAT,
+      undefined,
+      THREE.DoubleSide,
+    );
+    this.coatTail.position.y = 1.03;
+    const belt = part(new THREE.CylinderGeometry(0.162, 0.162, 0.05, 7), LEATHER);
+    belt.position.y = 1.02;
+    const buckle = part(new THREE.BoxGeometry(0.05, 0.04, 0.02), BRASS);
+    buckle.position.set(0, 1.02, 0.16);
+    // Pocket-watch chain looping from the belt.
+    const chain = part(new THREE.TorusGeometry(0.035, 0.006, 3, 8, Math.PI), SILVER);
+    chain.rotation.set(0.25, 0, Math.PI);
+    chain.position.set(0.1, 0.99, 0.13);
+
+    // Double-breasted front: two rows of brass buttons.
+    const buttons: THREE.Mesh[] = [];
+    for (const y of [1.12, 1.24, 1.36]) {
+      const r = 0.155 + ((y - 1.0) / 0.52) * 0.045;
+      for (const x of [-0.055, 0.055]) {
+        const b = part(new THREE.OctahedronGeometry(0.014, 0), BRASS);
+        b.position.set(x, y, r - 0.012);
+        buttons.push(b);
+      }
+    }
+    // Shoulder boards and a high stand collar.
+    const epauletL = part(new THREE.BoxGeometry(0.11, 0.025, 0.1), BRASS);
+    epauletL.position.set(-0.17, 1.525, 0);
+    epauletL.rotation.z = 0.12;
+    const epauletR = epauletL.clone();
+    epauletR.position.x = 0.17;
+    epauletR.rotation.z = -0.12;
+    const collar = part(new THREE.CylinderGeometry(0.075, 0.085, 0.07, 7), COAT_DARK);
+    collar.position.y = 1.55;
+
+    const head = part(new THREE.IcosahedronGeometry(0.115, 1), SKIN);
+    head.scale.set(0.92, 1.05, 0.98);
+    head.position.y = 1.68;
+    // Short, swept-back hair: a cap over the crown and the back of the head.
+    const hair = part(new THREE.IcosahedronGeometry(0.122, 1), HAIR);
+    hair.scale.set(0.95, 0.75, 1.02);
+    hair.position.set(0, 1.73, -0.02);
+
+    this.torso.add(
+      chest, this.coatTail, belt, buckle, chain, ...buttons, epauletL, epauletR, collar, head, hair,
+      this.armL.upper, this.armR.upper,
+    );
+    this.model.add(this.torso, this.legL.upper, this.legR.upper);
+    this.model.scale.setScalar(MODEL_SCALE);
+    this.root.add(this.model);
+    this.root.position.set(0, heightAt(0, 0), 0);
+    this.target.copy(this.root.position);
+  }
+
+  setTarget(point: THREE.Vector3) {
+    this.target.set(point.x, 0, point.z);
+    // Never aim inside a tree or a big rock; push the goal to its edge.
+    for (const o of this.obstacles) {
+      const dx = this.target.x - o.x;
+      const dz = this.target.z - o.z;
+      const min = o.r + BODY_RADIUS + 0.05;
+      const d = Math.hypot(dx, dz);
+      if (d < min) {
+        if (d < 1e-4) {
+          this.target.x = o.x + min;
+        } else {
+          this.target.x = o.x + (dx / d) * min;
+          this.target.z = o.z + (dz / d) * min;
+        }
+      }
+    }
+  }
+
+  update(dt: number) {
+    this.time += dt;
+    const pos = this.root.position;
+    const dx = this.target.x - pos.x;
+    const dz = this.target.z - pos.z;
+    const dist = Math.hypot(dx, dz);
+    const walking = dist > ARRIVE_RADIUS;
+
+    if (walking) {
+      const step = Math.min(dist, SPEED * dt);
+      pos.x += (dx / dist) * step;
+      pos.z += (dz / dist) * step;
+      this.resolveCollisions();
+      const desired = Math.atan2(dx, dz);
+      let delta = desired - this.heading;
+      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+      this.heading += delta * Math.min(1, TURN_RATE * dt);
+    }
+    pos.y = heightAt(pos.x, pos.z);
+    this.root.rotation.y = this.heading;
+
+    this.walkBlend += ((walking ? 1 : 0) - this.walkBlend) * Math.min(1, dt * 10);
+    this.walkPhase += ((SPEED / STRIDE) * Math.PI * 2 * dt) * this.walkBlend;
+    this.animate();
+  }
+
+  private animate() {
+    const s = Math.sin(this.walkPhase);
+    const c = Math.cos(this.walkPhase);
+    const w = this.walkBlend;
+    const idle = 1 - w;
+
+    // Legs swing from the hip; the knee bends only while the foot is travelling forward.
+    this.legL.upper.rotation.x = s * 0.5 * w;
+    this.legR.upper.rotation.x = -s * 0.5 * w;
+    this.legL.lower.rotation.x = Math.max(0, -c) * 0.9 * w;
+    this.legR.lower.rotation.x = Math.max(0, c) * 0.9 * w;
+
+    // Arms counter-swing with a measured, soldierly gait.
+    this.armL.upper.rotation.x = -s * 0.4 * w;
+    this.armR.upper.rotation.x = s * 0.4 * w;
+    this.armL.lower.rotation.x = -0.12 - Math.max(0, -s) * 0.3 * w;
+    this.armR.lower.rotation.x = -0.12 - Math.max(0, s) * 0.3 * w;
+
+    // The coat tails swing open a little behind the striding legs.
+    this.coatTail.rotation.x = Math.abs(s) * 0.12 * w;
+    this.coatTail.scale.x = 1 + Math.abs(s) * 0.08 * w;
+
+    // Small vertical bounce twice per cycle, a slight forward lean, and breathing when idle.
+    const bounce = Math.abs(Math.cos(this.walkPhase)) * 0.035 * w;
+    this.model.position.y = bounce * MODEL_SCALE;
+    this.torso.rotation.x = 0.06 * w;
+    this.torso.rotation.y = s * 0.08 * w;
+    this.torso.scale.y = 1 + Math.sin(this.time * 2.2) * 0.006 * idle;
+  }
+
+  private resolveCollisions() {
+    const pos = this.root.position;
+    for (const o of this.obstacles) {
+      const dx = pos.x - o.x;
+      const dz = pos.z - o.z;
+      const min = o.r + BODY_RADIUS;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < min * min && d2 > 1e-8) {
+        const d = Math.sqrt(d2);
+        pos.x = o.x + (dx / d) * min;
+        pos.z = o.z + (dz / d) * min;
+      }
+    }
+  }
+}

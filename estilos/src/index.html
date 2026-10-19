@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Cirquimia Estilos</title>
+    <style>
+      :root { --sky: #cfe8d6; --hud-bg: rgba(255,255,255,.72); --hud-fg: #23322a; --hud-border: rgba(35,50,42,.15); }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
+      }
+      :root[data-theme="dark"] { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); touch-action: none; overscroll-behavior: none; }
+      canvas { display: block; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
+      #hud { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; gap: 8px; align-items: center; pointer-events: none; font: 500 13px/1.2 system-ui, -apple-system, sans-serif; color: var(--hud-fg); }
+      #hud { flex-wrap: wrap; }
+      #hud > * { white-space: nowrap; background: var(--hud-bg); border: 1px solid var(--hud-border); border-radius: 999px; padding: 6px 12px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+      #hud select { pointer-events: auto; font: inherit; color: inherit; appearance: none; -webkit-appearance: none; cursor: pointer; }
+      #hud button { pointer-events: auto; font: inherit; color: inherit; cursor: pointer; }
+      #fps { margin-left: auto; font-variant-numeric: tabular-nums; }
+      #hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 70px); pointer-events: none; font: 500 12px/1.2 system-ui, -apple-system, sans-serif; color: var(--hud-fg); background: var(--hud-bg); border: 1px solid var(--hud-border); border-radius: 999px; padding: 5px 12px; white-space: nowrap; opacity: .85; transition: opacity .3s; }
+      #hint .aim, body.aiming #hint .idle { display: none; }
+      body.aiming #hint .aim { display: inline; }
+      body.aiming #hint { opacity: 1; }
+      #ink { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+      #ammo { position: fixed; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 8px; min-height: 54px; pointer-events: none; }
+      #ammo .slot { pointer-events: auto; width: 54px; height: 54px; padding: 6px; border-radius: 50%; border: 1px solid var(--hud-border); background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #b5761f; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s, box-shadow .15s; }
+      #ammo .slot svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linejoin: round; }
+      #ammo .slot.triangle { color: #b0482c; }
+      #ammo .slot.selected { transform: translateY(-8px) scale(1.08); box-shadow: 0 0 0 3px #ffc45c, 0 6px 18px rgba(255,170,60,.5); }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #ammo .slot { color: #ffd27a; } :root:not([data-theme="light"]) #ammo .slot.triangle { color: #ff9a76; } }
+      :root[data-theme="dark"] #ammo .slot { color: #ffd27a; } :root[data-theme="dark"] #ammo .slot.triangle { color: #ff9a76; }
+      body.aiming canvas { cursor: crosshair; }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <span>Cirquimia</span>
+      <select id="look" aria-label="Estética"></select>
+      <button id="tilt" type="button">Miniatura: on</button>
+      <span id="fps">-- fps</span>
+    </div>
+    <div id="hint"><span class="idle">Toca para caminar · dibuja ○ o △ de un trazo</span><span class="aim">Toca el mapa para lanzar el círculo</span></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
