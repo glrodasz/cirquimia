@@ -220,7 +220,7 @@ canvas.addEventListener('pointerup', (e) => {
   }
   drawing = false;
   const shape = recognize(stroke);
-  if (shape && !ammo.full) {
+  if (shape) {
     ink.end(shape);
     ammo.add(shape.kind, shape.cx, shape.cy);
   } else {
