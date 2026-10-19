@@ -28,7 +28,7 @@ const RHOMBUS_MAX_OPPOSITE_DIFF = 30; // degrees between opposite corners
 const STAR_MAX_TIP_ANGLE = 75; // degrees; a pentagram tip is ~36°
 const STAR_MAX_TIP_SPREAD = 0.25; // tip distance spread / mean tip distance
 const ROUNDED_SQUARE_MIN_SWELL = 0.04; // four-fold radius swell, relative to the mean radius
-const ROUNDED_SQUARE_DOMINANCE = 1.6; // ...and this many times any 2-, 3- or 5-fold swell
+const ROUNDED_SQUARE_DOMINANCE = 2.5; // ...and this many times all the other wobble together
 const LAP_NEAR = 0.2; // back within this fraction of the diagonal from the start closes a lap
 const LAP_MIN_LENGTH = 1.6; // a lap is at least this many diagonals long (circle ~2.2, diamond 2)
 
@@ -314,7 +314,7 @@ function recognizeLap(raw: Point[]): Recognized | null {
   const deviation = Math.sqrt(variance / pts.length) / mean;
   const sweep = sweepAround(pts, cx, cy);
   // A square with soft corners is fairly round too, but its radius swells four times per turn,
-  // toward the corners. When that four-fold swell clearly beats the lopsidedness of a squashed
+  // toward the corners. When that four-fold swell clearly beats all other wobble of a squashed
   // or wobbly circle, it is a square.
   if (deviation < CIRCLE_MAX_DEVIATION * 1.5 && Math.abs(sweep) > CIRCLE_MIN_SWEEP) {
     const harmonic = (k: number) => {
@@ -328,7 +328,8 @@ function recognizeLap(raw: Point[]): Recognized | null {
       return { amp: (2 * Math.hypot(re, im)) / pts.length, phase: Math.atan2(im, re) };
     };
     const h4 = harmonic(4);
-    const others = Math.max(harmonic(2).amp, harmonic(3).amp, harmonic(5).amp);
+    // A square is four-fold symmetric, so any swell that is not a multiple of four is wobble.
+    const others = Math.hypot(...[2, 3, 5, 6, 7, 9, 10].map((k) => harmonic(k).amp));
     if (h4.amp > ROUNDED_SQUARE_MIN_SWELL && h4.amp > others * ROUNDED_SQUARE_DOMINANCE) {
       // Corners point where the radius peaks; the sides sit 45° off that.
       const theta = h4.phase / 4 - Math.PI / 4;
@@ -345,10 +346,10 @@ function recognizeLap(raw: Point[]): Recognized | null {
         const a = rot + (i * Math.PI) / 2;
         return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
       });
+      // Only a square sitting roughly flat; a soft diamond stays a circle rather than risk a wobbly one.
       if (Math.abs(turn) <= SQUARE_MAX_TILT) {
         return { kind: 'square', cx, cy, r: half * Math.SQRT2, corners: corners(t - (3 * Math.PI) / 4, half * Math.SQRT2) };
       }
-      return { kind: 'rhombus', cx, cy, r: half * Math.SQRT2, corners: corners(t - (3 * Math.PI) / 4, half * Math.SQRT2) };
     }
   }
 
