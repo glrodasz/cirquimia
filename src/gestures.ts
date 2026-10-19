@@ -11,6 +11,8 @@ export interface Recognized {
   r: number;
   /** Corners in drawing order (screen pixels); star tips for a pentagram; empty for a circle. */
   corners: Point[];
+  /** How many times the stroke went round the shape (1 unless it was traced over again). */
+  laps?: number;
 }
 
 const MIN_SIZE = 70; // px: bounding-box diagonal below this is a scribble, not a shape
@@ -25,6 +27,8 @@ const RHOMBUS_MIN_ANGLE = 35; // degrees, smallest allowed corner
 const RHOMBUS_MAX_OPPOSITE_DIFF = 30; // degrees between opposite corners
 const STAR_MAX_TIP_ANGLE = 75; // degrees; a pentagram tip is ~36°
 const STAR_MAX_TIP_SPREAD = 0.25; // tip distance spread / mean tip distance
+const LAP_NEAR = 0.2; // back within this fraction of the diagonal from the start closes a lap
+const LAP_MIN_LENGTH = 1.6; // a lap is at least this many diagonals long (circle ~2.2, diamond 2)
 
 /** Resample to evenly spaced points so speed doesn't skew the measurements. */
 function resample(points: Point[], n: number): Point[] {
@@ -123,7 +127,52 @@ function sweepAround(points: Point[], cx: number, cy: number) {
   return sweep;
 }
 
+/**
+ * Recognizes a shape even when it was traced over more than once in the same stroke: each time the
+ * stroke comes back to its start after a full lap, the part up to there is tried as the shape.
+ * A pentagram never passes its start mid-stroke, so it is still read from the whole stroke.
+ */
 export function recognize(raw: Point[]): Recognized | null {
+  const along = [0];
+  for (let i = 1; i < raw.length; i++) along.push(along[i - 1] + dist(raw[i - 1], raw[i]));
+  const total = along[along.length - 1];
+  for (const end of lapEnds(raw, along)) {
+    const shape = recognizeLap(raw.slice(0, end + 1));
+    if (shape) return { ...shape, laps: total / along[end] };
+  }
+  return recognizeLap(raw);
+}
+
+/** Indices where the stroke closes a lap: back near its start after travelling a full outline. */
+function lapEnds(raw: Point[], along: number[]): number[] {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of raw) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const diag = Math.hypot(maxX - minX, maxY - minY);
+  const near = diag * LAP_NEAR;
+  const total = along[along.length - 1];
+  const ends: number[] = [];
+  let best = -1;
+  for (let i = 1; i < raw.length; i++) {
+    // Leave the last stretch to the whole-stroke check: ending at the start is just a closed shape.
+    if (along[i] < diag * LAP_MIN_LENGTH || total - along[i] < diag * LAP_MIN_LENGTH * 0.5) continue;
+    const d = dist(raw[i], raw[0]);
+    if (d < near) {
+      if (best < 0 || d < dist(raw[best], raw[0])) best = i;
+    } else if (best >= 0) {
+      ends.push(best);
+      best = -1;
+    }
+  }
+  if (best >= 0) ends.push(best);
+  return ends;
+}
+
+function recognizeLap(raw: Point[]): Recognized | null {
   if (raw.length < 8) return null;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of raw) {
@@ -301,6 +350,7 @@ export function idealPath(s: Recognized, stroke: Point[]): Point[] {
   const lengths = [0];
   for (let i = 0; i < n; i++) lengths.push(lengths[i] + dist(poly[i], poly[(i + 1) % n]));
   const perimeter = lengths[n];
+  const laps = s.laps ?? 1;
 
   // Start where the stroke started, projected onto the outline.
   let start = 0;
@@ -322,7 +372,7 @@ export function idealPath(s: Recognized, stroke: Point[]): Point[] {
   const total = along[along.length - 1] || 1;
   let seg = 0;
   return along.map((l) => {
-    const target = (start + (l / total) * perimeter) % perimeter;
+    const target = (start + (l / total) * perimeter * laps) % perimeter;
     while (seg > 0 && lengths[seg] > target) seg--;
     while (lengths[seg + 1] < target) seg++;
     const a = poly[seg];
