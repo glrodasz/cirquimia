@@ -27,6 +27,8 @@ const RHOMBUS_MIN_ANGLE = 35; // degrees, smallest allowed corner
 const RHOMBUS_MAX_OPPOSITE_DIFF = 30; // degrees between opposite corners
 const STAR_MAX_TIP_ANGLE = 75; // degrees; a pentagram tip is ~36°
 const STAR_MAX_TIP_SPREAD = 0.25; // tip distance spread / mean tip distance
+const ROUNDED_SQUARE_MIN_SWELL = 0.04; // four-fold radius swell, relative to the mean radius
+const ROUNDED_SQUARE_DOMINANCE = 1.6; // ...and this many times any 2-, 3- or 5-fold swell
 const LAP_NEAR = 0.2; // back within this fraction of the diagonal from the start closes a lap
 const LAP_MIN_LENGTH = 1.6; // a lap is at least this many diagonals long (circle ~2.2, diamond 2)
 
@@ -311,7 +313,46 @@ function recognizeLap(raw: Point[]): Recognized | null {
   for (const p of pts) variance += (Math.hypot(p.x - cx, p.y - cy) - mean) ** 2;
   const deviation = Math.sqrt(variance / pts.length) / mean;
   const sweep = sweepAround(pts, cx, cy);
-  // A square is fairly round too; a real circle never simplifies to four corners or fewer.
+  // A square with soft corners is fairly round too, but its radius swells four times per turn,
+  // toward the corners. When that four-fold swell clearly beats the lopsidedness of a squashed
+  // or wobbly circle, it is a square.
+  if (deviation < CIRCLE_MAX_DEVIATION * 1.5 && Math.abs(sweep) > CIRCLE_MIN_SWEEP) {
+    const harmonic = (k: number) => {
+      let re = 0, im = 0;
+      for (const p of pts) {
+        const a = Math.atan2(p.y - cy, p.x - cx) * k;
+        const d = Math.hypot(p.x - cx, p.y - cy) / mean - 1;
+        re += d * Math.cos(a);
+        im += d * Math.sin(a);
+      }
+      return { amp: (2 * Math.hypot(re, im)) / pts.length, phase: Math.atan2(im, re) };
+    };
+    const h4 = harmonic(4);
+    const others = Math.max(harmonic(2).amp, harmonic(3).amp, harmonic(5).amp);
+    if (h4.amp > ROUNDED_SQUARE_MIN_SWELL && h4.amp > others * ROUNDED_SQUARE_DOMINANCE) {
+      // Corners point where the radius peaks; the sides sit 45° off that.
+      const theta = h4.phase / 4 - Math.PI / 4;
+      const turn = (((theta * 180) / Math.PI + 45) % 90 + 90) % 90 - 45;
+      const t = (turn * Math.PI) / 180;
+      let half = 0;
+      for (const p of pts) {
+        const u = (p.x - cx) * Math.cos(t) + (p.y - cy) * Math.sin(t);
+        const v = -(p.x - cx) * Math.sin(t) + (p.y - cy) * Math.cos(t);
+        half = Math.max(half, (Math.abs(u) + Math.abs(v)) / 2);
+      }
+      half = (half + mean / 1.15) / 2; // between the drawn corners and the rounded outline
+      const corners = (rot: number, r: number) => [0, 1, 2, 3].map((i) => {
+        const a = rot + (i * Math.PI) / 2;
+        return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
+      });
+      if (Math.abs(turn) <= SQUARE_MAX_TILT) {
+        return { kind: 'square', cx, cy, r: half * Math.SQRT2, corners: corners(t - (3 * Math.PI) / 4, half * Math.SQRT2) };
+      }
+      return { kind: 'rhombus', cx, cy, r: half * Math.SQRT2, corners: corners(t - (3 * Math.PI) / 4, half * Math.SQRT2) };
+    }
+  }
+
+  // A real circle never simplifies to four corners or fewer.
   if (poly.length > 4 && deviation < CIRCLE_MAX_DEVIATION && Math.abs(sweep) > CIRCLE_MIN_SWEEP) {
     return { kind: 'circle', cx, cy, r: mean, corners: [] };
   }
