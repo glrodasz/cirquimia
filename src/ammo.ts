@@ -36,13 +36,10 @@ export class AmmoBar {
     return this.selected !== null;
   }
 
-  get full() {
-    return this.bar.children.length >= MAX_SLOTS;
-  }
-
-  /** Adds a slot; the icon flies in from where the shape was drawn. */
+  /** Adds a slot; the icon flies in from where the shape was drawn. When full, the oldest slot drops out. */
   add(kind: ShapeKind, fromX: number, fromY: number) {
-    if (this.full) return false;
+    const live = [...this.bar.querySelectorAll<HTMLButtonElement>('.slot:not(:disabled)')];
+    if (live.length >= MAX_SLOTS) this.discard(live[0]);
     const slot = document.createElement('button');
     slot.type = 'button';
     slot.className = `slot ${kind}`;
@@ -64,6 +61,19 @@ export class AmmoBar {
       { duration: 420, easing: 'cubic-bezier(.2,.8,.3,1)' },
     );
     return true;
+  }
+
+  private discard(slot: HTMLButtonElement) {
+    if (slot === this.selected) this.select(null);
+    slot.disabled = true;
+    const out = slot.animate(
+      [
+        { transform: 'scale(1)', opacity: 1 },
+        { transform: 'translateY(16px) scale(0.6)', opacity: 0 },
+      ],
+      { duration: 200, easing: 'ease-in' },
+    );
+    out.onfinish = () => slot.remove();
   }
 
   select(slot: HTMLButtonElement | null) {
