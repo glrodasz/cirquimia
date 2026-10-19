@@ -2,7 +2,7 @@
 
 A low-poly meadow that fills the screen. Tap or click anywhere and the alchemist walks there.
 
-Draw a circle, a triangle (pointing up or down), a square, a rhombus or a five-point star (pentagram) in one stroke to make a transmutation circle; it is stored at the bottom of the screen (up to 6). Tap a stored circle, then tap the map to use it (for now it only shows an impact ring and spends the circle).
+Draw a circle, a triangle (pointing up or down), a square, a rhombus or a five-point star (pentagram) in one stroke (tracing over it again before lifting the finger still counts) to make a transmutation circle; it is stored at the bottom of the screen (up to 6). Tap a stored circle, then tap the map to use it (for now it only shows an impact ring and spends the circle).
 
 ## Run
 
