@@ -183,6 +183,13 @@ export class Character {
     }
   }
 
+  /** Turns to face a point, e.g. where a circle is being cast. */
+  face(point: THREE.Vector3) {
+    const dx = point.x - this.root.position.x;
+    const dz = point.z - this.root.position.z;
+    if (dx * dx + dz * dz > 1e-6) this.heading = Math.atan2(dx, dz);
+  }
+
   update(dt: number) {
     this.time += dt;
     const pos = this.root.position;

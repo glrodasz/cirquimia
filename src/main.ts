@@ -9,6 +9,7 @@ import { tiltShiftShader } from './tiltShift';
 import { recognize, type Point } from './gestures';
 import { Ink } from './ink';
 import { AmmoBar } from './ammo';
+import { Spells } from './spells';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -60,6 +61,8 @@ const impact = new TapMarker('#ffb35c', 3.5);
 scene.add(marker.mesh, impact.mesh);
 const ink = new Ink();
 const ammo = new AmmoBar();
+const spells = new Spells(world.obstacles);
+scene.add(spells.root);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 mountDevTools(world, () => {
@@ -169,14 +172,17 @@ function keepHeroOnScreen() {
   }
 }
 
-/** A quick tap walks there, or fires the selected circle at that spot. */
+/** A quick tap walks there, or casts the selected circle: circle = earth wall around the alchemist, square = pillars at that spot. */
 function tapAt(clientX: number, clientY: number) {
   const x = (clientX / innerWidth) * 2 - 1;
   const y = -(clientY / innerHeight) * 2 + 1;
   if (!groundFromNdc(x, y, hit)) return;
   if (ammo.aiming) {
-    ammo.spend();
-    impact.show(hit.x, hit.z);
+    const kind = ammo.spend();
+    hero.face(hit);
+    if (kind === 'circle') spells.wall(hero.root.position, hit);
+    else if (kind === 'square') spells.pillars(hero.root.position, hit);
+    else impact.show(hit.x, hit.z);
     return;
   }
   hero.setTarget(hit);
@@ -251,6 +257,7 @@ renderer.setAnimationLoop((time) => {
   world.update(dt);
   marker.update(dt);
   impact.update(dt);
+  spells.update(dt);
   ink.update(dt);
 
   renderer.setRenderTarget(sceneTarget);
