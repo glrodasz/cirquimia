@@ -322,6 +322,16 @@ export class Spells {
     this.start(new PillarStrike(at.x, at.z, caster));
   }
 
+  /** Drops every effect at once, e.g. when a new meadow replaces the terrain they were built on. */
+  clear() {
+    for (const effect of this.active) {
+      this.setBlocking(effect, false);
+      this.root.remove(effect.group);
+      effect.dispose();
+    }
+    this.active.length = 0;
+  }
+
   private start(effect: EarthWall | PillarStrike) {
     this.active.push(effect);
     this.root.add(effect.group);

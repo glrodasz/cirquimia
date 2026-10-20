@@ -66,6 +66,7 @@ scene.add(spells.root);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 mountDevTools(world, () => {
+  spells.clear();
   hero.root.position.set(0, heightAt(0, 0), 0);
   hero.setTarget(hero.root.position);
 });
