@@ -10,6 +10,7 @@ import { recognize, type Point } from './gestures';
 import { Ink } from './ink';
 import { AmmoBar } from './ammo';
 import { Spells } from './spells';
+import type { Kind } from './generator';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -173,16 +174,47 @@ function keepHeroOnScreen() {
   }
 }
 
-/** A quick tap walks there, or casts the selected circle: circle = earth wall around the alchemist, square = pillars at that spot. */
+// Where fire and water can be drawn from: campfires and scorched craters burn, ponds hold water.
+const SOURCES: Record<'fire' | 'water', Kind[]> = { fire: ['fogata', 'crater'], water: ['estanque'] };
+const SOURCE_MARGIN = 0.3; // taps this close to a source's edge still count
+
+/** The centre of the fire or water source under a tapped point, or null if there is none. */
+function sourceAt(point: THREE.Vector3, element: 'fire' | 'water'): THREE.Vector3 | null {
+  for (const f of world.layout.features) {
+    if (!SOURCES[element].includes(f.kind)) continue;
+    if (Math.hypot(point.x - f.x, point.z - f.z) <= f.r + SOURCE_MARGIN) return new THREE.Vector3(f.x, heightAt(f.x, f.z), f.z);
+  }
+  return null;
+}
+
+/**
+ * A quick tap walks there, or casts the selected circle: circle = earth wall around the alchemist,
+ * square = pillars at that spot, triangles = fire / water drawn from a source and then cast like the square.
+ */
 function tapAt(clientX: number, clientY: number) {
   const x = (clientX / innerWidth) * 2 - 1;
   const y = -(clientY / innerHeight) * 2 + 1;
   if (!groundFromNdc(x, y, hit)) return;
-  if (ammo.aiming) {
-    const kind = ammo.spend();
+  const selected = ammo.selection();
+  if (selected) {
+    // Triangles first draw fire or water out of a source on the map; the next tap casts it.
+    const element = selected.kind === 'triangle' ? 'fire' : selected.kind === 'triangleDown' ? 'water' : null;
+    if (element && !selected.charged) {
+      const source = sourceAt(hit, element);
+      if (!source) {
+        ammo.reject();
+        return;
+      }
+      ammo.charge();
+      hero.face(source);
+      spells.channel(source, hero.root.position, element);
+      return;
+    }
+    ammo.spend();
     hero.face(hit);
-    if (kind === 'circle') spells.wall(hero.root.position, hit);
-    else if (kind === 'square') spells.pillars(hero.root.position, hit);
+    if (selected.kind === 'circle') spells.wall(hero.root.position, hit);
+    else if (selected.kind === 'square') spells.pillars(hero.root.position, hit);
+    else if (element) spells.pillars(hero.root.position, hit, element);
     else impact.show(hit.x, hit.z);
     return;
   }

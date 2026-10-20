@@ -16,6 +16,10 @@ const PILLAR_HOLD = 0.55; // about a second from eruption to buried again
 const PILLAR_SINK = 0.3;
 const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist wide
 
+// Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
+export type Element = 'earth' | 'fire' | 'water';
+const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
+
 // Bruma earth tones: grey rock, dry dirt, dark soil.
 const ROCK = ['#8c9496', '#7d8584', '#9a9d95'];
 const EARTH = ['#a39c86', '#8f8672', '#7a7262'];
@@ -26,6 +30,17 @@ const rockGeo = new THREE.DodecahedronGeometry(0.5, 0).translate(0, 0.5, 0);
 // Four-sided prism with a slightly narrower top, base at y = 0, side 1 and height 1.
 const pillarGeo = new THREE.CylinderGeometry(Math.SQRT1_2 * 0.82, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).translate(0, 0.5, 0);
 const crackGeo = new THREE.CircleGeometry(1, 7).rotateX(-Math.PI / 2);
+// Faceted flame tongues and water spouts, base at y = 0, width 1 and height 1.
+const flameGeo = new THREE.ConeGeometry(0.5, 1, 5, 1).translate(0, 0.5, 0);
+const spoutGeo = new THREE.CylinderGeometry(0.3, 0.5, 1, 6, 1).translate(0, 0.5, 0);
+const orbGeo = new THREE.IcosahedronGeometry(1, 0);
+
+// Muted to sit in the Bruma palette, but lit from within so they still read as fire and water.
+const FIRE = ['#f08a3a', '#f4a94c', '#e0663a'];
+const FIRE_CORE = '#ffd67a';
+const WATER = ['#7fb3c2', '#93c4cf', '#6a9fb1'];
+const WATER_FOAM = '#d9ecef';
+const WARNING: Record<Element, string> = { earth: SOIL, fire: '#c4552c', water: '#2f5866' };
 
 const tmpColor = new THREE.Color();
 const easeOutBack = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
@@ -228,7 +243,10 @@ function wallSegment(cx: number, cz: number, a: Section, b: Section, capStart: b
   return geo;
 }
 
-/** A tremor on the ground, then a main square pillar and a few small ones bursting out on a slant. */
+/**
+ * A tremor on the ground, then the strike breaks out: slanted square pillars of rock (square),
+ * a burst of flame tongues (fire triangle) or a spout of water (water triangle).
+ */
 class PillarStrike extends Effect {
   readonly obstacles: Obstacle[] = [];
   private readonly crack: THREE.Mesh;
@@ -236,8 +254,26 @@ class PillarStrike extends Effect {
   /** Set when the strike lands inside a standing wall's zone: the warning shows but nothing erupts. */
   blocked = false;
 
-  constructor(readonly x: number, readonly z: number, from: THREE.Vector3) {
+  constructor(readonly x: number, readonly z: number, from: THREE.Vector3, readonly element: Element = 'earth') {
     super(PILLAR_WARN, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
+    if (element === 'earth') this.buildPillars(from);
+    else this.buildFluid(element === 'fire');
+
+    // Warning: a patch of dark, trembling soil (or glowing embers, or seeping water) the size of the strike.
+    this.crackMaterial = new THREE.MeshBasicMaterial({ color: WARNING[element], transparent: true, opacity: 0, depthWrite: false });
+    this.crack = new THREE.Mesh(crackGeo, this.crackMaterial);
+    this.crack.position.set(x, heightAt(x, z) + 0.03, z);
+    // Lie flat on the slope instead of floating half out of it.
+    const e = 0.05;
+    const normal = new THREE.Vector3(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
+    this.crack.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    this.crack.scale.setScalar(PILLAR_AREA * 1.5);
+    this.crack.renderOrder = 1;
+    this.group.add(this.crack);
+  }
+
+  private buildPillars(from: THREE.Vector3) {
+    const { x, z } = this;
     // The pillars lean away from the caster, as if driven up from underneath at an angle.
     const away = Math.atan2(x - from.x, z - from.z);
     const lean = THREE.MathUtils.randFloat(0.3, 0.45);
@@ -251,28 +287,45 @@ class PillarStrike extends Effect {
     for (let i = 0; i < small; i++) {
       const a = (i / small) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.6);
       const d = PILLAR_AREA * THREE.MathUtils.randFloat(0.55, 1);
-      const px = x + Math.sin(a) * d;
-      const pz = z + Math.cos(a) * d;
       const h = THREE.MathUtils.randFloat(0.12, 0.26);
       const w = THREE.MathUtils.randFloat(0.05, 0.085);
       tmpColor.set((Math.random() < 0.6 ? ROCK : EARTH)[Math.floor(Math.random() * 3)]);
-      const mesh = this.addPiece(pillarGeo, tmpColor, px, pz, h, THREE.MathUtils.randFloat(0.02, 0.07));
+      const mesh = this.addPiece(pillarGeo, tmpColor, x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0.02, 0.07));
       mesh.scale.set(w, h, w);
       // Small pillars splay outward from the main one.
       mesh.rotation.set(THREE.MathUtils.randFloat(0.25, 0.55), a + THREE.MathUtils.randFloatSpread(0.4), 0, 'YXZ');
     }
+  }
 
-    // Warning: a patch of dark, trembling soil the size of the strike.
-    this.crackMaterial = new THREE.MeshBasicMaterial({ color: SOIL, transparent: true, opacity: 0, depthWrite: false });
-    this.crack = new THREE.Mesh(crackGeo, this.crackMaterial);
-    this.crack.position.set(x, heightAt(x, z) + 0.03, z);
-    // Lie flat on the slope instead of floating half out of it.
-    const e = 0.05;
-    const normal = new THREE.Vector3(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
-    this.crack.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-    this.crack.scale.setScalar(PILLAR_AREA * 1.5);
-    this.crack.renderOrder = 1;
-    this.group.add(this.crack);
+  /** Flame tongues or water spouts: a tall core with shorter ones around it, all swaying while up. */
+  private buildFluid(fire: boolean) {
+    const { x, z } = this;
+    const palette = fire ? FIRE : WATER;
+    const add = (px: number, pz: number, w: number, h: number, color: string, delay: number, tilt: number, toward: number) => {
+      const mesh = this.addPiece(fire ? flameGeo : spoutGeo, color, px, pz, h, delay);
+      const m = mesh.material as THREE.MeshLambertMaterial;
+      // Lit from within so it glows against the muted meadow.
+      m.emissive.set(color).multiplyScalar(fire ? 0.75 : 0.35);
+      if (!fire) {
+        m.transparent = true;
+        m.opacity = 0.82;
+      }
+      mesh.castShadow = fire ? false : true;
+      mesh.scale.set(w, h, w);
+      mesh.rotation.set(tilt, toward, 0, 'YXZ');
+      mesh.userData.base = mesh.scale.clone();
+      mesh.userData.phase = Math.random() * 10;
+    };
+    add(x, z, fire ? 0.2 : 0.16, fire ? 0.5 : 0.55, palette[0], 0, THREE.MathUtils.randFloatSpread(0.1), 0);
+    add(x, z, fire ? 0.11 : 0.08, fire ? 0.36 : 0.62, fire ? FIRE_CORE : WATER_FOAM, 0.02, 0, 0);
+    const small = THREE.MathUtils.randInt(5, 7);
+    for (let i = 0; i < small; i++) {
+      const a = (i / small) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.6);
+      const d = PILLAR_AREA * THREE.MathUtils.randFloat(0.45, 0.95);
+      const h = THREE.MathUtils.randFloat(0.14, 0.3);
+      const w = THREE.MathUtils.randFloat(0.06, 0.1);
+      add(x + Math.sin(a) * d, z + Math.cos(a) * d, w, h, palette[i % palette.length], THREE.MathUtils.randFloat(0.02, 0.08), THREE.MathUtils.randFloat(0.15, 0.4), a);
+    }
   }
 
   /** True on the frame the warning ends. */
@@ -284,6 +337,16 @@ class PillarStrike extends Effect {
     if (this.blocked) {
       for (const p of this.pieces) p.mesh.visible = false;
       this.solid = false;
+    }
+    if (this.element !== 'earth') {
+      // Flames lick and water churns: each tongue breathes in height and width on its own beat.
+      const fast = this.element === 'fire' ? 22 : 14;
+      for (const p of this.pieces) {
+        const base = p.mesh.userData.base as THREE.Vector3;
+        const k = this.age * fast + (p.mesh.userData.phase as number);
+        const w = 1 + Math.sin(k * 1.3) * 0.12;
+        p.mesh.scale.set(base.x * w, base.y * (1 + Math.sin(k) * 0.15), base.z * w);
+      }
     }
     if (t < 0) {
       // Grows and shudders during the warning so a target can still step out.
@@ -305,10 +368,55 @@ class PillarStrike extends Effect {
   }
 }
 
+/** Fire or water drawn out of its source: a few glowing beads arc over to the alchemist. */
+class Channel {
+  readonly group = new THREE.Group();
+  readonly obstacles: Obstacle[] = [];
+  readonly solid = false;
+  done = false;
+  private age = 0;
+  private readonly beads: { mesh: THREE.Mesh; delay: number; lift: number }[] = [];
+  private readonly material: THREE.MeshLambertMaterial;
+  private readonly from: THREE.Vector3;
+
+  constructor(from: THREE.Vector3, private readonly to: THREE.Vector3, fire: boolean) {
+    this.from = from.clone();
+    const color = fire ? FIRE[0] : WATER[0];
+    this.material = new THREE.MeshLambertMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.8), flatShading: true });
+    for (let i = 0; i < 6; i++) {
+      const mesh = new THREE.Mesh(orbGeo, this.material);
+      mesh.scale.setScalar(THREE.MathUtils.randFloat(0.03, 0.05));
+      mesh.visible = false;
+      this.group.add(mesh);
+      this.beads.push({ mesh, delay: i * 0.05, lift: THREE.MathUtils.randFloat(0.5, 0.8) });
+    }
+  }
+
+  update(dt: number) {
+    this.age += dt;
+    const target = this.to;
+    for (const b of this.beads) {
+      const t = (this.age - b.delay) / CHANNEL_TIME;
+      b.mesh.visible = t > 0 && t < 1;
+      if (!b.mesh.visible) continue;
+      const e = t * t * (3 - 2 * t);
+      b.mesh.position.lerpVectors(this.from, target, e);
+      b.mesh.position.y += 0.3 + Math.sin(Math.PI * e) * b.lift;
+    }
+    if (this.age > CHANNEL_TIME + 0.4) this.done = true;
+  }
+
+  dispose() {
+    this.material.dispose();
+  }
+}
+
+type Active = EarthWall | PillarStrike | Channel;
+
 /** What each transmutation circle does once it is spent on the map. */
 export class Spells {
   readonly root = new THREE.Group();
-  private readonly active: (EarthWall | PillarStrike)[] = [];
+  private readonly active: Active[] = [];
 
   constructor(private readonly obstacles: Obstacle[]) {}
 
@@ -317,9 +425,14 @@ export class Spells {
     this.start(new EarthWall(caster.x, caster.z, toward));
   }
 
-  /** Strikes the tapped point with pillars after a short ground warning. */
-  pillars(caster: THREE.Vector3, at: THREE.Vector3) {
-    this.start(new PillarStrike(at.x, at.z, caster));
+  /** Strikes the tapped point after a short ground warning: rock pillars, or fire or water drawn earlier. */
+  pillars(caster: THREE.Vector3, at: THREE.Vector3, element: Element = 'earth') {
+    this.start(new PillarStrike(at.x, at.z, caster, element));
+  }
+
+  /** Shows fire or water being drawn from a source into the alchemist (who is followed while it flies). */
+  channel(source: THREE.Vector3, caster: THREE.Vector3, element: 'fire' | 'water') {
+    this.start(new Channel(source, caster, element === 'fire'));
   }
 
   /** Drops every effect at once, e.g. when a new meadow replaces the terrain they were built on. */
@@ -332,12 +445,12 @@ export class Spells {
     this.active.length = 0;
   }
 
-  private start(effect: EarthWall | PillarStrike) {
+  private start(effect: Active) {
     this.active.push(effect);
     this.root.add(effect.group);
   }
 
-  private setBlocking(effect: EarthWall | PillarStrike, on: boolean) {
+  private setBlocking(effect: Active, on: boolean) {
     for (const o of effect.obstacles) {
       const k = this.obstacles.indexOf(o);
       if (on && k < 0) this.obstacles.push(o);
