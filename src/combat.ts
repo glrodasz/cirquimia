@@ -14,6 +14,10 @@ const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 2;
 
+export type Fluid = 'fire' | 'water';
+/** The nearest fire or water source the fighter at `from` could draw from, or null if there is none in play. */
+export type SourceFinder = (element: Fluid, from: THREE.Vector3) => THREE.Vector3 | null;
+
 export type Difficulty = 'facil' | 'normal' | 'dificil';
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil' };
 
@@ -30,7 +34,7 @@ interface Tuning {
   /** Chance of stepping out of an incoming strike, and how fast it reacts. */
   dodge: number;
   reaction: number;
-  /** Chance an attack is fire or water (35) instead of pillars (20). */
+  /** Chance of drawing fire or water (35) from a source before attacking, instead of using pillars (20). */
   elemental: number;
 }
 
@@ -136,6 +140,8 @@ class Rival extends Fighter {
   private dodgeTimer = -1;
   private dodgeFrom = new THREE.Vector3();
   private foe: Fighter | null = null;
+  /** Fire or water already drawn from a source, kept until the next attack. */
+  private charged: Fluid | null = null;
   private retarget = 0;
 
   constructor(
@@ -207,6 +213,20 @@ class Rival extends Fighter {
     this.attackTimer -= dt;
     if (this.attackTimer <= 0) {
       this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
+      // Fire and water have to be drawn from a source on the map first, like the player does; that takes this turn.
+      if (!this.charged && Math.random() < this.tuning.elemental) {
+        const order: Fluid[] = Math.random() < 0.5 ? ['fire', 'water'] : ['water', 'fire'];
+        for (const element of order) {
+          const source = combat.findSource(element, pos);
+          if (!source) continue;
+          this.charged = element;
+          this.body.face(source);
+          this.body.cast();
+          combat.channel(this, source, element);
+          this.attackTimer = THREE.MathUtils.randFloat(0.8, 1.4);
+          return;
+        }
+      }
       const aim = target.clone();
       if (this.tuning.leads && dt > 0) {
         // Where the foe will be when the warning ends, if it keeps walking.
@@ -219,7 +239,8 @@ class Rival extends Fighter {
       aim.x += Math.sin(a) * e;
       aim.z += Math.cos(a) * e;
       aim.y = heightAt(aim.x, aim.z);
-      const element: Element = Math.random() < this.tuning.elemental ? (Math.random() < 0.5 ? 'fire' : 'water') : 'earth';
+      const element: Element = this.charged ?? 'earth';
+      this.charged = null;
       this.body.face(aim);
       this.body.cast();
       combat.strikeFrom(this, aim, element, this.tuning.warn);
@@ -249,6 +270,7 @@ export class Combat {
     private readonly spells: Spells,
     private readonly camera: THREE.Camera,
     private readonly onScreen: (p: THREE.Vector3) => boolean,
+    readonly findSource: SourceFinder,
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
     spells.onStrike = (x, z, element, caster) => this.strike(x, z, element, caster);
@@ -275,6 +297,11 @@ export class Combat {
   /** The alchemist strikes a point. */
   cast(at: THREE.Vector3, element: Element) {
     this.strikeFrom(this.hero, at, element);
+  }
+
+  /** Shows fire or water flying from its source into a rival. */
+  channel(rival: Rival, source: THREE.Vector3, element: Fluid) {
+    this.spells.channel(source, rival.position, element);
   }
 
   /** A strike in the caster's ink; rivals near the warning may try to step out of it. */

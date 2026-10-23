@@ -70,7 +70,18 @@ const onScreen = (p: THREE.Vector3) => {
   const q = new THREE.Vector3(p.x, heightAt(p.x, p.z), p.z).project(camera);
   return Math.abs(q.x) < INSET_X * 0.92 && Math.abs(q.y) < INSET_Y * 0.92;
 };
-const combat = new Combat(hero, world.obstacles, spells, camera, onScreen);
+// Rivals draw fire and water like the player: only from a source on screen, the nearest one.
+const findSource = (element: 'fire' | 'water', from: THREE.Vector3) => {
+  let best: THREE.Vector3 | null = null;
+  for (const f of world.layout.features) {
+    if (!SOURCES[element].includes(f.kind)) continue;
+    const at = new THREE.Vector3(f.x, heightAt(f.x, f.z), f.z);
+    if (!onScreen(at)) continue;
+    if (!best || at.distanceToSquared(from) < best.distanceToSquared(from)) best = at;
+  }
+  return best;
+};
+const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource);
 scene.add(combat.root);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
@@ -251,6 +262,7 @@ function tapAt(clientX: number, clientY: number) {
 
 // One finger at a time: a short press is a tap, anything that travels further is a drawing.
 const DRAW_THRESHOLD = 12; // px
+const AIM_SLOP = 40; // px a tap may wander while a circle is selected
 let activePointer: number | null = null;
 let drawing = false;
 let stroke: Point[] = [];
@@ -291,6 +303,9 @@ canvas.addEventListener('pointerup', (e) => {
     ammo.add(shape.kind, shape.cx, shape.cy);
   } else {
     ink.end(null);
+    // With a circle selected, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
+    const start = stroke[0];
+    if (ammo.aiming && stroke.every((p) => Math.hypot(p.x - start.x, p.y - start.y) < AIM_SLOP)) tapAt(start.x, start.y);
   }
 });
 canvas.addEventListener('pointercancel', (e) => {
