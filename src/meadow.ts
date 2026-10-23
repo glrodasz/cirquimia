@@ -48,7 +48,7 @@ function buildGround(seed: number, paint: GroundPaint): THREE.Mesh {
     const patch = patchAt(cx, cz);
     color.copy(dark).lerp(light, patch);
     if (patch > 0.78) color.lerp(dry, (patch - 0.78) * 2.5);
-    color.lerp(wet, paint.wetAt(cx, cz) * 0.6);
+    color.lerp(wet, paint.wetAt(cx, cz) * 0.3);
     color.lerp(dirt, paint.dirtAt(cx, cz) * 0.85);
     color.lerp(burnt, paint.scorchAt(cx, cz) * 0.7);
     color.offsetHSL(0, 0, (rand() - 0.5) * 0.04);

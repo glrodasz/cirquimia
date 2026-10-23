@@ -13,7 +13,7 @@ const KO_TIME = 1.4;
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 2;
-const RUNE_BOOST = 1.1;
+const RUNE_BOOST = 1.25;
 const auraGeo = new THREE.RingGeometry(0.18, 0.24, 32).rotateX(-Math.PI / 2);
 
 export type Fluid = 'fire' | 'water';
@@ -342,7 +342,7 @@ export class Combat {
 
   /** A strike in the caster's ink; rivals near the warning may try to step out of it. */
   strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number) {
-    // Cast from inside a rune circle, the strike covers 10% more ground.
+    // Cast from inside a rune circle, the strike is 25% bigger.
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
     // Aimed into a standing wall's zone, it never starts: only a cross where it would have broken out.
     if (this.spells.shielded(at.x, at.z)) {
