@@ -13,6 +13,7 @@ const KO_TIME = 1.4;
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 2;
+const RUNE_BOOST = 1.1;
 
 export type Fluid = 'fire' | 'water';
 /** The nearest fire or water source the fighter at `from` could draw from, or null if there is none in play. */
@@ -271,9 +272,10 @@ export class Combat {
     private readonly camera: THREE.Camera,
     private readonly onScreen: (p: THREE.Vector3) => boolean,
     readonly findSource: SourceFinder,
+    private readonly onRunes: (p: THREE.Vector3) => boolean,
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
-    spells.onStrike = (x, z, element, caster) => this.strike(x, z, element, caster);
+    spells.onStrike = (x, z, element, caster, area) => this.strike(x, z, element, caster, area);
   }
 
   get rivalCount() {
@@ -294,6 +296,11 @@ export class Combat {
     this.respawn();
   }
 
+  /** The alchemist raises a wall; its protected zone shows in the alchemist's ink. */
+  wall(toward: THREE.Vector3) {
+    this.spells.wall(this.hero.position, toward, this.hero.ink);
+  }
+
   /** The alchemist strikes a point. */
   cast(at: THREE.Vector3, element: Element) {
     this.strikeFrom(this.hero, at, element);
@@ -306,7 +313,14 @@ export class Combat {
 
   /** A strike in the caster's ink; rivals near the warning may try to step out of it. */
   strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number) {
-    this.spells.pillars(caster.position, at, element, caster, warn, caster.ink);
+    // Cast from inside a rune circle, the strike covers 10% more ground.
+    const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
+    // Aimed into a standing wall's zone, it never starts: only a cross where it would have broken out.
+    if (this.spells.shielded(at.x, at.z)) {
+      this.spells.denied(at, caster.ink, scale);
+      return;
+    }
+    this.spells.pillars(caster.position, at, element, caster, warn, caster.ink, scale);
     for (const r of this.rivals) if (r !== caster) r.threatened(at);
   }
 
@@ -339,11 +353,11 @@ export class Combat {
     }
   }
 
-  private strike(x: number, z: number, element: Element, caster: unknown) {
+  private strike(x: number, z: number, element: Element, caster: unknown, area: number) {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster) continue;
-      if (Math.hypot(f.position.x - x, f.position.z - z) <= HIT_RADIUS) f.hit(DAMAGE[element], element, this.camera);
+      if (Math.hypot(f.position.x - x, f.position.z - z) <= area + BODY_RADIUS) f.hit(DAMAGE[element], element, this.camera);
     }
   }
 

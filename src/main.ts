@@ -81,7 +81,10 @@ const findSource = (element: 'fire' | 'water', from: THREE.Vector3) => {
   }
   return best;
 };
-const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource);
+/** True when standing inside one of the meadow's rune circles. */
+const onRunes = (p: THREE.Vector3) =>
+  world.layout.features.some((f) => f.kind === 'runas' && Math.hypot(p.x - f.x, p.z - f.z) <= f.r * 0.85);
+const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource, onRunes);
 scene.add(combat.root);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
@@ -250,7 +253,7 @@ function tapAt(clientX: number, clientY: number) {
     ammo.spend();
     hero.face(hit);
     hero.cast();
-    if (selected.kind === 'circle') spells.wall(hero.root.position, hit);
+    if (selected.kind === 'circle') combat.wall(hit);
     else if (selected.kind === 'square') combat.cast(hit, 'earth');
     else if (element) combat.cast(hit, element);
     else impact.show(hit.x, hit.z);
