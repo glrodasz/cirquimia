@@ -20,7 +20,10 @@ const LABELS: Record<ShapeKind, string> = {
   pentagram: 'Pentagrama',
 };
 
-/** Stored shapes along the bottom of the screen. Tap one, then tap the map to use it. */
+/**
+ * Stored shapes along the bottom of the screen. Tap one, then tap the map to use it.
+ * Triangles take two taps: first on a fire or water source to charge them, then on the target.
+ */
 export class AmmoBar {
   private readonly bar = document.createElement('div');
   private selected: HTMLButtonElement | null = null;
@@ -81,6 +84,28 @@ export class AmmoBar {
     this.selected = slot;
     slot?.classList.add('selected');
     document.body.classList.toggle('aiming', slot !== null);
+  }
+
+  /** The selected shape and whether it already carries fire or water, or null if nothing is selected. */
+  selection(): { kind: ShapeKind; charged: boolean } | null {
+    const slot = this.selected;
+    return slot ? { kind: slot.dataset.kind as ShapeKind, charged: slot.classList.contains('charged') } : null;
+  }
+
+  /** Marks the selected slot as charged; it stays selected, ready for the second tap. */
+  charge() {
+    const slot = this.selected;
+    if (!slot) return;
+    slot.classList.add('charged');
+    slot.animate([{ transform: 'translateY(-8px) scale(1.3)' }, { transform: 'translateY(-8px) scale(1.08)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
+  }
+
+  /** Shakes the selected slot: it cannot be used where the player tapped. */
+  reject() {
+    this.selected?.animate(
+      [0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translate(${x}px, -8px) scale(1.08)` })),
+      { duration: 300, easing: 'ease-out' },
+    );
   }
 
   /** Uses up the selected slot. Returns its shape, or null if nothing was selected. */

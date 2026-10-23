@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { heightAt } from './noise';
 import type { Obstacle } from './meadow';
+import { findPath, type Waypoint } from './path';
 
 /** The model is built at roughly 1.8 units tall (7.5 heads) and scaled down to fit the meadow. */
 const MODEL_SCALE = 0.3;
@@ -9,6 +10,11 @@ const STRIDE = 1.75 * MODEL_SCALE; // world units covered per full walk cycle
 const ARRIVE_RADIUS = 0.03;
 const TURN_RATE = 12;
 const BODY_RADIUS = 0.12;
+const WAYPOINT_RADIUS = 0.06;
+// If the alchemist covers less than this share of its expected distance over STUCK_TIME, it re-plans
+// (something new, like an earth wall, may have risen in the way).
+const STUCK_TIME = 0.3;
+const STUCK_RATIO = 0.3;
 
 const LEG_UPPER = 0.46;
 const LEG_LOWER = 0.44;
@@ -100,6 +106,11 @@ export class Character {
   private readonly armL = buildArm(-1);
   private readonly armR = buildArm(1);
   private heading = 0;
+  /** Corners to walk through on the way to the target, last one being the target itself. */
+  private path: Waypoint[] = [];
+  private stuckTimer = 0;
+  private stuckCount = 0;
+  private stuckFrom = new THREE.Vector3();
   private walkPhase = 0;
   private walkBlend = 0;
   private time = 0;
@@ -181,21 +192,75 @@ export class Character {
         }
       }
     }
+    this.plan();
+  }
+
+  private stop() {
+    this.target.set(this.root.position.x, 0, this.root.position.z);
+    this.path = [];
+    this.stuckCount = 0;
+  }
+
+  private replan() {
+    const count = this.stuckCount;
+    this.plan();
+    this.stuckCount = count;
+  }
+
+  /** Routes around trees, rocks and walls instead of pushing straight into them. */
+  private plan() {
+    this.stuckCount = 0;
+    const pos = this.root.position;
+    const path = findPath(pos.x, pos.z, this.target.x, this.target.z, this.obstacles, BODY_RADIUS + 0.02);
+    if (path) {
+      this.path = path;
+      const last = path[path.length - 1];
+      this.target.x = last.x;
+      this.target.z = last.z;
+    } else {
+      // Unreachable: walk as far as the straight line allows, as before.
+      this.path = [{ x: this.target.x, z: this.target.z }];
+    }
+    this.stuckTimer = 0;
+    this.stuckFrom.copy(pos);
+  }
+
+  /** Turns to face a point, e.g. where a circle is being cast. */
+  face(point: THREE.Vector3) {
+    const dx = point.x - this.root.position.x;
+    const dz = point.z - this.root.position.z;
+    if (dx * dx + dz * dz > 1e-6) this.heading = Math.atan2(dx, dz);
   }
 
   update(dt: number) {
     this.time += dt;
     const pos = this.root.position;
-    const dx = this.target.x - pos.x;
-    const dz = this.target.z - pos.z;
+    // Drop corners already reached; the last waypoint is the target.
+    while (this.path.length > 1 && Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < WAYPOINT_RADIUS) this.path.shift();
+    const goal = this.path[0] ?? this.target;
+    const dx = goal.x - pos.x;
+    const dz = goal.z - pos.z;
     const dist = Math.hypot(dx, dz);
-    const walking = dist > ARRIVE_RADIUS;
+    const walking = dist > ARRIVE_RADIUS || this.path.length > 1;
 
-    if (walking) {
+    if (walking && dist > 1e-6) {
       const step = Math.min(dist, SPEED * dt);
       pos.x += (dx / dist) * step;
       pos.z += (dz / dist) * step;
       this.resolveCollisions();
+      this.stuckTimer += dt;
+      if (this.stuckTimer >= STUCK_TIME) {
+        const moved = Math.hypot(pos.x - this.stuckFrom.x, pos.z - this.stuckFrom.z);
+        if (moved < SPEED * STUCK_TIME * STUCK_RATIO) {
+          // A fresh route usually frees it; if it still cannot move, stop instead of pushing forever.
+          if (++this.stuckCount > 2) this.stop();
+          else this.replan();
+        } else {
+          this.stuckCount = 0;
+        }
+        this.stuckTimer = 0;
+        this.stuckFrom.copy(pos);
+      }
       const desired = Math.atan2(dx, dz);
       let delta = desired - this.heading;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));
