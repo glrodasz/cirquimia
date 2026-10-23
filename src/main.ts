@@ -211,8 +211,8 @@ function keepHeroOnScreen() {
   }
 }
 
-// Where fire and water can be drawn from: campfires and scorched craters burn, ponds hold water.
-const SOURCES: Record<'fire' | 'water', Kind[]> = { fire: ['fogata', 'crater'], water: ['estanque'] };
+// Where fire and water can be drawn from: campfires burn, ponds hold water.
+const SOURCES: Record<'fire' | 'water', Kind[]> = { fire: ['fogata'], water: ['estanque'] };
 const SOURCE_MARGIN = 0.3; // taps this close to a source's edge still count
 
 /** The centre of the fire or water source under a tapped point, or null if there is none. */
