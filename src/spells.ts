@@ -31,6 +31,9 @@ const rockGeo = new THREE.DodecahedronGeometry(0.5, 0).translate(0, 0.5, 0);
 const pillarGeo = new THREE.CylinderGeometry(Math.SQRT1_2 * 0.82, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).translate(0, 0.5, 0);
 const crackGeo = new THREE.CircleGeometry(1, 7).rotateX(-Math.PI / 2);
 const inkRingGeo = new THREE.RingGeometry(0.9, 1.08, 28).rotateX(-Math.PI / 2);
+// Outer ring of a rune-boosted strike: dashed, so it reads as a different mark from the plain ring.
+const BOOST_DASHES = 10;
+const boostDashGeo = new THREE.RingGeometry(1.22, 1.36, 4, 1, 0, (Math.PI * 2) / BOOST_DASHES * 0.55).rotateX(-Math.PI / 2);
 // One arm of the "denied" cross, 1 unit long, lying flat.
 const crossBarGeo = new THREE.PlaneGeometry(1, 0.2).rotateX(-Math.PI / 2);
 const DENIED_TIME = 1.1; // s the cross stays on the ground
@@ -302,6 +305,7 @@ class PillarStrike extends Effect {
   private readonly crack: THREE.Mesh;
   private readonly crackMaterial: THREE.MeshBasicMaterial;
   private readonly inkMaterial: THREE.MeshBasicMaterial | null = null;
+  private readonly boostRing: THREE.Group | null = null;
   /** Set when the strike lands inside a standing wall's zone: the warning shows but nothing erupts. */
   blocked = false;
 
@@ -360,6 +364,18 @@ class PillarStrike extends Effect {
       ring.position.y = 0.002;
       ring.renderOrder = 2;
       this.crack.add(ring);
+      if (scale > 1) {
+        // Boosted from a rune circle: a second, outer ink ring that slowly turns.
+        this.boostRing = new THREE.Group();
+        for (let i = 0; i < BOOST_DASHES; i++) {
+          const dash = new THREE.Mesh(boostDashGeo, this.inkMaterial);
+          dash.rotation.y = (i / BOOST_DASHES) * Math.PI * 2;
+          dash.renderOrder = 2;
+          this.boostRing.add(dash);
+        }
+        this.boostRing.position.y = 0.003;
+        this.crack.add(this.boostRing);
+      }
     }
   }
 
@@ -451,6 +467,7 @@ class PillarStrike extends Effect {
       const fade = this.blocked ? t / 0.25 : (t - PILLAR_RISE - PILLAR_HOLD) / (holdEnd - PILLAR_RISE - PILLAR_HOLD);
       this.crackMaterial.opacity = 0.65 * (1 - THREE.MathUtils.clamp(fade, 0, 1));
     }
+    this.boostRing?.rotateY(0.04);
     if (this.inkMaterial) this.inkMaterial.opacity = Math.min(0.9, this.crackMaterial.opacity * 1.4);
   }
 

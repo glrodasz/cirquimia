@@ -14,6 +14,7 @@ const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 2;
 const RUNE_BOOST = 1.1;
+const auraGeo = new THREE.RingGeometry(0.18, 0.24, 32).rotateX(-Math.PI / 2);
 
 export type Fluid = 'fire' | 'water';
 /** The nearest fire or water source the fighter at `from` could draw from, or null if there is none in play. */
@@ -65,7 +66,19 @@ class Fighter {
   /** Position on the previous frame, to tell where it is heading. */
   readonly prev = new THREE.Vector3();
 
+  /** Ring at the feet in the fighter's ink, shown while standing in a rune circle (strikes are boosted). */
+  private readonly aura: THREE.Mesh;
+  private readonly auraMaterial: THREE.MeshBasicMaterial;
+  private auraLevel = 0;
+  private auraTime = 0;
+
   constructor(readonly body: Character, readonly ink: string) {
+    this.auraMaterial = new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0, depthWrite: false });
+    this.aura = new THREE.Mesh(auraGeo, this.auraMaterial);
+    this.aura.position.y = 0.03;
+    this.aura.renderOrder = 1;
+    this.aura.visible = false;
+    body.root.add(this.aura);
     this.bar.className = 'hp';
     this.fill.className = 'hp-fill';
     this.fill.style.background = ink;
@@ -75,6 +88,21 @@ class Fighter {
 
   get position() {
     return this.body.root.position;
+  }
+
+  protected disposeAura() {
+    this.auraMaterial.dispose();
+  }
+
+  /** Fades the rune aura in or out. */
+  empower(on: boolean, dt: number) {
+    this.auraLevel = THREE.MathUtils.clamp(this.auraLevel + (on ? dt : -dt) * 5, 0, 1);
+    this.auraTime += dt;
+    this.aura.visible = this.auraLevel > 0;
+    if (!this.aura.visible) return;
+    const pulse = 1 + Math.sin(this.auraTime * 5) * 0.08;
+    this.aura.scale.setScalar(pulse);
+    this.auraMaterial.opacity = this.auraLevel * (0.75 + Math.sin(this.auraTime * 5) * 0.2);
   }
 
   /** Full health and out of any KO. */
@@ -251,6 +279,7 @@ class Rival extends Fighter {
   dispose() {
     super.dispose();
     this.body.dispose();
+    this.disposeAura();
   }
 }
 
@@ -369,6 +398,9 @@ export class Combat {
       r.update(dt, this.camera);
     }
     this.hero.update(dt, this.camera);
-    for (const f of all) f.prev.copy(f.position);
+    for (const f of all) {
+      f.empower(this.onRunes(f.position), dt);
+      f.prev.copy(f.position);
+    }
   }
 }
