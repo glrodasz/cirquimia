@@ -210,6 +210,13 @@ export class Character {
     });
   }
 
+  /** Frees the model's geometries (materials are shared between characters and stay). */
+  dispose() {
+    this.model.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.geometry.dispose();
+    });
+  }
+
   /** Throws the right hand forward, as when releasing a circle. */
   cast() {
     this.castTimer = CAST_TIME;

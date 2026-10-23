@@ -199,6 +199,10 @@ class Rival extends Fighter {
       spells.pillars(pos, aim, element, this, this.tuning.warn);
     }
   }
+  dispose() {
+    super.dispose();
+    this.body.dispose();
+  }
 }
 
 /**
