@@ -117,6 +117,34 @@ function trimOvershoot(points: Point[]): Point[] {
   return points.slice(0, best + 1);
 }
 
+/** Where segments ab and cd cross, if they do. */
+function crossing(a: Point, b: Point, c: Point, d: Point): Point | null {
+  const den = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+  if (den === 0) return null;
+  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / den;
+  const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / den;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+/**
+ * A shape is often closed by crossing over its own start, leaving a tail sticking out at both ends
+ * (a square started past its corner and finished past it again). Keep only the loop between the
+ * crossing: the tails add fake corners that make the shape read as round.
+ */
+function cutAtCrossing(points: Point[]): Point[] {
+  const along = [0];
+  for (let i = 1; i < points.length; i++) along.push(along[i - 1] + dist(points[i - 1], points[i]));
+  const total = along[along.length - 1];
+  for (let i = 1; i < points.length && along[i] < total * 0.25; i++) {
+    for (let j = points.length - 1; j > i + 1 && along[j - 1] > total * 0.75; j--) {
+      const x = crossing(points[i - 1], points[i], points[j - 1], points[j]);
+      if (x) return [x, ...points.slice(i, j), x];
+    }
+  }
+  return points;
+}
+
 /** Total angle the stroke turns around a centre point (2π per lap). */
 function sweepAround(points: Point[], cx: number, cy: number) {
   let sweep = 0;
@@ -185,7 +213,9 @@ function recognizeLap(raw: Point[]): Recognized | null {
   }
   const diag = Math.hypot(maxX - minX, maxY - minY);
   if (diag < MIN_SIZE) return null;
-  raw = trimOvershoot(raw);
+  raw = cutAtCrossing(raw);
+  // Run-on past the start, then a lead-in before the first corner (the same check, backwards).
+  raw = trimOvershoot(trimOvershoot(raw).reverse()).reverse();
   if (dist(raw[0], raw[raw.length - 1]) > diag * MAX_CLOSE_GAP) return null;
 
   const pts = resample(raw, 64);
