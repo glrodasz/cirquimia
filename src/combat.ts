@@ -11,7 +11,7 @@ const MAX_HP = 100;
 const KO_TIME = 1.4;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
-const HEAD_HEIGHT = 0.62; // world units above the feet for the health bar
+const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 2;
 
 export type Difficulty = 'facil' | 'normal' | 'dificil';
@@ -40,10 +40,12 @@ const TUNING: Record<Difficulty, Tuning> = {
   dificil: { speed: 1.4, cooldown: [1.8, 2.6], warn: 0.42, aimError: 0.05, leads: true, dodge: 0.75, reaction: 0.04, elemental: 0.5 },
 };
 
-// Rivals wear a muted oxblood coat so they read apart from the slate-blue alchemist.
+// Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
+const HERO_INK = '#3d7fd6';
+// Rivals wear red and green coats so they read apart from the slate-blue alchemist.
 const RIVAL_LOOKS = [
-  { coat: '#6b3a3a', coatDark: '#4f2a2b' },
-  { coat: '#5c4a2e', coatDark: '#433621' },
+  { coat: '#6b3a3a', coatDark: '#4f2a2b', ink: '#d9483b' },
+  { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
 ];
 const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3' };
 
@@ -55,10 +57,13 @@ class Fighter {
   private koTimer = 0;
   private readonly bar = document.createElement('div');
   private readonly fill = document.createElement('div');
+  /** Position on the previous frame, to tell where it is heading. */
+  readonly prev = new THREE.Vector3();
 
-  constructor(readonly body: Character, rival: boolean) {
-    this.bar.className = `hp${rival ? ' rival' : ''}`;
+  constructor(readonly body: Character, readonly ink: string) {
+    this.bar.className = 'hp';
     this.fill.className = 'hp-fill';
+    this.fill.style.background = ink;
     this.bar.append(this.fill);
     document.body.append(this.bar);
   }
@@ -124,19 +129,21 @@ class Fighter {
   }
 }
 
-/** An opposing alchemist: keeps its distance, circles the player, strikes with warnings and steps out of incoming ones. */
+/** An opposing alchemist: picks someone to fight, circles them, strikes with warnings and steps out of incoming ones. */
 class Rival extends Fighter {
   private attackTimer: number;
   private moveTimer = 0;
   private dodgeTimer = -1;
   private dodgeFrom = new THREE.Vector3();
+  private foe: Fighter | null = null;
+  private retarget = 0;
 
   constructor(
     obstacles: Obstacle[],
-    look: { coat: string; coatDark: string },
+    look: { coat: string; coatDark: string; ink: string },
     private readonly tuning: Tuning,
   ) {
-    super(new Character(obstacles, { ...look, speed: tuning.speed }), true);
+    super(new Character(obstacles, { ...look, speed: tuning.speed }), look.ink);
     this.attackTimer = THREE.MathUtils.randFloat(1.5, 2.5);
   }
 
@@ -148,9 +155,21 @@ class Rival extends Fighter {
     this.dodgeFrom.copy(at);
   }
 
-  think(dt: number, hero: Character, heroPrev: THREE.Vector3, spells: Spells, onScreen: (p: THREE.Vector3) => boolean) {
+  /** Mostly the closest fighter, sometimes another, re-chosen every few seconds. */
+  private chooseFoe(others: Fighter[]) {
+    const byDistance = [...others].sort(
+      (a, b) => a.position.distanceToSquared(this.position) - b.position.distanceToSquared(this.position),
+    );
+    this.foe = byDistance.length > 1 && Math.random() < 0.45 ? byDistance[1] : byDistance[0];
+    this.retarget = THREE.MathUtils.randFloat(4, 7);
+  }
+
+  think(dt: number, others: Fighter[], combat: Combat, onScreen: (p: THREE.Vector3) => boolean) {
     const pos = this.position;
-    const target = hero.root.position;
+    this.retarget -= dt;
+    if (!this.foe || !others.includes(this.foe) || this.retarget <= 0) this.chooseFoe(others);
+    const foe = this.foe!;
+    const target = foe.position;
 
     if (this.dodgeTimer >= 0 && (this.dodgeTimer -= dt) < 0) {
       // Step straight out of the warning, a little past its edge.
@@ -170,7 +189,7 @@ class Rival extends Fighter {
       this.moveTimer = 1;
     }
 
-    // Wander around the player at mid range, re-picking a spot every few seconds.
+    // Wander around its foe at mid range, re-picking a spot every few seconds.
     this.moveTimer -= dt;
     if (this.moveTimer <= 0 && !this.body.moving) {
       this.moveTimer = THREE.MathUtils.randFloat(2.5, 4);
@@ -190,10 +209,10 @@ class Rival extends Fighter {
       this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
       const aim = target.clone();
       if (this.tuning.leads && dt > 0) {
-        // Where the player will be when the warning ends, if it keeps walking.
+        // Where the foe will be when the warning ends, if it keeps walking.
         const k = this.tuning.warn / dt;
-        aim.x += (target.x - heroPrev.x) * k * 0.7;
-        aim.z += (target.z - heroPrev.z) * k * 0.7;
+        aim.x += (target.x - foe.prev.x) * k * 0.7;
+        aim.z += (target.z - foe.prev.z) * k * 0.7;
       }
       const a = Math.random() * Math.PI * 2;
       const e = Math.random() * this.tuning.aimError;
@@ -203,9 +222,10 @@ class Rival extends Fighter {
       const element: Element = Math.random() < this.tuning.elemental ? (Math.random() < 0.5 ? 'fire' : 'water') : 'earth';
       this.body.face(aim);
       this.body.cast();
-      spells.pillars(pos, aim, element, this, this.tuning.warn);
+      combat.strikeFrom(this, aim, element, this.tuning.warn);
     }
   }
+
   dispose() {
     super.dispose();
     this.body.dispose();
@@ -213,14 +233,13 @@ class Rival extends Fighter {
 }
 
 /**
- * Sparring rivals: 0–2 opponents that fight the alchemist. Damage is only shown (flash, numbers, health bars);
- * nobody dies and there is no game over yet.
+ * Sparring rivals: 0–2 opponents in a free-for-all with the alchemist. Damage is only shown
+ * (flash, numbers, health bars); nobody dies and there is no game over yet.
  */
 export class Combat {
   readonly root = new THREE.Group();
   private readonly hero: Fighter;
   private rivals: Rival[] = [];
-  private readonly heroPrev = new THREE.Vector3();
   private count = 1;
   private level: Difficulty = 'normal';
 
@@ -231,7 +250,7 @@ export class Combat {
     private readonly camera: THREE.Camera,
     private readonly onScreen: (p: THREE.Vector3) => boolean,
   ) {
-    this.hero = new Fighter(heroBody, false);
+    this.hero = new Fighter(heroBody, HERO_INK);
     spells.onStrike = (x, z, element, caster) => this.strike(x, z, element, caster);
   }
 
@@ -253,10 +272,15 @@ export class Combat {
     this.respawn();
   }
 
-  /** The alchemist strikes a point: rivals near the warning may try to step out of it. */
+  /** The alchemist strikes a point. */
   cast(at: THREE.Vector3, element: Element) {
-    this.spells.pillars(this.hero.position, at, element, this.hero);
-    for (const r of this.rivals) r.threatened(at);
+    this.strikeFrom(this.hero, at, element);
+  }
+
+  /** A strike in the caster's ink; rivals near the warning may try to step out of it. */
+  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number) {
+    this.spells.pillars(caster.position, at, element, caster, warn, caster.ink);
+    for (const r of this.rivals) if (r !== caster) r.threatened(at);
   }
 
   /** Puts fresh rivals on screen around the alchemist, everyone at full health. */
@@ -270,7 +294,7 @@ export class Combat {
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
-      // Opposite sides when there are two, so they flank the player.
+      // Opposite sides when there are two, so the three start apart.
       const base = Math.random() * Math.PI * 2;
       for (let tries = 0; tries < 12; tries++) {
         const a = base + i * Math.PI + THREE.MathUtils.randFloatSpread(0.8);
@@ -282,26 +306,28 @@ export class Combat {
         break;
       }
       rival.body.face(center);
+      rival.prev.copy(rival.position);
       this.rivals.push(rival);
       this.root.add(rival.body.root);
     }
   }
 
   private strike(x: number, z: number, element: Element, caster: unknown) {
+    // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
-      // Nobody hits themselves; rivals do not hit each other either.
-      if (f === caster || (caster instanceof Rival && f instanceof Rival)) continue;
+      if (f === caster) continue;
       if (Math.hypot(f.position.x - x, f.position.z - z) <= HIT_RADIUS) f.hit(DAMAGE[element], element, this.camera);
     }
   }
 
   update(dt: number) {
+    const all = [this.hero, ...this.rivals];
     for (const r of this.rivals) {
-      r.think(dt, this.hero.body, this.heroPrev, this.spells, this.onScreen);
+      r.think(dt, all.filter((f) => f !== r), this, this.onScreen);
       r.body.update(dt);
       r.update(dt, this.camera);
     }
     this.hero.update(dt, this.camera);
-    this.heroPrev.copy(this.hero.position);
+    for (const f of all) f.prev.copy(f.position);
   }
 }

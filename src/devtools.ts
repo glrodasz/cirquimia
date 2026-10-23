@@ -173,7 +173,7 @@ export function mountDevTools(world: World, onGenerated: () => void, combat?: Co
       rivalsRow,
       levelRow,
       again,
-      el('p', { class: 'dev-note' }, 'Daño: cuadrado 20, fuego 35, agua 35. Nadie muere: a 0 la vida se recupera.'),
+      el('p', { class: 'dev-note' }, 'Todos contra todos. Daño: cuadrado 20, fuego 35, agua 35. Nadie muere: a 0 la vida se recupera.'),
     );
     const syncCombat = () => {
       rivalButtons.forEach((b, n) => b.setAttribute('aria-pressed', String(n === combat.rivals)));

@@ -30,6 +30,7 @@ const rockGeo = new THREE.DodecahedronGeometry(0.5, 0).translate(0, 0.5, 0);
 // Four-sided prism with a slightly narrower top, base at y = 0, side 1 and height 1.
 const pillarGeo = new THREE.CylinderGeometry(Math.SQRT1_2 * 0.82, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).translate(0, 0.5, 0);
 const crackGeo = new THREE.CircleGeometry(1, 7).rotateX(-Math.PI / 2);
+const inkRingGeo = new THREE.RingGeometry(0.9, 1.08, 28).rotateX(-Math.PI / 2);
 // Faceted flame tongues and water spouts, base at y = 0, width 1 and height 1.
 const flameGeo = new THREE.ConeGeometry(0.5, 1, 5, 1).translate(0, 0.5, 0);
 const spoutGeo = new THREE.CylinderGeometry(0.3, 0.5, 1, 6, 1).translate(0, 0.5, 0);
@@ -251,6 +252,7 @@ class PillarStrike extends Effect {
   readonly obstacles: Obstacle[] = [];
   private readonly crack: THREE.Mesh;
   private readonly crackMaterial: THREE.MeshBasicMaterial;
+  private readonly inkMaterial: THREE.MeshBasicMaterial | null = null;
   /** Set when the strike lands inside a standing wall's zone: the warning shows but nothing erupts. */
   blocked = false;
 
@@ -261,10 +263,16 @@ class PillarStrike extends Effect {
     readonly element: Element = 'earth',
     readonly caster: unknown = null,
     warn = PILLAR_WARN,
+    ink: string | null = null,
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth') this.buildPillars(from);
     else this.buildFluid(element === 'fire');
+    if (ink) {
+      // A hint of the caster's ink in the rock, flame or water.
+      tmpColor.set(ink);
+      for (const p of this.pieces) (p.mesh.material as THREE.MeshLambertMaterial).emissive.lerp(tmpColor, 0.3);
+    }
 
     // Warning: a patch of dark, trembling soil (or glowing embers, or seeping water) the size of the strike.
     this.crackMaterial = new THREE.MeshBasicMaterial({ color: WARNING[element], transparent: true, opacity: 0, depthWrite: false });
@@ -277,6 +285,14 @@ class PillarStrike extends Effect {
     this.crack.scale.setScalar(PILLAR_AREA * 1.5);
     this.crack.renderOrder = 1;
     this.group.add(this.crack);
+    if (ink) {
+      // Ink ring drawn round the warning in the caster's colour, so you can see who cast it.
+      this.inkMaterial = new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0, depthWrite: false });
+      const ring = new THREE.Mesh(inkRingGeo, this.inkMaterial);
+      ring.position.y = 0.002;
+      ring.renderOrder = 2;
+      this.crack.add(ring);
+    }
   }
 
   private buildPillars(from: THREE.Vector3) {
@@ -367,11 +383,13 @@ class PillarStrike extends Effect {
       const fade = this.blocked ? t / 0.25 : (t - PILLAR_RISE - PILLAR_HOLD) / (holdEnd - PILLAR_RISE - PILLAR_HOLD);
       this.crackMaterial.opacity = 0.65 * (1 - THREE.MathUtils.clamp(fade, 0, 1));
     }
+    if (this.inkMaterial) this.inkMaterial.opacity = Math.min(0.9, this.crackMaterial.opacity * 1.4);
   }
 
   dispose() {
     super.dispose();
     this.crackMaterial.dispose();
+    this.inkMaterial?.dispose();
   }
 }
 
@@ -436,8 +454,8 @@ export class Spells {
   }
 
   /** Strikes the tapped point after a short ground warning: rock pillars, or fire or water drawn earlier. */
-  pillars(caster: THREE.Vector3, at: THREE.Vector3, element: Element = 'earth', owner: unknown = null, warn = PILLAR_WARN) {
-    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn));
+  pillars(caster: THREE.Vector3, at: THREE.Vector3, element: Element = 'earth', owner: unknown = null, warn = PILLAR_WARN, ink: string | null = null) {
+    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn, ink));
   }
 
   /** Shows fire or water being drawn from a source into the alchemist (who is followed while it flies). */
