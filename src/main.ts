@@ -10,6 +10,7 @@ import { recognize, type Point } from './gestures';
 import { Ink } from './ink';
 import { AmmoBar } from './ammo';
 import { Spells } from './spells';
+import { Combat, type Difficulty } from './combat';
 import type { Kind } from './generator';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
@@ -39,8 +40,6 @@ const scene = new THREE.Scene();
 scene.background = SKY;
 scene.fog = new THREE.Fog(SKY, 30, 70);
 
-const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 200);
-
 scene.add(new THREE.HemisphereLight('#e4eef0', '#4f5f5a', 1.5));
 const sun = new THREE.DirectionalLight('#f2f4f0', 1.9);
 sun.position.set(8, 15, 6);
@@ -65,12 +64,53 @@ const ammo = new AmmoBar();
 const spells = new Spells(world.obstacles);
 scene.add(spells.root);
 
+const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 200);
+/** True when a ground point falls inside the playable part of the screen. */
+const onScreen = (p: THREE.Vector3) => {
+  const q = new THREE.Vector3(p.x, heightAt(p.x, p.z), p.z).project(camera);
+  return Math.abs(q.x) < INSET_X * 0.92 && Math.abs(q.y) < INSET_Y * 0.92;
+};
+// Rivals draw fire and water like the player: only from a source on screen, the nearest one.
+const findSource = (element: 'fire' | 'water', from: THREE.Vector3) => {
+  let best: THREE.Vector3 | null = null;
+  for (const f of world.layout.features) {
+    if (!SOURCES[element].includes(f.kind)) continue;
+    const at = new THREE.Vector3(f.x, heightAt(f.x, f.z), f.z);
+    if (!onScreen(at)) continue;
+    if (!best || at.distanceToSquared(from) < best.distanceToSquared(from)) best = at;
+  }
+  return best;
+};
+/** True when standing inside one of the meadow's rune circles. */
+const onRunes = (p: THREE.Vector3) =>
+  world.layout.features.some((f) => f.kind === 'runas' && Math.hypot(p.x - f.x, p.z - f.z) <= f.r * 0.85);
+const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource, onRunes);
+scene.add(combat.root);
+
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
-mountDevTools(world, () => {
-  spells.clear();
-  hero.root.position.set(0, heightAt(0, 0), 0);
-  hero.setTarget(hero.root.position);
-});
+mountDevTools(
+  world,
+  () => {
+    spells.clear();
+    hero.root.position.set(0, heightAt(0, 0), 0);
+    hero.setTarget(hero.root.position);
+    combat.respawn();
+  },
+  {
+    get rivals() {
+      return combat.rivalCount;
+    },
+    get difficulty() {
+      return combat.difficulty;
+    },
+    setRivals: (n: number) => combat.setRivals(n),
+    setDifficulty: (d: Difficulty) => combat.setDifficulty(d),
+    respawn: () => {
+      spells.clear();
+      combat.respawn();
+    },
+  },
+);
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -174,8 +214,8 @@ function keepHeroOnScreen() {
   }
 }
 
-// Where fire and water can be drawn from: campfires and scorched craters burn, ponds hold water.
-const SOURCES: Record<'fire' | 'water', Kind[]> = { fire: ['fogata', 'crater'], water: ['estanque'] };
+// Where fire and water can be drawn from: campfires burn, ponds hold water.
+const SOURCES: Record<'fire' | 'water', Kind[]> = { fire: ['fogata'], water: ['estanque'] };
 const SOURCE_MARGIN = 0.3; // taps this close to a source's edge still count
 
 /** The centre of the fire or water source under a tapped point, or null if there is none. */
@@ -212,9 +252,10 @@ function tapAt(clientX: number, clientY: number) {
     }
     ammo.spend();
     hero.face(hit);
-    if (selected.kind === 'circle') spells.wall(hero.root.position, hit);
-    else if (selected.kind === 'square') spells.pillars(hero.root.position, hit);
-    else if (element) spells.pillars(hero.root.position, hit, element);
+    hero.cast();
+    if (selected.kind === 'circle') combat.wall(hit);
+    else if (selected.kind === 'square') combat.cast(hit, 'earth');
+    else if (element) combat.cast(hit, element);
     else impact.show(hit.x, hit.z);
     return;
   }
@@ -224,6 +265,7 @@ function tapAt(clientX: number, clientY: number) {
 
 // One finger at a time: a short press is a tap, anything that travels further is a drawing.
 const DRAW_THRESHOLD = 12; // px
+const AIM_SLOP = 40; // px a tap may wander while a circle is selected
 let activePointer: number | null = null;
 let drawing = false;
 let stroke: Point[] = [];
@@ -264,6 +306,9 @@ canvas.addEventListener('pointerup', (e) => {
     ammo.add(shape.kind, shape.cx, shape.cy);
   } else {
     ink.end(null);
+    // With a circle selected, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
+    const start = stroke[0];
+    if (ammo.aiming && stroke.every((p) => Math.hypot(p.x - start.x, p.y - start.y) < AIM_SLOP)) tapAt(start.x, start.y);
   }
 });
 canvas.addEventListener('pointercancel', (e) => {
@@ -276,6 +321,8 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 addEventListener('resize', fitCamera);
 fitCamera();
+// Rivals need the real framing to land on screen.
+combat.respawn();
 
 const fpsLabel = document.getElementById('fps')!;
 let frames = 0;
@@ -291,6 +338,7 @@ renderer.setAnimationLoop((time) => {
   marker.update(dt);
   impact.update(dt);
   spells.update(dt);
+  combat.update(dt);
   ink.update(dt);
 
   renderer.setRenderTarget(sceneTarget);

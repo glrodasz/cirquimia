@@ -87,7 +87,8 @@ const KINDS: Record<Kind, KindSpec> = {
   tierraSuelta: { material: 'tierra', weight: 1, radius: (s) => 1.2 * s, size: [0.8, 1.2], solid: false, animates: false },
   estanque: { material: 'agua', weight: 1, radius: (s) => 1.6 * s, size: [0.55, 0.8], solid: true, animates: false },
   fogata: { material: 'fuego', weight: 1.3, radius: () => 0.7, size: [1, 1], solid: true, animates: true },
-  crater: { material: 'fuego', weight: 1, radius: (s) => 2.4 * s, size: [0.6, 0.75], solid: false, animates: false },
+  // Weight 0: a blast crater looks out of place in a meadow, so fire is always a campfire here (kept for other biomes).
+  crater: { material: 'fuego', weight: 0, radius: (s) => 2.4 * s, size: [0.6, 0.75], solid: false, animates: false },
   cristales: { material: 'magia', weight: 1, radius: (s) => 1.2 * s, size: [0.8, 1.1], solid: true, animates: true },
   runas: { material: 'magia', weight: 1, radius: (s) => 1.4 * s, size: [0.85, 1.1], solid: false, animates: true },
   empalizada: { material: 'restos', weight: 1, radius: (s) => 1.6 * s, size: [0.7, 0.9], solid: true, animates: false },

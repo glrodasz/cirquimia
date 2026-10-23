@@ -1,5 +1,6 @@
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
+import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty } from './combat';
 
 const STORE = 'cirquimia.dev';
 
@@ -9,6 +10,17 @@ interface Saved {
   open?: boolean;
   debug?: boolean;
   fps?: boolean;
+  rivals?: number;
+  difficulty?: Difficulty;
+}
+
+/** Sparring options shown in the panel; the game owns the actual rivals. */
+export interface CombatControls {
+  readonly rivals: number;
+  readonly difficulty: Difficulty;
+  setRivals(count: number): void;
+  setDifficulty(level: Difficulty): void;
+  respawn(): void;
 }
 
 function load(): Saved {
@@ -52,7 +64,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
  * tweak the generator, see what it produced and what it costs.
  * The miniature toggle (#tilt) moves into the panel; the fps counter (#fps) floats top left when its toggle is on.
  */
-export function mountDevTools(world: World, onGenerated: () => void) {
+export function mountDevTools(world: World, onGenerated: () => void, combat?: CombatControls) {
   const saved = load();
   world.params = { ...DEFAULT_PARAMS, ...saved.params };
 
@@ -125,7 +137,54 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   const perfBox = el('dl', { class: 'dev-stats' });
   view.append(viewRow, fpsRow, debugRow, perfBox);
 
-  panel.append(head, meadow, paramsSection, view);
+  // Sparring rivals
+  const fight = el('section');
+  if (combat) {
+    fight.append(el('h3', {}, 'Combate'));
+    const rivalsRow = el('div', { class: 'dev-row' });
+    rivalsRow.append(el('label', {}, 'Rivales'));
+    const rivalButtons: HTMLButtonElement[] = [];
+    for (let n = 0; n <= MAX_RIVALS; n++) {
+      const b = el('button', { type: 'button', class: 'dev-toggle', 'aria-pressed': 'false' }, String(n)) as HTMLButtonElement;
+      b.addEventListener('click', () => {
+        combat.setRivals(n);
+        save({ rivals: n });
+        syncCombat();
+      });
+      rivalButtons.push(b);
+      rivalsRow.append(b);
+    }
+    const levelRow = el('div', { class: 'dev-row' });
+    levelRow.append(el('label', {}, 'Dificultad'));
+    const levelButtons = new Map<Difficulty, HTMLButtonElement>();
+    for (const level of Object.keys(DIFFICULTY_LABEL) as Difficulty[]) {
+      const b = el('button', { type: 'button', class: 'dev-toggle', 'aria-pressed': 'false' }, DIFFICULTY_LABEL[level]) as HTMLButtonElement;
+      b.addEventListener('click', () => {
+        combat.setDifficulty(level);
+        save({ difficulty: level });
+        syncCombat();
+      });
+      levelButtons.set(level, b);
+      levelRow.append(b);
+    }
+    const again = el('button', { type: 'button' }, 'Reiniciar combate');
+    again.addEventListener('click', () => combat.respawn());
+    fight.append(
+      rivalsRow,
+      levelRow,
+      again,
+      el('p', { class: 'dev-note' }, 'Todos contra todos. Daño: cuadrado 20, fuego 35, agua 35. Nadie muere: a 0 la vida se recupera.'),
+    );
+    const syncCombat = () => {
+      rivalButtons.forEach((b, n) => b.setAttribute('aria-pressed', String(n === combat.rivals)));
+      for (const [level, b] of levelButtons) b.setAttribute('aria-pressed', String(level === combat.difficulty));
+    };
+    if (saved.difficulty && saved.difficulty in DIFFICULTY_LABEL) combat.setDifficulty(saved.difficulty);
+    if (saved.rivals !== undefined) combat.setRivals(saved.rivals);
+    syncCombat();
+  }
+
+  panel.append(head, meadow, ...(combat ? [fight] : []), paramsSection, view);
   document.body.append(gear, panel);
 
   const stop = (e: Event) => e.stopPropagation();

@@ -313,14 +313,27 @@ function estanque(f: Feature, c: Ctx) {
   geo.rotateX(-Math.PI / 2);
   const water = new THREE.Mesh(
     geo,
-    new THREE.MeshLambertMaterial({ color: '#86a9ab', emissive: '#2c4a50', emissiveIntensity: 0.35, transparent: true, opacity: 0.86 }),
+    // Clear lagoon blue rather than murky green, so it reads as open water you can draw from.
+    new THREE.MeshLambertMaterial({ color: '#8fc4d2', emissive: '#4b8ea2', emissiveIntensity: 0.45, transparent: true, opacity: 0.84 }),
   );
   water.position.set(f.x, level, f.z);
   water.receiveShadow = true;
   c.group.add(water);
+  // Deeper middle and a pale band of shallows along the edge.
+  const deep = new THREE.Mesh(
+    new THREE.CircleGeometry(R * 0.5, 12).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: '#4f8fa6', transparent: true, opacity: 0.35, depthWrite: false }),
+  );
+  deep.position.set(f.x, level + 0.003, f.z);
+  const shallows = new THREE.Mesh(
+    new THREE.RingGeometry(R * 0.78, R * 0.9, 20).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: '#dcedee', transparent: true, opacity: 0.4, depthWrite: false }),
+  );
+  shallows.position.set(f.x, level + 0.004, f.z);
+  c.group.add(deep, shallows);
   c.obstacles.push({ x: f.x, z: f.z, r: R * 0.7 });
 
-  for (let k = 0; k < 5; k++) {
+  for (let k = 0; k < 2; k++) {
     const a = rand() * Math.PI * 2;
     const d = Math.sqrt(rand()) * R * 0.55;
     dummy.position.set(f.x + Math.cos(a) * d, level + 0.005, f.z + Math.sin(a) * d);
@@ -328,10 +341,10 @@ function estanque(f: Feature, c: Ctx) {
     dummy.scale.setScalar(0.8 + rand() * 0.6);
     c.pads.add(color.set('#5d7d63').offsetHSL(0, 0, (rand() - 0.5) * 0.08).getHex());
   }
-  // Reeds in a few clumps along the shore.
-  for (let clump = 0; clump < 3; clump++) {
+  // One small clump of reeds on the shore; more made it read as a marsh.
+  for (let clump = 0; clump < 1; clump++) {
     const a0 = rand() * Math.PI * 2;
-    for (let k = 0; k < 7; k++) {
+    for (let k = 0; k < 6; k++) {
       const a = a0 + (rand() - 0.5) * 0.6;
       const d = R * (0.72 + rand() * 0.18);
       const x = f.x + Math.cos(a) * d;

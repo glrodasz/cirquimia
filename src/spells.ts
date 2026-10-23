@@ -14,7 +14,7 @@ const PILLAR_WARN = 0.2; // s the ground trembles before the pillars break out
 const PILLAR_RISE = 0.12;
 const PILLAR_HOLD = 0.55; // about a second from eruption to buried again
 const PILLAR_SINK = 0.3;
-const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist wide
+export const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist wide
 
 // Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
 export type Element = 'earth' | 'fire' | 'water';
@@ -30,6 +30,14 @@ const rockGeo = new THREE.DodecahedronGeometry(0.5, 0).translate(0, 0.5, 0);
 // Four-sided prism with a slightly narrower top, base at y = 0, side 1 and height 1.
 const pillarGeo = new THREE.CylinderGeometry(Math.SQRT1_2 * 0.82, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).translate(0, 0.5, 0);
 const crackGeo = new THREE.CircleGeometry(1, 7).rotateX(-Math.PI / 2);
+const inkRingGeo = new THREE.RingGeometry(0.9, 1.08, 28).rotateX(-Math.PI / 2);
+// Outer ring of a rune-boosted strike: dashed, so it reads as a different mark from the plain ring.
+const BOOST_DASHES = 10;
+const boostDashGeo = new THREE.RingGeometry(1.22, 1.36, 4, 1, 0, (Math.PI * 2) / BOOST_DASHES * 0.55).rotateX(-Math.PI / 2);
+// One arm of the "denied" cross, 1 unit long, lying flat.
+const crossBarGeo = new THREE.PlaneGeometry(1, 0.2).rotateX(-Math.PI / 2);
+const DENIED_TIME = 1.1; // s the cross stays on the ground
+const CAMERA_YAW = THREE.MathUtils.degToRad(24); // matches the camera azimuth in main.ts
 // Faceted flame tongues and water spouts, base at y = 0, width 1 and height 1.
 const flameGeo = new THREE.ConeGeometry(0.5, 1, 5, 1).translate(0, 0.5, 0);
 const spoutGeo = new THREE.CylinderGeometry(0.3, 0.5, 1, 6, 1).translate(0, 0.5, 0);
@@ -118,7 +126,10 @@ class EarthWall extends Effect {
   /** Protected disk inside the arc: no pillar can break out here while the wall stands. */
   readonly zone: { x: number; z: number; r: number };
 
-  constructor(cx: number, cz: number, toward: THREE.Vector3) {
+  private readonly zoneMaterials: THREE.MeshBasicMaterial[] = [];
+  private readonly zoneGeos: THREE.BufferGeometry[] = [];
+
+  constructor(cx: number, cz: number, toward: THREE.Vector3, ink: string | null = null) {
     super(0, WALL_RISE, WALL_HOLD, WALL_SINK);
     const dx = toward.x - cx;
     const dz = toward.z - cz;
@@ -181,6 +192,35 @@ class EarthWall extends Effect {
       rock.scale.set(size * THREE.MathUtils.randFloat(1, 1.6), size, size * THREE.MathUtils.randFloat(0.9, 1.3));
       rock.rotation.set(THREE.MathUtils.randFloatSpread(0.6), Math.random() * Math.PI, THREE.MathUtils.randFloatSpread(0.6));
     }
+
+    if (ink) {
+      // The protected zone, washed in the caster's ink with a firmer rim, lying on the terrain.
+      for (const [geo, opacity] of [
+        [groundRing(cx, cz, 0, reach, 6), 0.16],
+        [groundRing(cx, cz, reach - 0.035, reach, 1), 0.7],
+      ] as const) {
+        const mat = new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0, depthWrite: false });
+        mat.userData.full = opacity;
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.renderOrder = 1;
+        this.group.add(mesh);
+        this.zoneMaterials.push(mat);
+        this.zoneGeos.push(geo);
+      }
+    }
+  }
+
+  protected onUpdate(t: number) {
+    // Shown for exactly as long as the zone protects: fades in while rising, out while sinking.
+    const sinkAt = this.rise + this.hold;
+    const k = t < 0 ? 0 : t < this.rise ? t / this.rise : t < sinkAt ? 1 : Math.max(0, 1 - (t - sinkAt) / (this.sink * 0.5));
+    for (const m of this.zoneMaterials) m.opacity = (m.userData.full as number) * k;
+  }
+
+  dispose() {
+    super.dispose();
+    for (const m of this.zoneMaterials) m.dispose();
+    for (const g of this.zoneGeos) g.dispose();
   }
 
   private addSegment(geo: THREE.BufferGeometry, color: THREE.ColorRepresentation, cx: number, cz: number, height: number, delay: number) {
@@ -195,6 +235,19 @@ class EarthWall extends Effect {
     this.pieces.push({ mesh, ground: 0, height, delay, geo });
     return mesh;
   }
+}
+
+/** A flat ring (or disk, with inner 0) around a point whose vertices follow the terrain. */
+function groundRing(cx: number, cz: number, inner: number, outer: number, rings: number) {
+  const geo = new THREE.RingGeometry(Math.max(inner, 0.001), outer, 48, rings).rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i) + cx;
+    const z = pos.getZ(i) + cz;
+    pos.setXYZ(i, x, heightAt(x, z) + 0.035, z);
+  }
+  geo.computeBoundingSphere();
+  return geo;
 }
 
 interface Section {
@@ -251,13 +304,47 @@ class PillarStrike extends Effect {
   readonly obstacles: Obstacle[] = [];
   private readonly crack: THREE.Mesh;
   private readonly crackMaterial: THREE.MeshBasicMaterial;
+  private readonly inkMaterial: THREE.MeshBasicMaterial | null = null;
+  private readonly boostRing: THREE.Group | null = null;
   /** Set when the strike lands inside a standing wall's zone: the warning shows but nothing erupts. */
   blocked = false;
 
-  constructor(readonly x: number, readonly z: number, from: THREE.Vector3, readonly element: Element = 'earth') {
-    super(PILLAR_WARN, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
+  /** Radius of the cluster. */
+  get area() {
+    return PILLAR_AREA * this.scale;
+  }
+
+  constructor(
+    readonly x: number,
+    readonly z: number,
+    from: THREE.Vector3,
+    readonly element: Element = 'earth',
+    readonly caster: unknown = null,
+    warn = PILLAR_WARN,
+    readonly ink: string | null = null,
+    /** Size multiplier for the whole strike, e.g. 1.1 when cast from a rune circle. */
+    readonly scale = 1,
+  ) {
+    super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth') this.buildPillars(from);
     else this.buildFluid(element === 'fire');
+    if (scale !== 1) {
+      // Grow the cluster about its centre: spread, width and height alike.
+      for (const p of this.pieces) {
+        const m = p.mesh;
+        m.position.x = x + (m.position.x - x) * scale;
+        m.position.z = z + (m.position.z - z) * scale;
+        m.scale.multiplyScalar(scale);
+        (m.userData.base as THREE.Vector3 | undefined)?.multiplyScalar(scale);
+        p.ground = heightAt(m.position.x, m.position.z);
+        p.height *= scale;
+      }
+    }
+    if (ink) {
+      // A hint of the caster's ink in the rock, flame or water.
+      tmpColor.set(ink);
+      for (const p of this.pieces) (p.mesh.material as THREE.MeshLambertMaterial).emissive.lerp(tmpColor, 0.3);
+    }
 
     // Warning: a patch of dark, trembling soil (or glowing embers, or seeping water) the size of the strike.
     this.crackMaterial = new THREE.MeshBasicMaterial({ color: WARNING[element], transparent: true, opacity: 0, depthWrite: false });
@@ -267,9 +354,29 @@ class PillarStrike extends Effect {
     const e = 0.05;
     const normal = new THREE.Vector3(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
     this.crack.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-    this.crack.scale.setScalar(PILLAR_AREA * 1.5);
+    this.crack.scale.setScalar(this.area * 1.5);
     this.crack.renderOrder = 1;
     this.group.add(this.crack);
+    if (ink) {
+      // Ink ring drawn round the warning in the caster's colour, so you can see who cast it.
+      this.inkMaterial = new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0, depthWrite: false });
+      const ring = new THREE.Mesh(inkRingGeo, this.inkMaterial);
+      ring.position.y = 0.002;
+      ring.renderOrder = 2;
+      this.crack.add(ring);
+      if (scale > 1) {
+        // Boosted from a rune circle: a second, outer ink ring that slowly turns.
+        this.boostRing = new THREE.Group();
+        for (let i = 0; i < BOOST_DASHES; i++) {
+          const dash = new THREE.Mesh(boostDashGeo, this.inkMaterial);
+          dash.rotation.y = (i / BOOST_DASHES) * Math.PI * 2;
+          dash.renderOrder = 2;
+          this.boostRing.add(dash);
+        }
+        this.boostRing.position.y = 0.003;
+        this.crack.add(this.boostRing);
+      }
+    }
   }
 
   private buildPillars(from: THREE.Vector3) {
@@ -350,9 +457,9 @@ class PillarStrike extends Effect {
     }
     if (t < 0) {
       // Grows and shudders during the warning so a target can still step out.
-      const w = 1 + t / PILLAR_WARN;
+      const w = 1 + t / this.warn;
       this.crackMaterial.opacity = 0.45 + w * 0.35;
-      this.crack.scale.setScalar(PILLAR_AREA * (0.9 + w * 0.6) * (1 + Math.sin(this.age * 90) * 0.05));
+      this.crack.scale.setScalar(this.area * (0.9 + w * 0.6) * (1 + Math.sin(this.age * 90) * 0.05));
       this.crack.rotateY(Math.sin(this.age * 70) * 0.02);
     } else {
       const holdEnd = PILLAR_RISE + PILLAR_HOLD + PILLAR_SINK;
@@ -360,11 +467,14 @@ class PillarStrike extends Effect {
       const fade = this.blocked ? t / 0.25 : (t - PILLAR_RISE - PILLAR_HOLD) / (holdEnd - PILLAR_RISE - PILLAR_HOLD);
       this.crackMaterial.opacity = 0.65 * (1 - THREE.MathUtils.clamp(fade, 0, 1));
     }
+    this.boostRing?.rotateY(0.04);
+    if (this.inkMaterial) this.inkMaterial.opacity = Math.min(0.9, this.crackMaterial.opacity * 1.4);
   }
 
   dispose() {
     super.dispose();
     this.crackMaterial.dispose();
+    this.inkMaterial?.dispose();
   }
 }
 
@@ -411,23 +521,89 @@ class Channel {
   }
 }
 
-type Active = EarthWall | PillarStrike | Channel;
+/** A cross on the ground in the caster's ink: a strike aimed into a protected zone that never breaks out. */
+class DeniedMark {
+  readonly group = new THREE.Group();
+  readonly obstacles: Obstacle[] = [];
+  readonly solid = false;
+  done = false;
+  private age = 0;
+  private readonly material: THREE.MeshBasicMaterial;
+  private readonly outline: THREE.MeshBasicMaterial;
+
+  constructor(x: number, z: number, ink: string | null, size: number) {
+    this.material = new THREE.MeshBasicMaterial({ color: ink ?? '#c0562f', transparent: true, opacity: 0, depthWrite: false });
+    // A pale outline underneath keeps the cross readable on top of the caster's own protected zone.
+    this.outline = new THREE.MeshBasicMaterial({ color: '#f4f1e8', transparent: true, opacity: 0, depthWrite: false });
+    // Arms at ±45° to the screen, not to the world: the camera looks down from 24° around.
+    for (const a of [Math.PI / 4 + CAMERA_YAW, -Math.PI / 4 + CAMERA_YAW]) {
+      const back = new THREE.Mesh(crossBarGeo, this.outline);
+      back.rotation.y = a;
+      back.scale.set(1.12, 1, 1.7);
+      back.renderOrder = 3;
+      const bar = new THREE.Mesh(crossBarGeo, this.material);
+      bar.rotation.y = a;
+      bar.position.y = 0.002;
+      bar.renderOrder = 4;
+      this.group.add(back, bar);
+    }
+    this.group.position.set(x, heightAt(x, z) + 0.04, z);
+    const e = 0.05;
+    const normal = new THREE.Vector3(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
+    this.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    this.group.userData.size = size;
+  }
+
+  update(dt: number) {
+    this.age += dt;
+    // Pops in, holds, fades.
+    const t = this.age / DENIED_TIME;
+    const pop = t < 0.15 ? easeOutBack(t / 0.15) : 1;
+    this.group.scale.setScalar((this.group.userData.size as number) * Math.max(0.01, pop));
+    this.material.opacity = 0.95 * (t < 0.6 ? 1 : Math.max(0, 1 - (t - 0.6) / 0.4));
+    this.outline.opacity = this.material.opacity * 0.85;
+    if (t >= 1) this.done = true;
+  }
+
+  dispose() {
+    this.material.dispose();
+    this.outline.dispose();
+  }
+}
+
+type Active = EarthWall | PillarStrike | Channel | DeniedMark;
 
 /** What each transmutation circle does once it is spent on the map. */
 export class Spells {
   readonly root = new THREE.Group();
   private readonly active: Active[] = [];
 
+  /** Called when a strike breaks out (not when a wall stops it), with whoever cast it. */
+  onStrike: (x: number, z: number, element: Element, caster: unknown, area: number) => void = () => {};
+
   constructor(private readonly obstacles: Obstacle[]) {}
 
   /** Raises a defensive arc around the caster, facing the tapped point (clamped to close range). */
-  wall(caster: THREE.Vector3, toward: THREE.Vector3) {
-    this.start(new EarthWall(caster.x, caster.z, toward));
+  wall(caster: THREE.Vector3, toward: THREE.Vector3, ink: string | null = null) {
+    this.start(new EarthWall(caster.x, caster.z, toward, ink));
   }
 
   /** Strikes the tapped point after a short ground warning: rock pillars, or fire or water drawn earlier. */
-  pillars(caster: THREE.Vector3, at: THREE.Vector3, element: Element = 'earth') {
-    this.start(new PillarStrike(at.x, at.z, caster, element));
+  pillars(
+    caster: THREE.Vector3,
+    at: THREE.Vector3,
+    element: Element = 'earth',
+    owner: unknown = null,
+    warn = PILLAR_WARN,
+    ink: string | null = null,
+    scale = 1,
+  ) {
+    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn, ink, scale));
+  }
+
+  /** Marks a strike that a standing wall stops before it starts: just a cross where it would have broken out. */
+  denied(at: THREE.Vector3, ink: string | null = null, scale = 1) {
+    this.start(new DeniedMark(at.x, at.z, ink, PILLAR_AREA * 2.2 * scale));
   }
 
   /** Shows fire or water being drawn from a source into the alchemist (who is followed while it flies). */
@@ -459,7 +635,7 @@ export class Spells {
   }
 
   /** True while a standing earth wall protects this spot. */
-  private shielded(x: number, z: number) {
+  shielded(x: number, z: number) {
     return this.active.some((e) => e instanceof EarthWall && e.solid && Math.hypot(x - e.zone.x, z - e.zone.z) < e.zone.r);
   }
 
@@ -467,7 +643,11 @@ export class Spells {
     for (let i = this.active.length - 1; i >= 0; i--) {
       const effect = this.active[i];
       // Pillars check for a wall at the moment they would break out, so raising one during the warning still saves you.
-      if (effect instanceof PillarStrike && !effect.solid && !effect.blocked && effect.erupting(dt)) effect.blocked = this.shielded(effect.x, effect.z);
+      if (effect instanceof PillarStrike && !effect.solid && !effect.blocked && effect.erupting(dt)) {
+        effect.blocked = this.shielded(effect.x, effect.z);
+        if (effect.blocked) this.start(new DeniedMark(effect.x, effect.z, effect.ink, effect.area * 2.2));
+        else this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area);
+      }
       const wasSolid = effect.solid;
       effect.update(dt);
       if (effect.solid !== wasSolid) this.setBlocking(effect, effect.solid);
