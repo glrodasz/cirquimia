@@ -10,6 +10,7 @@ import { recognize, type Point } from './gestures';
 import { Ink } from './ink';
 import { AmmoBar } from './ammo';
 import { Spells } from './spells';
+import { Combat, type Difficulty } from './combat';
 import type { Kind } from './generator';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
@@ -39,8 +40,6 @@ const scene = new THREE.Scene();
 scene.background = SKY;
 scene.fog = new THREE.Fog(SKY, 30, 70);
 
-const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 200);
-
 scene.add(new THREE.HemisphereLight('#e4eef0', '#4f5f5a', 1.5));
 const sun = new THREE.DirectionalLight('#f2f4f0', 1.9);
 sun.position.set(8, 15, 6);
@@ -65,12 +64,39 @@ const ammo = new AmmoBar();
 const spells = new Spells(world.obstacles);
 scene.add(spells.root);
 
+const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 200);
+/** True when a ground point falls inside the playable part of the screen. */
+const onScreen = (p: THREE.Vector3) => {
+  const q = new THREE.Vector3(p.x, heightAt(p.x, p.z), p.z).project(camera);
+  return Math.abs(q.x) < INSET_X * 0.92 && Math.abs(q.y) < INSET_Y * 0.92;
+};
+const combat = new Combat(hero, world.obstacles, spells, camera, onScreen);
+scene.add(combat.root);
+
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
-mountDevTools(world, () => {
-  spells.clear();
-  hero.root.position.set(0, heightAt(0, 0), 0);
-  hero.setTarget(hero.root.position);
-});
+mountDevTools(
+  world,
+  () => {
+    spells.clear();
+    hero.root.position.set(0, heightAt(0, 0), 0);
+    hero.setTarget(hero.root.position);
+    combat.respawn();
+  },
+  {
+    get rivals() {
+      return combat.rivalCount;
+    },
+    get difficulty() {
+      return combat.difficulty;
+    },
+    setRivals: (n: number) => combat.setRivals(n),
+    setDifficulty: (d: Difficulty) => combat.setDifficulty(d),
+    respawn: () => {
+      spells.clear();
+      combat.respawn();
+    },
+  },
+);
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -212,9 +238,10 @@ function tapAt(clientX: number, clientY: number) {
     }
     ammo.spend();
     hero.face(hit);
+    hero.cast();
     if (selected.kind === 'circle') spells.wall(hero.root.position, hit);
-    else if (selected.kind === 'square') spells.pillars(hero.root.position, hit);
-    else if (element) spells.pillars(hero.root.position, hit, element);
+    else if (selected.kind === 'square') combat.cast(hit, 'earth');
+    else if (element) combat.cast(hit, element);
     else impact.show(hit.x, hit.z);
     return;
   }
@@ -276,6 +303,8 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 addEventListener('resize', fitCamera);
 fitCamera();
+// Rivals need the real framing to land on screen.
+combat.respawn();
 
 const fpsLabel = document.getElementById('fps')!;
 let frames = 0;
@@ -291,6 +320,7 @@ renderer.setAnimationLoop((time) => {
   marker.update(dt);
   impact.update(dt);
   spells.update(dt);
+  combat.update(dt);
   ink.update(dt);
 
   renderer.setRenderTarget(sceneTarget);

@@ -9,7 +9,7 @@ const SPEED = 1.6;
 const STRIDE = 1.75 * MODEL_SCALE; // world units covered per full walk cycle
 const ARRIVE_RADIUS = 0.03;
 const TURN_RATE = 12;
-const BODY_RADIUS = 0.12;
+export const BODY_RADIUS = 0.12;
 const WAYPOINT_RADIUS = 0.06;
 // If the alchemist covers less than this share of its expected distance over STUCK_TIME, it re-plans
 // (something new, like an earth wall, may have risen in the way).
@@ -74,15 +74,15 @@ function buildLeg(side: number): Limb {
   return { upper, lower };
 }
 
-function buildArm(side: number): Limb {
+function buildArm(side: number, coat: string, coatDark: string): Limb {
   const upper = new THREE.Group();
   upper.position.set(side * 0.21, SHOULDER_Y, 0);
   upper.rotation.z = side * 0.08;
-  upper.add(segment(ARM_UPPER, 0.055, 0.045, COAT));
+  upper.add(segment(ARM_UPPER, 0.055, 0.045, coat));
   const lower = new THREE.Group();
   lower.position.y = -ARM_UPPER;
-  lower.add(segment(ARM_LOWER, 0.044, 0.04, COAT));
-  const cuff = part(new THREE.CylinderGeometry(0.047, 0.047, 0.05, 6), COAT_DARK);
+  lower.add(segment(ARM_LOWER, 0.044, 0.04, coat));
+  const cuff = part(new THREE.CylinderGeometry(0.047, 0.047, 0.05, 6), coatDark);
   cuff.position.y = -ARM_LOWER + 0.03;
   lower.add(cuff);
   // White gloves: the alchemist's working tool.
@@ -94,6 +94,17 @@ function buildArm(side: number): Limb {
   return { upper, lower };
 }
 
+export interface CharacterLook {
+  coat?: string;
+  coatDark?: string;
+  speed?: number;
+}
+
+// A hit turns the whole figure white for a moment.
+const FLASH = new THREE.MeshBasicMaterial({ color: '#fff4e8' });
+const FLASH_TIME = 0.12;
+const CAST_TIME = 0.4;
+
 /** A small low-poly state alchemist in uniform, with human proportions, that walks to a target point on the meadow. */
 export class Character {
   readonly root = new THREE.Group();
@@ -103,8 +114,11 @@ export class Character {
   private readonly coatTail: THREE.Mesh;
   private readonly legL = buildLeg(-1);
   private readonly legR = buildLeg(1);
-  private readonly armL = buildArm(-1);
-  private readonly armR = buildArm(1);
+  private readonly armL: Limb;
+  private readonly armR: Limb;
+  private readonly speed: number;
+  private flashTimer = 0;
+  private castTimer = 0;
   private heading = 0;
   /** Corners to walk through on the way to the target, last one being the target itself. */
   private path: Waypoint[] = [];
@@ -115,14 +129,19 @@ export class Character {
   private walkBlend = 0;
   private time = 0;
 
-  constructor(private readonly obstacles: Obstacle[]) {
+  constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
+    const coat = look.coat ?? COAT;
+    const coatDark = look.coatDark ?? COAT_DARK;
+    this.speed = look.speed ?? SPEED;
+    this.armL = buildArm(-1, coat, coatDark);
+    this.armR = buildArm(1, coat, coatDark);
     // Greatcoat: fitted chest, then long tails down to the knee, open at the front so the legs can stride.
-    const chest = part(new THREE.CylinderGeometry(0.2, 0.155, 0.52, 7), COAT);
+    const chest = part(new THREE.CylinderGeometry(0.2, 0.155, 0.52, 7), coat);
     chest.position.y = 1.26;
     const tailLength = 0.52;
     this.coatTail = part(
       new THREE.CylinderGeometry(0.16, 0.25, tailLength, 8, 1, true, 0.42, Math.PI * 2 - 0.84).translate(0, -tailLength / 2, 0),
-      COAT,
+      coat,
       undefined,
       THREE.DoubleSide,
     );
@@ -153,7 +172,7 @@ export class Character {
     const epauletR = epauletL.clone();
     epauletR.position.x = 0.17;
     epauletR.rotation.z = -0.12;
-    const collar = part(new THREE.CylinderGeometry(0.075, 0.085, 0.07, 7), COAT_DARK);
+    const collar = part(new THREE.CylinderGeometry(0.075, 0.085, 0.07, 7), coatDark);
     collar.position.y = 1.55;
 
     const head = part(new THREE.IcosahedronGeometry(0.115, 1), SKIN);
@@ -173,6 +192,27 @@ export class Character {
     this.root.add(this.model);
     this.root.position.set(0, heightAt(0, 0), 0);
     this.target.copy(this.root.position);
+    this.model.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.userData.material = o.material;
+    });
+  }
+
+  /** True while walking somewhere. */
+  get moving() {
+    return this.path.length > 1 || Math.hypot(this.target.x - this.root.position.x, this.target.z - this.root.position.z) > ARRIVE_RADIUS;
+  }
+
+  /** Flashes white for a moment: the visual side of taking a hit. */
+  flash() {
+    this.flashTimer = FLASH_TIME;
+    this.model.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.material = FLASH;
+    });
+  }
+
+  /** Throws the right hand forward, as when releasing a circle. */
+  cast() {
+    this.castTimer = CAST_TIME;
   }
 
   setTarget(point: THREE.Vector3) {
@@ -244,14 +284,14 @@ export class Character {
     const walking = dist > ARRIVE_RADIUS || this.path.length > 1;
 
     if (walking && dist > 1e-6) {
-      const step = Math.min(dist, SPEED * dt);
+      const step = Math.min(dist, this.speed * dt);
       pos.x += (dx / dist) * step;
       pos.z += (dz / dist) * step;
       this.resolveCollisions();
       this.stuckTimer += dt;
       if (this.stuckTimer >= STUCK_TIME) {
         const moved = Math.hypot(pos.x - this.stuckFrom.x, pos.z - this.stuckFrom.z);
-        if (moved < SPEED * STUCK_TIME * STUCK_RATIO) {
+        if (moved < this.speed * STUCK_TIME * STUCK_RATIO) {
           // A fresh route usually frees it; if it still cannot move, stop instead of pushing forever.
           if (++this.stuckCount > 2) this.stop();
           else this.replan();
@@ -270,7 +310,13 @@ export class Character {
     this.root.rotation.y = this.heading;
 
     this.walkBlend += ((walking ? 1 : 0) - this.walkBlend) * Math.min(1, dt * 10);
-    this.walkPhase += ((SPEED / STRIDE) * Math.PI * 2 * dt) * this.walkBlend;
+    this.walkPhase += ((this.speed / STRIDE) * Math.PI * 2 * dt) * this.walkBlend;
+    if (this.flashTimer > 0 && (this.flashTimer -= dt) <= 0) {
+      this.model.traverse((o) => {
+        if (o instanceof THREE.Mesh) o.material = o.userData.material;
+      });
+    }
+    this.castTimer = Math.max(0, this.castTimer - dt);
     this.animate();
   }
 
@@ -291,6 +337,12 @@ export class Character {
     this.armR.upper.rotation.x = s * 0.4 * w;
     this.armL.lower.rotation.x = -0.12 - Math.max(0, -s) * 0.3 * w;
     this.armR.lower.rotation.x = -0.12 - Math.max(0, s) * 0.3 * w;
+    if (this.castTimer > 0) {
+      // Up fast, down slow: the casting arm points at the target and settles back.
+      const k = Math.sin(Math.PI * Math.min(1, (1 - this.castTimer / CAST_TIME) * 1.6) ** 0.6);
+      this.armR.upper.rotation.x = THREE.MathUtils.lerp(this.armR.upper.rotation.x, -1.5, k);
+      this.armR.lower.rotation.x = THREE.MathUtils.lerp(this.armR.lower.rotation.x, -0.2, k);
+    }
 
     // The coat tails swing open a little behind the striding legs.
     this.coatTail.rotation.x = Math.abs(s) * 0.12 * w;

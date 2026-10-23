@@ -14,7 +14,7 @@ const PILLAR_WARN = 0.2; // s the ground trembles before the pillars break out
 const PILLAR_RISE = 0.12;
 const PILLAR_HOLD = 0.55; // about a second from eruption to buried again
 const PILLAR_SINK = 0.3;
-const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist wide
+export const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist wide
 
 // Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
 export type Element = 'earth' | 'fire' | 'water';
@@ -254,8 +254,15 @@ class PillarStrike extends Effect {
   /** Set when the strike lands inside a standing wall's zone: the warning shows but nothing erupts. */
   blocked = false;
 
-  constructor(readonly x: number, readonly z: number, from: THREE.Vector3, readonly element: Element = 'earth') {
-    super(PILLAR_WARN, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
+  constructor(
+    readonly x: number,
+    readonly z: number,
+    from: THREE.Vector3,
+    readonly element: Element = 'earth',
+    readonly caster: unknown = null,
+    warn = PILLAR_WARN,
+  ) {
+    super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth') this.buildPillars(from);
     else this.buildFluid(element === 'fire');
 
@@ -350,7 +357,7 @@ class PillarStrike extends Effect {
     }
     if (t < 0) {
       // Grows and shudders during the warning so a target can still step out.
-      const w = 1 + t / PILLAR_WARN;
+      const w = 1 + t / this.warn;
       this.crackMaterial.opacity = 0.45 + w * 0.35;
       this.crack.scale.setScalar(PILLAR_AREA * (0.9 + w * 0.6) * (1 + Math.sin(this.age * 90) * 0.05));
       this.crack.rotateY(Math.sin(this.age * 70) * 0.02);
@@ -418,6 +425,9 @@ export class Spells {
   readonly root = new THREE.Group();
   private readonly active: Active[] = [];
 
+  /** Called when a strike breaks out (not when a wall stops it), with whoever cast it. */
+  onStrike: (x: number, z: number, element: Element, caster: unknown) => void = () => {};
+
   constructor(private readonly obstacles: Obstacle[]) {}
 
   /** Raises a defensive arc around the caster, facing the tapped point (clamped to close range). */
@@ -426,8 +436,8 @@ export class Spells {
   }
 
   /** Strikes the tapped point after a short ground warning: rock pillars, or fire or water drawn earlier. */
-  pillars(caster: THREE.Vector3, at: THREE.Vector3, element: Element = 'earth') {
-    this.start(new PillarStrike(at.x, at.z, caster, element));
+  pillars(caster: THREE.Vector3, at: THREE.Vector3, element: Element = 'earth', owner: unknown = null, warn = PILLAR_WARN) {
+    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn));
   }
 
   /** Shows fire or water being drawn from a source into the alchemist (who is followed while it flies). */
@@ -467,7 +477,10 @@ export class Spells {
     for (let i = this.active.length - 1; i >= 0; i--) {
       const effect = this.active[i];
       // Pillars check for a wall at the moment they would break out, so raising one during the warning still saves you.
-      if (effect instanceof PillarStrike && !effect.solid && !effect.blocked && effect.erupting(dt)) effect.blocked = this.shielded(effect.x, effect.z);
+      if (effect instanceof PillarStrike && !effect.solid && !effect.blocked && effect.erupting(dt)) {
+        effect.blocked = this.shielded(effect.x, effect.z);
+        if (!effect.blocked) this.onStrike(effect.x, effect.z, effect.element, effect.caster);
+      }
       const wasSolid = effect.solid;
       effect.update(dt);
       if (effect.solid !== wasSolid) this.setBlocking(effect, effect.solid);
