@@ -67,6 +67,13 @@ class Fighter {
     return this.body.root.position;
   }
 
+  /** Full health and out of any KO. */
+  reset() {
+    this.hp = MAX_HP;
+    this.koTimer = 0;
+    this.bar.classList.remove('ko');
+  }
+
   hit(amount: number, element: Element, camera: THREE.Camera) {
     this.body.flash();
     if (this.koTimer <= 0) {
@@ -259,7 +266,7 @@ export class Combat {
       r.dispose();
     }
     this.rivals = [];
-    this.hero.hp = MAX_HP;
+    this.hero.reset();
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
