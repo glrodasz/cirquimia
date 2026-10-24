@@ -235,7 +235,7 @@ function sourceAt(point: THREE.Vector3, element: 'fire' | 'water'): THREE.Vector
 /**
  * A quick tap walks there, or casts the selected circle: circle = earth wall around the alchemist,
  * square = pillars at that spot, pentagram = five short earth columns around that spot, rhombus = heal the alchemist,
- * triangles = fire / water drawn from a source and then cast like the square.
+ * triangles = fire / water drawn from a source, then picked again and cast like the square.
  */
 function tapAt(clientX: number, clientY: number) {
   const x = (clientX / innerWidth) * 2 - 1;
@@ -243,7 +243,7 @@ function tapAt(clientX: number, clientY: number) {
   if (!groundFromNdc(x, y, hit)) return;
   const selected = ammo.selection();
   if (selected) {
-    // Triangles first draw fire or water out of a source on the map; the next tap casts it.
+    // Triangles first draw fire or water out of a source on the map; the slot then lets go and is cast once picked again.
     const element = selected.kind === 'triangle' ? 'fire' : selected.kind === 'triangleDown' ? 'water' : null;
     if (element && !selected.charged) {
       const source = sourceAt(hit, element);

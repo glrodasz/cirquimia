@@ -171,7 +171,8 @@ const LABELS: Record<ShapeKind, string> = {
 
 /**
  * Stored shapes along the bottom of the screen. Tap one, then tap the map to use it.
- * Triangles take two taps: first on a fire or water source to charge them, then on the target.
+ * Triangles take two rounds: tap the slot and a fire or water source to charge it (the slot lets go),
+ * then tap the charged slot again and the target.
  */
 export class AmmoBar {
   private readonly bar = document.createElement('div');
@@ -241,12 +242,16 @@ export class AmmoBar {
     return slot ? { kind: slot.dataset.kind as ShapeKind, charged: slot.classList.contains('charged') } : null;
   }
 
-  /** Marks the selected slot as charged; it stays selected, ready for the second tap. */
+  /**
+   * Marks the selected slot as charged and lets go of it, so the next tap on the ground walks.
+   * Tapping the charged slot again picks it up to cast.
+   */
   charge() {
     const slot = this.selected;
     if (!slot) return;
     slot.classList.add('charged');
-    slot.animate([{ transform: 'translateY(-8px) scale(1.3)' }, { transform: 'translateY(-8px) scale(1.08)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    this.select(null);
+    slot.animate([{ transform: 'translateY(-8px) scale(1.3)' }, { transform: 'translateY(0) scale(1)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
   }
 
   /** Shakes the selected slot: it cannot be used where the player tapped. */
