@@ -104,6 +104,8 @@ export interface CharacterLook {
 const FLASH = new THREE.MeshBasicMaterial({ color: '#fff4e8' });
 const FLASH_TIME = 0.12;
 const CAST_TIME = 0.4;
+// Knocked down: the body tips over backwards and lies on its back.
+const FALL_TIME = 0.55;
 
 /** A small low-poly state alchemist in uniform, with human proportions, that walks to a target point on the meadow. */
 export class Character {
@@ -128,6 +130,9 @@ export class Character {
   private walkPhase = 0;
   private walkBlend = 0;
   private time = 0;
+  /** 0 standing, 1 lying on the ground. */
+  private fallen = 0;
+  private down = false;
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -217,12 +222,33 @@ export class Character {
     });
   }
 
+  /** True once knocked down; it stays on the ground until `rise`. */
+  get isDown() {
+    return this.down;
+  }
+
+  /** Falls on its back where it stands and stays there. */
+  fall() {
+    if (this.down) return;
+    this.down = true;
+    this.castTimer = 0;
+    this.stop();
+  }
+
+  /** Back on its feet at once, as at the start of a match. */
+  rise() {
+    this.down = false;
+    this.fallen = 0;
+    this.stop();
+  }
+
   /** Throws the right hand forward, as when releasing a circle. */
   cast() {
     this.castTimer = CAST_TIME;
   }
 
   setTarget(point: THREE.Vector3) {
+    if (this.down) return;
     this.target.set(point.x, 0, point.z);
     // Never aim inside a tree or a big rock; push the goal to its edge.
     for (const o of this.obstacles) {
@@ -274,6 +300,7 @@ export class Character {
 
   /** Turns to face a point, e.g. where a circle is being cast. */
   face(point: THREE.Vector3) {
+    if (this.down) return;
     const dx = point.x - this.root.position.x;
     const dz = point.z - this.root.position.z;
     if (dx * dx + dz * dz > 1e-6) this.heading = Math.atan2(dx, dz);
@@ -324,6 +351,7 @@ export class Character {
       });
     }
     this.castTimer = Math.max(0, this.castTimer - dt);
+    if (this.down) this.fallen = Math.min(1, this.fallen + dt / FALL_TIME);
     this.animate();
   }
 
@@ -361,6 +389,27 @@ export class Character {
     this.torso.rotation.x = 0.06 * w;
     this.torso.rotation.y = s * 0.08 * w;
     this.torso.scale.y = 1 + Math.sin(this.time * 2.2) * 0.006 * idle;
+
+    // Tipping over: accelerates like a real fall, with a small bounce as it lands, then lies flat with limbs splayed.
+    const t = this.fallen;
+    if (t <= 0) {
+      this.model.rotation.x = 0;
+      this.armL.upper.rotation.z = -0.08;
+      this.armR.upper.rotation.z = 0.08;
+      this.legL.upper.rotation.z = this.legR.upper.rotation.z = 0;
+      return;
+    }
+    const drop = t < 0.8 ? (t / 0.8) ** 2 : 1 - Math.sin(((t - 0.8) / 0.2) * Math.PI) * 0.06;
+    this.model.rotation.x = -Math.PI / 2 * drop;
+    this.model.position.y = 0.05 * drop;
+    const splay = Math.min(1, t * 1.4);
+    this.armL.upper.rotation.z = THREE.MathUtils.lerp(-0.08, -0.9, splay);
+    this.armR.upper.rotation.z = THREE.MathUtils.lerp(0.08, 0.9, splay);
+    this.armL.lower.rotation.x = this.armR.lower.rotation.x = -0.35 * splay;
+    this.legL.upper.rotation.z = -0.18 * splay;
+    this.legR.upper.rotation.z = 0.12 * splay;
+    this.legR.lower.rotation.x = 0.5 * splay;
+    this.torso.scale.y = 1;
   }
 
   private resolveCollisions() {

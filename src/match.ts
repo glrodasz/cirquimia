@@ -1,5 +1,5 @@
 import { brushPath, ensoLine, type Pt } from './ammo';
-import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty } from './combat';
+import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
 
 const STORE = 'cirquimia.match';
 const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before they moved to the HUD
@@ -12,6 +12,8 @@ export interface MatchControls {
   readonly difficulty: Difficulty;
   setRivals(count: number): void;
   setDifficulty(level: Difficulty): void;
+  /** Starts a fresh match, on a new meadow, with the current settings. */
+  restart(): void;
 }
 
 interface Saved {
@@ -63,6 +65,14 @@ function person(cx: number, s: number, cls: string, rand: () => number) {
   const head = brushPath(arc(cx, 24 - 8 * s, 5 * s, -2 + rand(), -2 + rand() + Math.PI * 2.1), 3.4 * s, rand);
   const body = brushPath(arc(cx, 24 + 12 * s, 9.5 * s, Math.PI * 1.02, Math.PI * 1.98), 4.4 * s, rand);
   return { ink: `<path class="${cls}" d="${head.ink}${body.ink}"/>`, dry: head.dry + body.dry };
+}
+
+/** The same figure fallen: head loop and a long body stroke lying on a line of ground. */
+function fallen(cls: string, rand: () => number) {
+  const head = brushPath(arc(14, 25.5, 4.4, -2 + rand(), -2 + rand() + Math.PI * 2.1), 3.2, rand);
+  const body = brushPath(segment([20.5, 26.5], [36, 27.5 + (rand() - 0.5)]), 5.4, rand);
+  const ground = brushPath(segment([10, 33], [39, 33.5]), 2, rand);
+  return { ink: `<path class="${cls}" d="${head.ink}${body.ink}"/><path class="faint" d="${ground.ink}"/>`, dry: head.dry + body.dry };
 }
 
 let svgId = 0;
@@ -160,12 +170,55 @@ export function mountMatchControls(match: MatchControls) {
 
   rivalsBtn.addEventListener('click', () => {
     match.setRivals((match.rivals + 1) % (MAX_RIVALS + 1));
+    match.restart();
     restarted(rivalsBtn);
   });
   levelBtn.addEventListener('click', () => {
     match.setDifficulty(LEVELS[(LEVELS.indexOf(match.difficulty) + 1) % LEVELS.length]);
+    match.restart();
     restarted(levelBtn);
   });
 
   render();
+
+  // End of match: a card over a misty scrim, with the same brush look as the HUD, and one way out.
+  const end = document.createElement('div');
+  end.id = 'match-end';
+  end.hidden = true;
+  end.setAttribute('role', 'dialog');
+  end.setAttribute('aria-modal', 'true');
+  end.innerHTML =
+    '<div class="card"><div class="disc"></div><h2></h2><p></p>' +
+    '<button type="button" class="match-btn again"><span class="cap">Jugar de nuevo</span></button></div>';
+  for (const type of ['pointerdown', 'pointerup', 'pointermove']) end.addEventListener(type, (e) => e.stopPropagation());
+  document.body.append(end);
+  const again = end.querySelector<HTMLButtonElement>('.again')!;
+  again.addEventListener('click', () => {
+    end.hidden = true;
+    end.classList.remove('show');
+    match.restart();
+    restarted(again);
+  });
+
+  return {
+    showEnd(outcome: Outcome) {
+      const n = match.rivals;
+      const level = DIFFICULTY_LABEL[match.difficulty];
+      const rand = random();
+      const won = outcome === 'victory';
+      end.className = won ? 'victory' : 'defeat';
+      end.querySelector('.disc')!.innerHTML = won
+        ? svg([person(24, 1, 'hero', rand)], rand)
+        : svg([fallen('down', rand)], rand);
+      end.querySelector('h2')!.textContent = won ? '¡Victoria!' : 'Game Over';
+      end.querySelector('p')!.textContent = won
+        ? `Venciste a ${n === 1 ? 'tu rival' : `tus ${n} rivales`} · ${level}`
+        : `Has caído en combate · ${level}`;
+      end.setAttribute('aria-label', won ? 'Victoria' : 'Game Over');
+      end.hidden = false;
+      void end.offsetWidth; // let the fade-in start from hidden
+      end.classList.add('show');
+      again.focus({ preventScroll: true });
+    },
+  };
 }

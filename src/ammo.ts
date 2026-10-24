@@ -216,6 +216,11 @@ export class AmmoBar {
     return true;
   }
 
+  /** Drops every stored shape, as at the start of a new match. */
+  clear() {
+    for (const slot of this.bar.querySelectorAll<HTMLButtonElement>('.slot:not(:disabled)')) this.discard(slot);
+  }
+
   private discard(slot: HTMLButtonElement) {
     if (slot === this.selected) this.select(null);
     slot.disabled = true;

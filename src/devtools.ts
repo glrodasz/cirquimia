@@ -247,4 +247,5 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   world.setDebug(debugBox.checked);
   run(initialSeed());
   setOpen(!!saved.open);
+  return { newMeadow: () => run(randomSeed()) };
 }

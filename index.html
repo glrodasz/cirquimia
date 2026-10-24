@@ -64,6 +64,25 @@
       #match-toast.show { opacity: 1; transform: translate(-50%, 0); }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .match-btn .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) .match-btn .red { fill: #ff7a6b; } :root:not([data-theme="light"]) .match-btn .green { fill: #7fd690; } }
       :root[data-theme="dark"] .match-btn .glyph { fill: #ffd27a; } :root[data-theme="dark"] .match-btn .red { fill: #ff7a6b; } :root[data-theme="dark"] .match-btn .green { fill: #7fd690; }
+      #match-end { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.35), rgba(35,50,42,.55)); backdrop-filter: blur(2px) saturate(.8); -webkit-backdrop-filter: blur(2px) saturate(.8); opacity: 0; transition: opacity .45s; touch-action: none; }
+      #match-end[hidden] { display: none; }
+      #match-end.show { opacity: 1; }
+      #match-end .card { display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(300px, 100%); box-sizing: border-box; padding: 18px 20px 20px; border-radius: 22px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(20,28,24,.3); font: 400 14px/1.35 system-ui, -apple-system, sans-serif; text-align: center; transform: translateY(10px) scale(.96); transition: transform .45s cubic-bezier(.2,1.4,.4,1); }
+      #match-end.show .card { transform: none; }
+      #match-end .disc { width: 84px; height: 84px; }
+      #match-end svg { display: block; width: 100%; height: 100%; overflow: visible; }
+      #match-end .ring { fill: var(--hud-fg); opacity: .32; }
+      #match-end.victory .ring { fill: #e0a23c; opacity: .95; }
+      #match-end .hero { fill: #3d7fd6; filter: drop-shadow(0 .6px .4px rgba(0,0,0,.18)); }
+      #match-end .faint { fill: var(--hud-fg); opacity: .3; }
+      #match-end .down { fill: var(--hud-fg); opacity: .7; }
+      #match-end h2 { margin: 2px 0 0; font: 800 26px/1.1 system-ui, -apple-system, sans-serif; letter-spacing: .01em; }
+      #match-end.victory h2 { color: #b5761f; }
+      #match-end p { margin: 0 0 10px; opacity: .75; }
+      #match-end .again { padding: 0 20px; height: 44px; font-size: 15px; background: #3f5a57; color: #f1f5f2; }
+      #match-end .again .cap::after { content: " ↻"; opacity: .7; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #match-end.victory h2 { color: #ffd27a; } :root:not([data-theme="light"]) #match-end .again { background: #9fbcb4; color: #14201c; } :root:not([data-theme="light"]) #match-end .hero { fill: #7fb2f0; } }
+      :root[data-theme="dark"] #match-end.victory h2 { color: #ffd27a; } :root[data-theme="dark"] #match-end .again { background: #9fbcb4; color: #14201c; } :root[data-theme="dark"] #match-end .hero { fill: #7fb2f0; }
       #fps { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 50px); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
       #fps[hidden] { display: none; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; } }
@@ -90,6 +109,8 @@
       .hp[hidden] { display: none; }
       .hp-fill { height: 100%; transform-origin: left; transition: transform .25s ease-out; }
       .hp.ko .hp-fill { filter: grayscale(1) brightness(.8); }
+      .hp { transition: opacity .6s .5s; }
+      .hp.gone { opacity: 0; }
       .hp.hurt { animation: hp-shake .25s; }
       @keyframes hp-shake { 25% { margin-left: -22px; } 75% { margin-left: -16px; } }
       .dmg { position: fixed; z-index: 2; pointer-events: none; font: 800 18px/1 system-ui, -apple-system, sans-serif; text-shadow: 0 1px 0 #1e2622, 0 0 6px rgba(0,0,0,.45); transform: translate(-50%, -100%); animation: dmg-pop .9s ease-out forwards; }

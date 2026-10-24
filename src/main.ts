@@ -89,7 +89,7 @@ const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findS
 scene.add(combat.root);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
-mountDevTools(
+const dev = mountDevTools(
   world,
   () => {
     spells.clear();
@@ -99,8 +99,8 @@ mountDevTools(
   },
 );
 
-// Rivals and difficulty live in the HUD, top left; any change restarts the match.
-mountMatchControls({
+// Rivals and difficulty live in the HUD, top left; any change restarts the match, and every new match is a new meadow.
+const matchHud = mountMatchControls({
   get rivals() {
     return combat.rivalCount;
   },
@@ -115,7 +115,12 @@ mountMatchControls({
     spells.clear();
     combat.setDifficulty(d);
   },
+  restart: () => {
+    ammo.clear();
+    dev.newMeadow();
+  },
 });
+combat.onEnd = (outcome) => matchHud.showEnd(outcome);
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -238,6 +243,7 @@ function sourceAt(point: THREE.Vector3, element: 'fire' | 'water'): THREE.Vector
  * triangles = fire / water drawn from a source, then picked again and cast like the square.
  */
 function tapAt(clientX: number, clientY: number) {
+  if (combat.over) return;
   const x = (clientX / innerWidth) * 2 - 1;
   const y = -(clientY / innerHeight) * 2 + 1;
   if (!groundFromNdc(x, y, hit)) return;
@@ -280,7 +286,8 @@ let stroke: Point[] = [];
 const canvas = renderer.domElement;
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (activePointer !== null) return;
+  // Once the match is decided (or the alchemist lies fallen) there is nothing left to draw or walk to.
+  if (activePointer !== null || combat.over) return;
   activePointer = e.pointerId;
   canvas.setPointerCapture(e.pointerId);
   drawing = false;
