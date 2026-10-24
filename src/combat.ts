@@ -133,18 +133,20 @@ class Fighter {
   }
 
   /** Back up by `amount`, capped at full; no effect while knocked out (the bar refills on its own then). */
-  heal(amount: number, camera: THREE.Camera) {
+  heal(amount: number, camera: THREE.Camera, boosted = false) {
     if (this.koTimer > 0) return;
     this.hp = Math.min(MAX_HP, this.hp + amount);
-    this.popNumber(`+${amount}`, HEAL_COLOR, camera);
+    // A rune-boosted heal pops bigger and marked, so it reads apart from a plain one even near full health.
+    this.popNumber(boosted ? `+${amount} ✦` : `+${amount}`, HEAL_COLOR, camera, boosted ? 1.4 : 1);
   }
 
-  private popNumber(text: string, color: string, camera: THREE.Camera) {
+  private popNumber(text: string, color: string, camera: THREE.Camera, size = 1) {
     if (!this.screen(camera)) return;
     const num = document.createElement('div');
     num.className = 'dmg';
     num.textContent = text;
     num.style.color = color;
+    if (size !== 1) num.style.fontSize = `${18 * size}px`;
     num.style.left = `${projected.x + THREE.MathUtils.randFloatSpread(18)}px`;
     num.style.top = `${projected.y}px`;
     num.addEventListener('animationend', () => num.remove());
@@ -368,7 +370,7 @@ export class Combat {
   /** Heals the caster, 30% more from inside a rune circle, with rising lines of light on it. */
   healFrom(caster: Fighter) {
     const boosted = this.onRunes(caster.position);
-    caster.heal(Math.round(HEAL * (boosted ? RUNE_HEAL_BOOST : 1)), this.camera);
+    caster.heal(Math.round(HEAL * (boosted ? RUNE_HEAL_BOOST : 1)), this.camera, boosted);
     this.spells.heal(caster.position, caster.ink, boosted);
   }
 
