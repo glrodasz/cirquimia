@@ -229,7 +229,8 @@ function sourceAt(point: THREE.Vector3, element: 'fire' | 'water'): THREE.Vector
 
 /**
  * A quick tap walks there, or casts the selected circle: circle = earth wall around the alchemist,
- * square = pillars at that spot, triangles = fire / water drawn from a source and then cast like the square.
+ * square = pillars at that spot, pentagram = five short earth columns around that spot, rhombus = heal the alchemist,
+ * triangles = fire / water drawn from a source and then cast like the square.
  */
 function tapAt(clientX: number, clientY: number) {
   const x = (clientX / innerWidth) * 2 - 1;
@@ -255,6 +256,8 @@ function tapAt(clientX: number, clientY: number) {
     hero.cast();
     if (selected.kind === 'circle') combat.wall(hit);
     else if (selected.kind === 'square') combat.cast(hit, 'earth');
+    else if (selected.kind === 'pentagram') combat.cast(hit, 'columns');
+    else if (selected.kind === 'rhombus') combat.heal();
     else if (element) combat.cast(hit, element);
     else impact.show(hit.x, hit.z);
     return;

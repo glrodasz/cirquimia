@@ -16,9 +16,18 @@ const PILLAR_HOLD = 0.55; // about a second from eruption to buried again
 const PILLAR_SINK = 0.3;
 export const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist wide
 
+// Pentagram = earth columns: five short square columns at the tips of a star around the target, same reach as the square.
+const COLUMN_HEIGHT = 0.26; // the square's main pillar is 0.46: a lighter hit, a lower strike
+const COLUMN_WIDTH = 0.075;
+
 // Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
-export type Element = 'earth' | 'fire' | 'water';
+export type Element = 'earth' | 'columns' | 'fire' | 'water';
 const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
+
+// Rhombus = healing on the caster: thin lines of light rising up through the body.
+const HEAL_TIME = 1.3;
+const HEAL_LINE_LIFE = 0.7; // s one line takes to rise from the feet past the head
+const HEAL = ['#a8e6a1', '#d8f2c4', '#8fd6a0'];
 
 // Bruma earth tones: grey rock, dry dirt, dark soil.
 const ROCK = ['#8c9496', '#7d8584', '#9a9d95'];
@@ -42,13 +51,15 @@ const CAMERA_YAW = THREE.MathUtils.degToRad(24); // matches the camera azimuth i
 const flameGeo = new THREE.ConeGeometry(0.5, 1, 5, 1).translate(0, 0.5, 0);
 const spoutGeo = new THREE.CylinderGeometry(0.3, 0.5, 1, 6, 1).translate(0, 0.5, 0);
 const orbGeo = new THREE.IcosahedronGeometry(1, 0);
+const healLineGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+const healRingGeo = new THREE.RingGeometry(0.16, 0.22, 32).rotateX(-Math.PI / 2);
 
 // Muted to sit in the Bruma palette, but lit from within so they still read as fire and water.
 const FIRE = ['#f08a3a', '#f4a94c', '#e0663a'];
 const FIRE_CORE = '#ffd67a';
 const WATER = ['#7fb3c2', '#93c4cf', '#6a9fb1'];
 const WATER_FOAM = '#d9ecef';
-const WARNING: Record<Element, string> = { earth: SOIL, fire: '#c4552c', water: '#2f5866' };
+const WARNING: Record<Element, string> = { earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866' };
 
 const tmpColor = new THREE.Color();
 const easeOutBack = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
@@ -298,7 +309,8 @@ function wallSegment(cx: number, cz: number, a: Section, b: Section, capStart: b
 
 /**
  * A tremor on the ground, then the strike breaks out: slanted square pillars of rock (square),
- * a burst of flame tongues (fire triangle) or a spout of water (water triangle).
+ * five short columns at the tips of a star (pentagram), a burst of flame tongues (fire triangle)
+ * or a spout of water (water triangle).
  */
 class PillarStrike extends Effect {
   readonly obstacles: Obstacle[] = [];
@@ -327,6 +339,7 @@ class PillarStrike extends Effect {
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth') this.buildPillars(from);
+    else if (element === 'columns') this.buildColumns();
     else this.buildFluid(element === 'fire');
     if (scale !== 1) {
       // Grow the cluster about its centre: spread, width and height alike.
@@ -404,6 +417,23 @@ class PillarStrike extends Effect {
     }
   }
 
+  /** Five short columns on the rim of the strike, placed like the tips of the drawn star (one tip up on screen). */
+  private buildColumns() {
+    const { x, z } = this;
+    // Straight up the screen is away from the camera, which sits 24° around from +z.
+    const up = Math.PI + CAMERA_YAW;
+    for (let k = 0; k < 5; k++) {
+      const a = up + (k / 5) * Math.PI * 2;
+      const d = PILLAR_AREA * 0.85;
+      const h = COLUMN_HEIGHT * THREE.MathUtils.randFloat(0.9, 1.1);
+      tmpColor.set(ROCK[k % ROCK.length]).offsetHSL(0, 0, THREE.MathUtils.randFloatSpread(0.04));
+      // They break out one after another in the order the star is drawn: tip, two along, and so on.
+      const mesh = this.addPiece(pillarGeo, tmpColor, x + Math.sin(a) * d, z + Math.cos(a) * d, h, ((k * 2) % 5) * 0.03);
+      mesh.scale.set(COLUMN_WIDTH, h, COLUMN_WIDTH);
+      mesh.rotation.set(THREE.MathUtils.randFloat(0.08, 0.18), a + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
+    }
+  }
+
   /** Flame tongues or water spouts: a tall core with shorter ones around it, all swaying while up. */
   private buildFluid(fire: boolean) {
     const { x, z } = this;
@@ -445,7 +475,7 @@ class PillarStrike extends Effect {
       for (const p of this.pieces) p.mesh.visible = false;
       this.solid = false;
     }
-    if (this.element !== 'earth') {
+    if (this.element === 'fire' || this.element === 'water') {
       // Flames lick and water churns: each tongue breathes in height and width on its own beat.
       const fast = this.element === 'fire' ? 22 : 14;
       for (const p of this.pieces) {
@@ -521,6 +551,84 @@ class Channel {
   }
 }
 
+/** Healing on the caster: thin lines of light rise up through the body, over a ring at the feet. */
+class HealGlow {
+  readonly group = new THREE.Group();
+  readonly obstacles: Obstacle[] = [];
+  readonly solid = false;
+  done = false;
+  private age = 0;
+  private readonly lines: { mesh: THREE.Mesh; material: THREE.MeshBasicMaterial; delay: number; length: number }[] = [];
+  private readonly ringMaterial: THREE.MeshBasicMaterial;
+  private readonly boostRing: THREE.Group | null = null;
+
+  /** `target` is followed while the glow lasts, so it stays on someone who keeps walking. */
+  constructor(private readonly target: THREE.Vector3, ink: string | null, boosted: boolean) {
+    const count = boosted ? 18 : 13;
+    for (let i = 0; i < count; i++) {
+      const material = new THREE.MeshBasicMaterial({
+        color: HEAL[i % HEAL.length],
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const mesh = new THREE.Mesh(healLineGeo, material);
+      const a = (i / count) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.4);
+      const r = THREE.MathUtils.randFloat(0.07, 0.2);
+      const w = THREE.MathUtils.randFloat(0.012, 0.022);
+      mesh.position.set(Math.sin(a) * r, 0, Math.cos(a) * r);
+      mesh.scale.set(w, 1, w);
+      mesh.visible = false;
+      mesh.renderOrder = 5;
+      this.group.add(mesh);
+      this.lines.push({ mesh, material, delay: THREE.MathUtils.randFloat(0, HEAL_TIME - HEAL_LINE_LIFE), length: THREE.MathUtils.randFloat(0.16, 0.32) });
+    }
+    this.ringMaterial = new THREE.MeshBasicMaterial({ color: ink ?? HEAL[0], transparent: true, opacity: 0, depthWrite: false });
+    const ring = new THREE.Mesh(healRingGeo, this.ringMaterial);
+    ring.position.y = 0.035;
+    ring.renderOrder = 1;
+    this.group.add(ring);
+    if (boosted) {
+      // Healed from a rune circle: the same dashed outer ring as a boosted strike, sized to the feet.
+      this.boostRing = new THREE.Group();
+      for (let i = 0; i < BOOST_DASHES; i++) {
+        const dash = new THREE.Mesh(boostDashGeo, this.ringMaterial);
+        dash.rotation.y = (i / BOOST_DASHES) * Math.PI * 2;
+        dash.renderOrder = 1;
+        this.boostRing.add(dash);
+      }
+      this.boostRing.scale.setScalar(0.22);
+      this.boostRing.position.y = 0.036;
+      this.group.add(this.boostRing);
+    }
+    this.group.position.copy(target);
+  }
+
+  update(dt: number) {
+    this.age += dt;
+    this.group.position.copy(this.target);
+    for (const l of this.lines) {
+      const u = (this.age - l.delay) / HEAL_LINE_LIFE;
+      l.mesh.visible = u > 0 && u < 1;
+      if (!l.mesh.visible) continue;
+      // Rises from the feet to just above the head, stretching out on the way and fading at both ends.
+      l.mesh.position.y = u * 0.85;
+      l.mesh.scale.y = l.length * (0.4 + Math.sin(Math.PI * u) * 0.6);
+      l.material.opacity = Math.sin(Math.PI * u) * 0.9;
+    }
+    const t = this.age / HEAL_TIME;
+    this.ringMaterial.opacity = 0.8 * Math.min(1, t * 6) * (t < 0.7 ? 1 : Math.max(0, 1 - (t - 0.7) / 0.3));
+    this.boostRing?.rotateY(0.04);
+    if (t >= 1) this.done = true;
+  }
+
+  dispose() {
+    for (const l of this.lines) l.material.dispose();
+    this.ringMaterial.dispose();
+  }
+}
+
 /** A cross on the ground in the caster's ink: a strike aimed into a protected zone that never breaks out. */
 class DeniedMark {
   readonly group = new THREE.Group();
@@ -571,7 +679,7 @@ class DeniedMark {
   }
 }
 
-type Active = EarthWall | PillarStrike | Channel | DeniedMark;
+type Active = EarthWall | PillarStrike | Channel | DeniedMark | HealGlow;
 
 /** What each transmutation circle does once it is spent on the map. */
 export class Spells {
@@ -609,6 +717,11 @@ export class Spells {
   /** Shows fire or water being drawn from a source into the alchemist (who is followed while it flies). */
   channel(source: THREE.Vector3, caster: THREE.Vector3, element: 'fire' | 'water') {
     this.start(new Channel(source, caster, element === 'fire'));
+  }
+
+  /** Rising lines of light on someone being healed (followed while it lasts); a dashed ring when boosted by runes. */
+  heal(target: THREE.Vector3, ink: string | null = null, boosted = false) {
+    this.start(new HealGlow(target, ink, boosted));
   }
 
   /** Drops every effect at once, e.g. when a new meadow replaces the terrain they were built on. */

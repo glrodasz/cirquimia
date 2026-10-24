@@ -4,8 +4,12 @@ import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
 import { PILLAR_AREA, type Element, type Spells } from './spells';
 
-// Damage per strike: square (earth pillars) 20, fire and water triangles 35.
-export const DAMAGE: Record<Element, number> = { earth: 20, fire: 35, water: 35 };
+// Damage per strike: square (earth pillars) 20, pentagram (earth columns) 10, fire and water triangles 35.
+export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35 };
+// Rhombus: heals the caster; 30% more when cast from inside a rune circle.
+export const HEAL = 25;
+const RUNE_HEAL_BOOST = 1.3;
+const HEAL_COLOR = '#a8e6a1';
 const MAX_HP = 100;
 // No dying yet: at zero the bar sits empty for a moment, then refills.
 const KO_TIME = 1.4;
@@ -38,12 +42,16 @@ interface Tuning {
   reaction: number;
   /** Chance of drawing fire or water (35) from a source before attacking, instead of using pillars (20). */
   elemental: number;
+  /** Chance of healing instead of attacking when at half health or less. */
+  heal: number;
+  /** Chance of an earth attack being the pentagram's columns (10) instead of the square's pillars (20). */
+  columns: number;
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, leads: false, dodge: 0.1, reaction: 0.25, elemental: 0 },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, leads: false, dodge: 0.4, reaction: 0.12, elemental: 0.3 },
-  dificil: { speed: 1.4, cooldown: [1.8, 2.6], warn: 0.42, aimError: 0.05, leads: true, dodge: 0.75, reaction: 0.04, elemental: 0.5 },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, leads: false, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4 },
+  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, leads: false, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25 },
+  dificil: { speed: 1.4, cooldown: [1.8, 2.6], warn: 0.42, aimError: 0.05, leads: true, dodge: 0.75, reaction: 0.04, elemental: 0.5, heal: 0.5, columns: 0.15 },
 };
 
 // Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
@@ -53,7 +61,7 @@ const RIVAL_LOOKS = [
   { coat: '#6b3a3a', coatDark: '#4f2a2b', ink: '#d9483b' },
   { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
 ];
-const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3' };
+const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3' };
 
 const projected = new THREE.Vector3();
 
@@ -121,11 +129,22 @@ class Fighter {
     this.bar.classList.remove('hurt');
     void this.bar.offsetWidth; // restart the shake
     this.bar.classList.add('hurt');
+    this.popNumber(`-${amount}`, ELEMENT_COLOR[element], camera);
+  }
+
+  /** Back up by `amount`, capped at full; no effect while knocked out (the bar refills on its own then). */
+  heal(amount: number, camera: THREE.Camera) {
+    if (this.koTimer > 0) return;
+    this.hp = Math.min(MAX_HP, this.hp + amount);
+    this.popNumber(`+${amount}`, HEAL_COLOR, camera);
+  }
+
+  private popNumber(text: string, color: string, camera: THREE.Camera) {
     if (!this.screen(camera)) return;
     const num = document.createElement('div');
     num.className = 'dmg';
-    num.textContent = `-${amount}`;
-    num.style.color = ELEMENT_COLOR[element];
+    num.textContent = text;
+    num.style.color = color;
     num.style.left = `${projected.x + THREE.MathUtils.randFloatSpread(18)}px`;
     num.style.top = `${projected.y}px`;
     num.addEventListener('animationend', () => num.remove());
@@ -242,6 +261,12 @@ class Rival extends Fighter {
     this.attackTimer -= dt;
     if (this.attackTimer <= 0) {
       this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
+      // Hurt rivals sometimes spend the turn on a rhombus instead.
+      if (this.hp <= 50 && Math.random() < this.tuning.heal) {
+        this.body.cast();
+        combat.healFrom(this);
+        return;
+      }
       // Fire and water have to be drawn from a source on the map first, like the player does; that takes this turn.
       if (!this.charged && Math.random() < this.tuning.elemental) {
         const order: Fluid[] = Math.random() < 0.5 ? ['fire', 'water'] : ['water', 'fire'];
@@ -268,7 +293,7 @@ class Rival extends Fighter {
       aim.x += Math.sin(a) * e;
       aim.z += Math.cos(a) * e;
       aim.y = heightAt(aim.x, aim.z);
-      const element: Element = this.charged ?? 'earth';
+      const element: Element = this.charged ?? (Math.random() < this.tuning.columns ? 'columns' : 'earth');
       this.charged = null;
       this.body.face(aim);
       this.body.cast();
@@ -333,6 +358,18 @@ export class Combat {
   /** The alchemist strikes a point. */
   cast(at: THREE.Vector3, element: Element) {
     this.strikeFrom(this.hero, at, element);
+  }
+
+  /** The alchemist heals itself with a rhombus. */
+  heal() {
+    this.healFrom(this.hero);
+  }
+
+  /** Heals the caster, 30% more from inside a rune circle, with rising lines of light on it. */
+  healFrom(caster: Fighter) {
+    const boosted = this.onRunes(caster.position);
+    caster.heal(Math.round(HEAL * (boosted ? RUNE_HEAL_BOOST : 1)), this.camera);
+    this.spells.heal(caster.position, caster.ink, boosted);
   }
 
   /** Shows fire or water flying from its source into a rival. */
