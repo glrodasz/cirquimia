@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { BODY_RADIUS, Character } from './character';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { PILLAR_AREA, type Element, type Spells } from './spells';
+import { PILLAR_AREA, PILLAR_WARN, STAR_REACH, starTips, type Element, type Spells } from './spells';
 
-// Damage per strike: square (earth pillars) 20, pentagram (earth columns) 10, fire and water triangles 35.
+// Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35.
 export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35 };
 // Rhombus: heals the caster; 30% more when cast from inside a rune circle.
 export const HEAL = 25;
@@ -381,6 +381,15 @@ export class Combat {
   strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number) {
     // Cast from inside a rune circle, the strike is 25% bigger.
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
+    if (element === 'columns') {
+      // The pentagram: five separate strikes at the star's tips around the target, spread wider from the runes too.
+      for (const tip of starTips(at, STAR_REACH * scale)) this.strikeOne(caster, tip.at, element, (warn ?? PILLAR_WARN) + tip.delay, scale);
+      return;
+    }
+    this.strikeOne(caster, at, element, warn, scale);
+  }
+
+  private strikeOne(caster: Fighter, at: THREE.Vector3, element: Element, warn: number | undefined, scale: number) {
     // Aimed into a standing wall's zone, it never starts: only a cross where it would have broken out.
     if (this.spells.shielded(at.x, at.z)) {
       this.spells.denied(at, caster.ink, scale);

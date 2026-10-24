@@ -10,15 +10,28 @@ const WALL_HOLD = 1.4; // about two seconds up in total
 const WALL_SINK = 0.5;
 
 // Square = ranged attack: a cluster of slanted square pillars after a short warning in the ground.
-const PILLAR_WARN = 0.2; // s the ground trembles before the pillars break out
+export const PILLAR_WARN = 0.2; // s the ground trembles before the pillars break out
 const PILLAR_RISE = 0.12;
 const PILLAR_HOLD = 0.55; // about a second from eruption to buried again
 const PILLAR_SINK = 0.3;
 export const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist wide
 
-// Pentagram = earth columns: five short square columns at the tips of a star around the target, same reach as the square.
-const COLUMN_HEIGHT = 0.26; // the square's main pillar is 0.46: a lighter hit, a lower strike
-const COLUMN_WIDTH = 0.075;
+// Pentagram = earth columns: five separate, lower square strikes at the tips of a star around the target.
+const COLUMN_SCALE = 0.6; // pillar height against the square's: each one only hits for half
+export const STAR_REACH = 0.5; // from the target to each tip, world units: the target itself sits between them
+const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
+
+/** The five tips of a star around a point, one pointing straight up the screen, in drawing order. */
+export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
+  // Straight up the screen is away from the camera, which sits 24° around from +z.
+  const up = Math.PI + CAMERA_YAW;
+  return [0, 2, 4, 1, 3].map((k, i) => {
+    const a = up + (k / 5) * Math.PI * 2;
+    const x = at.x + Math.sin(a) * reach;
+    const z = at.z + Math.cos(a) * reach;
+    return { at: new THREE.Vector3(x, heightAt(x, z), z), delay: i * STAR_STAGGER };
+  });
+}
 
 // Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
 export type Element = 'earth' | 'columns' | 'fire' | 'water';
@@ -338,8 +351,7 @@ class PillarStrike extends Effect {
     readonly scale = 1,
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
-    if (element === 'earth') this.buildPillars(from);
-    else if (element === 'columns') this.buildColumns();
+    if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
     else this.buildFluid(element === 'fire');
     if (scale !== 1) {
       // Grow the cluster about its centre: spread, width and height alike.
@@ -392,14 +404,15 @@ class PillarStrike extends Effect {
     }
   }
 
-  private buildPillars(from: THREE.Vector3) {
+  /** `tall` shortens the whole cluster, e.g. for the pentagram's lighter strikes. */
+  private buildPillars(from: THREE.Vector3, tall = 1) {
     const { x, z } = this;
     // The pillars lean away from the caster, as if driven up from underneath at an angle.
     const away = Math.atan2(x - from.x, z - from.z);
     const lean = THREE.MathUtils.randFloat(0.3, 0.45);
 
-    const main = this.addPiece(pillarGeo, ROCK[Math.floor(Math.random() * ROCK.length)], x, z, 0.46, 0);
-    main.scale.set(0.17, 0.46, 0.17);
+    const main = this.addPiece(pillarGeo, ROCK[Math.floor(Math.random() * ROCK.length)], x, z, 0.46 * tall, 0);
+    main.scale.set(0.17, 0.46 * tall, 0.17);
     main.rotation.set(lean, away + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
     this.obstacles.push({ x, z, r: 0.1 });
 
@@ -407,30 +420,13 @@ class PillarStrike extends Effect {
     for (let i = 0; i < small; i++) {
       const a = (i / small) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.6);
       const d = PILLAR_AREA * THREE.MathUtils.randFloat(0.55, 1);
-      const h = THREE.MathUtils.randFloat(0.12, 0.26);
+      const h = THREE.MathUtils.randFloat(0.12, 0.26) * tall;
       const w = THREE.MathUtils.randFloat(0.05, 0.085);
       tmpColor.set((Math.random() < 0.6 ? ROCK : EARTH)[Math.floor(Math.random() * 3)]);
       const mesh = this.addPiece(pillarGeo, tmpColor, x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0.02, 0.07));
       mesh.scale.set(w, h, w);
       // Small pillars splay outward from the main one.
       mesh.rotation.set(THREE.MathUtils.randFloat(0.25, 0.55), a + THREE.MathUtils.randFloatSpread(0.4), 0, 'YXZ');
-    }
-  }
-
-  /** Five short columns on the rim of the strike, placed like the tips of the drawn star (one tip up on screen). */
-  private buildColumns() {
-    const { x, z } = this;
-    // Straight up the screen is away from the camera, which sits 24° around from +z.
-    const up = Math.PI + CAMERA_YAW;
-    for (let k = 0; k < 5; k++) {
-      const a = up + (k / 5) * Math.PI * 2;
-      const d = PILLAR_AREA * 0.85;
-      const h = COLUMN_HEIGHT * THREE.MathUtils.randFloat(0.9, 1.1);
-      tmpColor.set(ROCK[k % ROCK.length]).offsetHSL(0, 0, THREE.MathUtils.randFloatSpread(0.04));
-      // They break out one after another in the order the star is drawn: tip, two along, and so on.
-      const mesh = this.addPiece(pillarGeo, tmpColor, x + Math.sin(a) * d, z + Math.cos(a) * d, h, ((k * 2) % 5) * 0.03);
-      mesh.scale.set(COLUMN_WIDTH, h, COLUMN_WIDTH);
-      mesh.rotation.set(THREE.MathUtils.randFloat(0.08, 0.18), a + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
     }
   }
 
