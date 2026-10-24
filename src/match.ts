@@ -117,7 +117,7 @@ export function mountMatchControls(match: MatchControls) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'match-btn';
-    b.innerHTML = '<span class="disc"></span><span class="badge"></span><span class="cap"></span>';
+    b.innerHTML = '<span class="disc"></span><span class="cap"></span>';
     b.addEventListener('pointerdown', (e) => e.stopPropagation());
     b.addEventListener('pointerup', (e) => e.stopPropagation());
     box.append(b);
@@ -137,11 +137,9 @@ export function mountMatchControls(match: MatchControls) {
     const n = match.rivals;
     const level = match.difficulty;
     rivalsBtn.querySelector('.disc')!.innerHTML = rivalsIcon(n);
-    rivalsBtn.querySelector('.badge')!.textContent = String(n);
-    rivalsBtn.querySelector('.cap')!.textContent = n === 1 ? 'Rival' : 'Rivales';
+    rivalsBtn.querySelector('.cap')!.innerHTML = `<b>${n}</b> ${n === 1 ? 'rival' : 'rivales'}`;
     rivalsBtn.setAttribute('aria-label', `Rivales: ${n}. Toca para cambiar y reiniciar la partida`);
     levelBtn.querySelector('.disc')!.innerHTML = levelIcon(level);
-    levelBtn.querySelector('.badge')!.textContent = '';
     levelBtn.querySelector('.cap')!.textContent = DIFFICULTY_LABEL[level];
     levelBtn.setAttribute('aria-label', `Dificultad: ${DIFFICULTY_LABEL[level]}. Toca para cambiar y reiniciar la partida`);
     save({ rivals: n, difficulty: level });
