@@ -2,7 +2,7 @@ import type { ShapeKind } from './gestures';
 
 const MAX_SLOTS = 6;
 
-type Pt = [number, number];
+export type Pt = [number, number];
 
 // Each icon is one brush stroke in a 48×48 box, redrawn with fresh jitter for every slot so no two look stamped.
 const OUTLINES: Record<Exclude<ShapeKind, 'circle'>, Pt[]> = {
@@ -20,7 +20,7 @@ const DRY_FROM = 0.72; // past this fraction of the stroke the brush starts runn
 let iconId = 0;
 
 /** Same nib as the stroke on the map (src/ink.ts): swells in, pools at corners, thins out and frays at the tail. */
-function brushPath(line: Pt[], width: number, rand: () => number, corners: number[] = []): { ink: string; dry: string } {
+export function brushPath(line: Pt[], width: number, rand: () => number, corners: number[] = []): { ink: string; dry: string } {
   const along = [0];
   for (let i = 1; i < line.length; i++) along.push(along[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
   const total = along[along.length - 1];
@@ -132,6 +132,18 @@ function roundCorners(line: Pt[]): Pt[] {
   });
 }
 
+/** The open enso drawn around a slot, starting at a random angle. */
+export function ensoLine(rand: () => number): Pt[] {
+  const line: Pt[] = [];
+  const a0 = rand() * Math.PI * 2;
+  const sweep = Math.PI * 2 * 0.86; // the enso stays open
+  for (let i = 0, n = Math.ceil((RING_R * sweep) / STEP); i <= n; i++) {
+    const a = a0 + (sweep * i) / n;
+    line.push([24 + Math.cos(a) * RING_R, 24 + Math.sin(a) * RING_R]);
+  }
+  return line;
+}
+
 function icon(kind: ShapeKind): string {
   let seed = (Math.random() * 2 ** 31) | 0;
   const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
@@ -139,14 +151,7 @@ function icon(kind: ShapeKind): string {
   const { line, corners } = strokeLine(kind, rand);
   const glyph = brushPath(line, kind === 'pentagram' ? 3.2 : 3.9, rand, corners);
 
-  const ringLine: Pt[] = [];
-  const a0 = rand() * Math.PI * 2;
-  const sweep = Math.PI * 2 * 0.86; // the enso stays open
-  for (let i = 0, n = Math.ceil((RING_R * sweep) / STEP); i <= n; i++) {
-    const a = a0 + (sweep * i) / n;
-    ringLine.push([24 + Math.cos(a) * RING_R, 24 + Math.sin(a) * RING_R]);
-  }
-  const ring = brushPath(ringLine, 2.2, rand);
+  const ring = brushPath(ensoLine(rand), 2.2, rand);
   return (
     `<svg viewBox="0 0 48 48" aria-hidden="true">` +
     `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">` +
