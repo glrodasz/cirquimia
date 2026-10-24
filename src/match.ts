@@ -40,12 +40,12 @@ function save(s: Saved) {
   }
 }
 
-function random() {
+export function random() {
   let seed = (Math.random() * 2 ** 31) | 0;
   return () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
 }
 
-function arc(cx: number, cy: number, r: number, from: number, to: number): Pt[] {
+export function arc(cx: number, cy: number, r: number, from: number, to: number): Pt[] {
   const line: Pt[] = [];
   const n = Math.ceil((r * Math.abs(to - from)) / STEP);
   for (let i = 0; i <= n; i++) {
@@ -55,13 +55,13 @@ function arc(cx: number, cy: number, r: number, from: number, to: number): Pt[] 
   return line;
 }
 
-function segment(a: Pt, b: Pt): Pt[] {
+export function segment(a: Pt, b: Pt): Pt[] {
   const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / STEP);
   return Array.from({ length: n + 1 }, (_, i): Pt => [a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
 }
 
 /** A little figure in two strokes: head loop and shoulders. */
-function person(cx: number, s: number, cls: string, rand: () => number) {
+export function person(cx: number, s: number, cls: string, rand: () => number) {
   const head = brushPath(arc(cx, 24 - 8 * s, 5 * s, -2 + rand(), -2 + rand() + Math.PI * 2.1), 3.4 * s, rand);
   const body = brushPath(arc(cx, 24 + 12 * s, 9.5 * s, Math.PI * 1.02, Math.PI * 1.98), 4.4 * s, rand);
   return { ink: `<path class="${cls}" d="${head.ink}${body.ink}"/>`, dry: head.dry + body.dry };
@@ -76,7 +76,7 @@ function fallen(cls: string, rand: () => number) {
 }
 
 let svgId = 0;
-function svg(parts: Array<{ ink: string; dry: string }>, rand: () => number) {
+export function svg(parts: Array<{ ink: string; dry: string }>, rand: () => number) {
   const ring = brushPath(ensoLine(rand), 2.2, rand);
   const id = `hudbrush${++svgId}`;
   const dry = parts.map((p) => p.dry).join('') + ring.dry;

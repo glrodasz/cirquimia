@@ -144,7 +144,7 @@ export function ensoLine(rand: () => number): Pt[] {
   return line;
 }
 
-function icon(kind: ShapeKind): string {
+export function shapeIcon(kind: ShapeKind): string {
   let seed = (Math.random() * 2 ** 31) | 0;
   const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
   const id = `brush${++iconId}`;
@@ -198,7 +198,7 @@ export class AmmoBar {
     slot.className = `slot ${kind}`;
     slot.dataset.kind = kind;
     slot.setAttribute('aria-label', LABELS[kind]);
-    slot.innerHTML = icon(kind);
+    slot.innerHTML = shapeIcon(kind);
     slot.addEventListener('pointerdown', (e) => e.stopPropagation());
     slot.addEventListener('click', () => this.select(slot === this.selected ? null : slot));
     this.bar.append(slot);

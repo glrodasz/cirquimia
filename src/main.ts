@@ -3,6 +3,7 @@ import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { mountDevTools } from './devtools';
 import { mountMatchControls } from './match';
+import { mountHelp } from './help';
 import { Character } from './character';
 import { TapMarker } from './marker';
 import { heightAt } from './noise';
@@ -121,6 +122,8 @@ const matchHud = mountMatchControls({
   },
 });
 combat.onEnd = (outcome) => matchHud.showEnd(outcome);
+// How to play: full screen on the first visit, then behind the "?" next to the gear. The match waits while it is open.
+const help = mountHelp();
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -348,12 +351,14 @@ const projected = new THREE.Vector3();
 renderer.setAnimationLoop((time) => {
   clock.update(time);
   const dt = Math.min(clock.getDelta(), 1 / 20);
-  hero.update(dt);
   world.update(dt);
-  marker.update(dt);
-  impact.update(dt);
-  spells.update(dt);
-  combat.update(dt);
+  if (!help.open) {
+    hero.update(dt);
+    marker.update(dt);
+    impact.update(dt);
+    spells.update(dt);
+    combat.update(dt);
+  }
   ink.update(dt);
 
   renderer.setRenderTarget(sceneTarget);
