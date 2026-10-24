@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { mountDevTools } from './devtools';
+import { mountMatchControls } from './match';
 import { Character } from './character';
 import { TapMarker } from './marker';
 import { heightAt } from './noise';
@@ -96,21 +97,25 @@ mountDevTools(
     hero.setTarget(hero.root.position);
     combat.respawn();
   },
-  {
-    get rivals() {
-      return combat.rivalCount;
-    },
-    get difficulty() {
-      return combat.difficulty;
-    },
-    setRivals: (n: number) => combat.setRivals(n),
-    setDifficulty: (d: Difficulty) => combat.setDifficulty(d),
-    respawn: () => {
-      spells.clear();
-      combat.respawn();
-    },
-  },
 );
+
+// Rivals and difficulty live in the HUD, top left; any change restarts the match.
+mountMatchControls({
+  get rivals() {
+    return combat.rivalCount;
+  },
+  get difficulty() {
+    return combat.difficulty;
+  },
+  setRivals: (n: number) => {
+    spells.clear();
+    combat.setRivals(n);
+  },
+  setDifficulty: (d: Difficulty) => {
+    spells.clear();
+    combat.setDifficulty(d);
+  },
+});
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
