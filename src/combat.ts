@@ -452,6 +452,15 @@ export class Combat {
   }
 
   update(dt: number) {
+    // Decide the match before anyone acts, so nobody picks a fallen foe this frame.
+    if (!this.outcome) {
+      if (this.hero.down) this.outcome = 'defeat';
+      else if (this.rivals.length > 0 && this.rivals.every((r) => r.down)) this.outcome = 'victory';
+      if (this.outcome) this.endTimer = END_DELAY;
+    } else if (this.endTimer > 0 && (this.endTimer -= dt) <= 0) {
+      this.onEnd(this.outcome);
+    }
+
     const all = [this.hero, ...this.rivals];
     const standing = all.filter((f) => !f.down);
     for (const r of this.rivals) {
@@ -466,12 +475,5 @@ export class Combat {
       f.prev.copy(f.position);
     }
 
-    if (!this.outcome) {
-      if (this.hero.down) this.outcome = 'defeat';
-      else if (this.rivals.length > 0 && this.rivals.every((r) => r.down)) this.outcome = 'victory';
-      if (this.outcome) this.endTimer = END_DELAY;
-    } else if (this.endTimer > 0 && (this.endTimer -= dt) <= 0) {
-      this.onEnd(this.outcome);
-    }
   }
 }

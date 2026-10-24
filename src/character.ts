@@ -394,6 +394,9 @@ export class Character {
     const t = this.fallen;
     if (t <= 0) {
       this.model.rotation.x = 0;
+      this.armL.upper.rotation.z = -0.08;
+      this.armR.upper.rotation.z = 0.08;
+      this.legL.upper.rotation.z = this.legR.upper.rotation.z = 0;
       return;
     }
     const drop = t < 0.8 ? (t / 0.8) ** 2 : 1 - Math.sin(((t - 0.8) / 0.2) * Math.PI) * 0.06;
