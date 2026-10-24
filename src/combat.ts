@@ -11,8 +11,8 @@ export const HEAL = 25;
 const RUNE_HEAL_BOOST = 1.3;
 const HEAL_COLOR = '#a8e6a1';
 const MAX_HP = 100;
-// No dying yet: at zero the bar sits empty for a moment, then refills.
-const KO_TIME = 1.4;
+// After the last fall, the match waits this long (the body hits the ground) before showing the result.
+const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
@@ -68,7 +68,6 @@ const projected = new THREE.Vector3();
 /** Health bar floating over a character's head, and the damage numbers that pop out of it. */
 class Fighter {
   hp = MAX_HP;
-  private koTimer = 0;
   private readonly bar = document.createElement('div');
   private readonly fill = document.createElement('div');
   /** Position on the previous frame, to tell where it is heading. */
@@ -113,18 +112,25 @@ class Fighter {
     this.auraMaterial.opacity = this.auraLevel * (0.75 + Math.sin(this.auraTime * 5) * 0.2);
   }
 
-  /** Full health and out of any KO. */
+  /** At zero health: lying on the ground, out of the fight. */
+  get down() {
+    return this.body.isDown;
+  }
+
+  /** Full health and back on its feet. */
   reset() {
     this.hp = MAX_HP;
-    this.koTimer = 0;
+    this.body.rise();
     this.bar.classList.remove('ko');
   }
 
   hit(amount: number, element: Element, camera: THREE.Camera) {
+    if (this.down) return;
     this.body.flash();
-    if (this.koTimer <= 0) {
-      this.hp = Math.max(0, this.hp - amount);
-      if (this.hp === 0) this.koTimer = KO_TIME;
+    this.hp = Math.max(0, this.hp - amount);
+    if (this.hp === 0) {
+      this.body.fall();
+      this.bar.classList.add('ko');
     }
     this.bar.classList.remove('hurt');
     void this.bar.offsetWidth; // restart the shake
@@ -132,9 +138,9 @@ class Fighter {
     this.popNumber(`-${amount}`, ELEMENT_COLOR[element], camera);
   }
 
-  /** Back up by `amount`, capped at full; no effect while knocked out (the bar refills on its own then). */
+  /** Back up by `amount`, capped at full; no effect once down. */
   heal(amount: number, camera: THREE.Camera, boosted = false) {
-    if (this.koTimer > 0) return;
+    if (this.down) return;
     this.hp = Math.min(MAX_HP, this.hp + amount);
     // A rune-boosted heal pops bigger and marked, so it reads apart from a plain one even near full health.
     this.popNumber(boosted ? `+${amount} ✦` : `+${amount}`, HEAL_COLOR, camera, boosted ? 1.4 : 1);
@@ -153,18 +159,12 @@ class Fighter {
     document.body.append(num);
   }
 
-  update(dt: number, camera: THREE.Camera) {
-    if (this.koTimer > 0) {
-      this.koTimer -= dt;
-      this.bar.classList.add('ko');
-      if (this.koTimer <= 0) {
-        this.hp = MAX_HP;
-        this.bar.classList.remove('ko');
-      }
-    }
+  /** Keeps the bar over the head; a fallen fighter's bar goes away once the body is on the ground. */
+  update(camera: THREE.Camera) {
     this.fill.style.transform = `scaleX(${this.hp / MAX_HP})`;
     const visible = this.screen(camera);
     this.bar.hidden = !visible;
+    this.bar.classList.toggle('gone', this.down);
     if (visible) this.bar.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
   }
 
@@ -310,9 +310,11 @@ class Rival extends Fighter {
   }
 }
 
+export type Outcome = 'defeat' | 'victory';
+
 /**
- * Sparring rivals: 0–2 opponents in a free-for-all with the alchemist. Damage is only shown
- * (flash, numbers, health bars); nobody dies and there is no game over yet.
+ * Sparring rivals: 0–2 opponents in a free-for-all with the alchemist. Whoever reaches zero falls and lies there;
+ * the match is lost when the alchemist falls and won when every rival has. With no rivals it never ends.
  */
 export class Combat {
   readonly root = new THREE.Group();
@@ -320,6 +322,10 @@ export class Combat {
   private rivals: Rival[] = [];
   private count = 1;
   private level: Difficulty = 'normal';
+  private outcome: Outcome | null = null;
+  private endTimer = 0;
+  /** Called once when the match is decided, after the falling body has landed. */
+  onEnd: (outcome: Outcome) => void = () => {};
 
   constructor(
     heroBody: Character,
@@ -340,6 +346,11 @@ export class Combat {
 
   get difficulty() {
     return this.level;
+  }
+
+  /** True from the moment the match is decided until the next one starts. */
+  get over() {
+    return this.outcome !== null;
   }
 
   setRivals(count: number) {
@@ -409,6 +420,8 @@ export class Combat {
     }
     this.rivals = [];
     this.hero.reset();
+    this.outcome = null;
+    this.endTimer = 0;
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
@@ -433,22 +446,32 @@ export class Combat {
   private strike(x: number, z: number, element: Element, caster: unknown, area: number) {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
-      if (f === caster) continue;
+      if (f === caster || f.down || this.over) continue;
       if (Math.hypot(f.position.x - x, f.position.z - z) <= area + BODY_RADIUS) f.hit(DAMAGE[element], element, this.camera);
     }
   }
 
   update(dt: number) {
     const all = [this.hero, ...this.rivals];
+    const standing = all.filter((f) => !f.down);
     for (const r of this.rivals) {
-      r.think(dt, all.filter((f) => f !== r), this, this.onScreen);
+      // Fallen rivals lie still; once the match is decided nobody attacks any more.
+      if (!r.down && !this.over) r.think(dt, standing.filter((f) => f !== r), this, this.onScreen);
       r.body.update(dt);
-      r.update(dt, this.camera);
+      r.update(this.camera);
     }
-    this.hero.update(dt, this.camera);
+    this.hero.update(this.camera);
     for (const f of all) {
-      f.empower(this.onRunes(f.position), dt);
+      f.empower(!f.down && this.onRunes(f.position), dt);
       f.prev.copy(f.position);
+    }
+
+    if (!this.outcome) {
+      if (this.hero.down) this.outcome = 'defeat';
+      else if (this.rivals.length > 0 && this.rivals.every((r) => r.down)) this.outcome = 'victory';
+      if (this.outcome) this.endTimer = END_DELAY;
+    } else if (this.endTimer > 0 && (this.endTimer -= dt) <= 0) {
+      this.onEnd(this.outcome);
     }
   }
 }
