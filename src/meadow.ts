@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { heightAt, mulberry32, patchAt } from './noise';
 import type { GenParams, GroundPaint, Layout } from './generator';
 import { GLADE } from './look';
+import { stylize } from './glade';
 
 export interface Obstacle {
   x: number;
@@ -78,7 +79,7 @@ function buildGladeGround(seed: number, paint: GroundPaint, obstacles: Obstacle[
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, soft({ vertexColors: true }));
+  const mesh = new THREE.Mesh(geo, stylize(soft({ vertexColors: true }), { paint: { scale: 1.3, amount: 0.45 } }));
   mesh.receiveShadow = true;
   return mesh;
 }
@@ -190,9 +191,11 @@ export function buildSolids(layout: Layout, params: GenParams, paint: GroundPain
   const pineHigh = instanced(new THREE.ConeGeometry(0.65, 1.2, 6), lambert(), treeSpots.length, { cast: true });
   const round = instanced(new THREE.IcosahedronGeometry(0.85, 0), lambert(), treeSpots.length, { cast: true });
   // Glade crowns: a cluster of smooth puffs, darker underneath, instead of one faceted ball.
-  const PUFFS = 5;
+  // They sway a little in the wind and carry a painted leaf-clump texture.
+  const PUFFS = 7;
+  const puffMat = stylize(soft({ vertexColors: true }), { sway: { base: -3, height: 4, amp: 0.05 }, paint: { scale: 3.4, amount: 0.6 } });
   const puffs = GLADE
-    ? instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.55, 1.15), soft({ vertexColors: true }), treeSpots.length * PUFFS, { cast: true, receive: true })
+    ? instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.5, 1.2), puffMat, treeSpots.length * PUFFS, { cast: true, receive: true })
     : null;
   const puffRand = mulberry32(layout.seedNum ^ 0x9a1d);
   let puffCount = 0;
@@ -223,9 +226,11 @@ export function buildSolids(layout: Layout, params: GenParams, paint: GroundPain
       for (let k = 0; k < PUFFS; k++) {
         // One big central puff, the rest around and above it.
         const a = (k / PUFFS) * Math.PI * 2 + puffRand() * 0.8;
-        const d = k === 0 ? 0 : (0.5 + puffRand() * 0.2) * s;
-        const ps = (k === 0 ? 1.15 : 0.8 + puffRand() * 0.3) * s;
-        dummy.position.set(x + Math.cos(a) * d, cy + (k === 0 ? 0.05 : (puffRand() - 0.3) * 0.45) * s, z + Math.sin(a) * d);
+        const d = k === 0 ? 0 : (0.45 + puffRand() * 0.25) * s;
+        const ps = (k === 0 ? 1.1 : 0.62 + puffRand() * 0.3) * s;
+        // Every other side puff sits higher, so the crown reads as a lumpy dome rather than a ring.
+        const lift = k === 0 ? 0.05 : (k % 2 ? 0.3 : -0.1) + (puffRand() - 0.5) * 0.25;
+        dummy.position.set(x + Math.cos(a) * d, cy + lift * s, z + Math.sin(a) * d);
         dummy.rotation.set(puffRand() * 3, puffRand() * 3, 0);
         dummy.scale.set(ps, ps * 0.85, ps);
         setInstance(puffs, puffCount++, color.set('#6e9a42').offsetHSL(hue + (puffRand() - 0.5) * 0.03, 0, lum + (puffRand() - 0.5) * 0.1).getHex());
@@ -247,7 +252,8 @@ export function buildSolids(layout: Layout, params: GenParams, paint: GroundPain
 
   // Loose rocks.
   const rockSpots = scatter(rand, Math.round(40 * params.rocas), 1.5, (x, z) => clearOfSpawn(x, z) && !onFeature(layout, paint, x, z, 0.3) && clearOfObstacles(x, z, 0.8));
-  const rocks = instanced(new THREE.DodecahedronGeometry(0.4, 0), lambert(), rockSpots.length, { cast: true, receive: true });
+  const rockMat = GLADE ? stylize(lambert(), { paint: { scale: 2.6, amount: 0.3 } }) : lambert();
+  const rocks = instanced(new THREE.DodecahedronGeometry(0.4, 0), rockMat, rockSpots.length, { cast: true, receive: true });
   rockSpots.forEach(([x, z], i) => {
     const s = 0.5 + rand() * 1.0;
     dummy.position.set(x, heightAt(x, z) + 0.08 * s, z);
@@ -337,12 +343,14 @@ function buildGladeCover(
 
   // Tufts: a centre, then several taller blades leaning out of it. Most land near the play area.
   const tuftSpots = [
-    ...scatter(rand, Math.round(700 * params.hierba), 0),
-    ...scatter(rand, Math.round(2600 * params.hierba), 0).map(([x, z]): [number, number] => [x * 0.32, z * 0.32]),
+    ...scatter(rand, Math.round(600 * params.hierba), 0),
+    ...scatter(rand, Math.round(5500 * params.hierba), 0).map(([x, z]): [number, number] => [x * 0.3, z * 0.3]),
   ].filter(([x, z]) => rand() > bare(x, z) * 1.2);
-  const PER_TUFT = 9;
-  const bladeGeo = shadeByHeight(new THREE.ConeGeometry(0.032, 0.26, 3, 1, true).translate(0, 0.13, 0), 0, 0.26, 0.35, 1.2);
-  const blades = instanced(bladeGeo, soft({ vertexColors: true }), tuftSpots.length * PER_TUFT);
+  const PER_TUFT = 8;
+  // Short, soft blades so the tufts read as a lawn carpet; they bend from the root in the wind.
+  const bladeGeo = shadeByHeight(new THREE.ConeGeometry(0.026, 0.2, 3, 1, true).translate(0, 0.1, 0), 0, 0.2, 0.35, 1.2);
+  const bladeMat = stylize(soft({ vertexColors: true }), { sway: { base: 0, height: 0.2, amp: 0.035 }, paint: { scale: 0.9, amount: 0.25 } });
+  const blades = instanced(bladeGeo, bladeMat, tuftSpots.length * PER_TUFT);
   const root = new THREE.Color('#386a2e');
   const tip = new THREE.Color('#8fb655');
   let n = 0;
@@ -394,11 +402,18 @@ function buildGladeCover(
   }
   for (const [x, z] of scatter(rand, Math.round(500 * params.flores), 0, grows)) blooms.push({ x, z, kind: KINDS[1 + Math.floor(rand() * 5)] });
 
-  const stems = instanced(new THREE.CylinderGeometry(0.012, 0.014, 0.3, 3, 1, true).translate(0, 0.15, 0), lambert({ color: '#5c8a3a' }), blooms.length);
+  // Stems bend from the ground; heads ride along with the stem tip (full bend everywhere).
+  const FLOWER_SWAY = 0.03;
+  const stems = instanced(
+    new THREE.CylinderGeometry(0.012, 0.014, 0.3, 3, 1, true).translate(0, 0.15, 0),
+    stylize(lambert({ color: '#5c8a3a' }), { sway: { base: 0, height: 0.3, amp: FLOWER_SWAY } }),
+    blooms.length,
+  );
+  const headMat = () => stylize(soft(), { sway: { base: -100, height: 100, amp: FLOWER_SWAY } });
   const heads = {
-    round: instanced(new THREE.IcosahedronGeometry(0.065, 0), soft(), blooms.length),
-    cup: instanced(new THREE.CylinderGeometry(0.08, 0.03, 0.06, 6).translate(0, 0.03, 0), soft(), blooms.length),
-    spike: instanced(new THREE.ConeGeometry(0.06, 0.32, 5, 1, true).translate(0, 0.16, 0), soft(), blooms.length, { cast: true }),
+    round: instanced(new THREE.IcosahedronGeometry(0.065, 0), headMat(), blooms.length),
+    cup: instanced(new THREE.CylinderGeometry(0.08, 0.03, 0.06, 6).translate(0, 0.03, 0), headMat(), blooms.length),
+    spike: instanced(new THREE.ConeGeometry(0.06, 0.32, 5, 1, true).translate(0, 0.16, 0), headMat(), blooms.length, { cast: true }),
   };
   const used = { round: 0, cup: 0, spike: 0 };
   blooms.forEach(({ x, z, kind }, i) => {

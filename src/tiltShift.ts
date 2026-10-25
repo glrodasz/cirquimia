@@ -29,6 +29,9 @@ export function tiltShiftShader(direction: 'horizontal' | 'vertical') {
       uniform float focus;
       uniform float band;
       uniform float strength;
+      #ifdef BLOOM
+        uniform sampler2D tBloom;
+      #endif
       varying vec2 vUv;
       void main() {
         float amount = smoothstep(band, band + 0.4, abs(vUv.y - focus)) * strength;
@@ -44,6 +47,9 @@ export function tiltShiftShader(direction: 'horizontal' | 'vertical') {
           sum += (texture2D(tDiffuse, vUv - 4.0 * step) + texture2D(tDiffuse, vUv + 4.0 * step)) * 0.051;
           gl_FragColor = sum;
         }
+        #ifdef BLOOM
+          gl_FragColor.rgb += texture2D(tBloom, vUv).rgb * 0.55;
+        #endif
         #ifdef GRADE
           vec3 c = gl_FragColor.rgb;
           float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
