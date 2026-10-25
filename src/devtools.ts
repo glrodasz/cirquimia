@@ -8,7 +8,6 @@ const STORE = 'cirquimia.dev';
 interface Saved {
   params?: Partial<GenParams>;
   seed?: string;
-  open?: boolean;
   debug?: boolean;
   fps?: boolean;
 }
@@ -60,8 +59,10 @@ export function mountDevTools(world: World, onGenerated: () => void) {
 
   const gear = el('button', { id: 'dev-gear', type: 'button', 'aria-label': t.dev.title, 'aria-expanded': 'false' });
   gear.innerHTML = GEAR;
-  const panel = el('aside', { id: 'dev-panel', 'aria-label': t.dev.title });
-  panel.hidden = true;
+  // Modal: a scrim over the paused game, with the panel scrolling inside it.
+  const modal = el('div', { id: 'dev-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': t.dev.title });
+  modal.hidden = true;
+  const panel = el('aside', { id: 'dev-panel' });
 
   const head = el('header');
   head.append(el('strong', {}, t.dev.title));
@@ -143,12 +144,14 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   view.append(lookRow, langRow, viewRow, fpsRow, debugRow, perfBox);
 
   panel.append(head, meadow, paramsSection, view);
-  document.body.append(gear, panel);
+  modal.append(panel);
+  document.body.append(gear, modal);
 
   const stop = (e: Event) => e.stopPropagation();
-  for (const node of [gear, panel]) {
+  for (const node of [gear, modal]) {
     node.addEventListener('pointerdown', stop);
     node.addEventListener('pointerup', stop);
+    node.addEventListener('pointermove', stop);
   }
 
   function syncInputs() {
@@ -221,15 +224,29 @@ export function mountDevTools(world: World, onGenerated: () => void) {
     onGenerated();
   }
 
-  function setOpen(open: boolean) {
-    panel.hidden = !open;
+  let open = false;
+  function setOpen(next: boolean) {
+    if (next === open) return;
+    open = next;
+    modal.hidden = !open;
     gear.setAttribute('aria-expanded', String(open));
     gear.classList.toggle('open', open);
-    save({ open });
+    if (open) {
+      panel.scrollTop = 0;
+      close.focus({ preventScroll: true });
+    } else {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
   }
 
-  gear.addEventListener('click', () => setOpen(!gear.classList.contains('open')));
+  gear.addEventListener('click', () => setOpen(!open));
   close.addEventListener('click', () => setOpen(false));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) setOpen(false);
+  });
+  addEventListener('keydown', (e) => {
+    if (open && e.key === 'Escape') setOpen(false);
+  });
   regen.addEventListener('click', () => run(randomSeed()));
   seedApply.addEventListener('click', () => {
     if (seedInput.value.trim()) run(seedInput.value.trim());
@@ -263,6 +280,11 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   debugBox.checked = !!saved.debug;
   world.setDebug(debugBox.checked);
   run(initialSeed());
-  setOpen(!!saved.open);
-  return { newMeadow: () => run(randomSeed()) };
+  return {
+    newMeadow: () => run(randomSeed()),
+    /** The game holds still while the panel is open. */
+    get open() {
+      return open;
+    },
+  };
 }

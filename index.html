@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Cirquimia Meadow Test</title>
     <style>
-      :root { --sky: #c9d3d1; --hud-bg: rgba(255,255,255,.72); --hud-fg: #23322a; --hud-border: rgba(35,50,42,.15); }
+      :root { --sky: #c9d3d1; --hud-bg: rgba(255,255,255,.72); --hud-fg: #23322a; --hud-border: rgba(35,50,42,.15); --hud-solid: #eef2f0; }
       @media (prefers-color-scheme: dark) {
-        :root:not([data-theme="light"]) { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
+        :root:not([data-theme="light"]) { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); --hud-solid: #1b2420; }
       }
-      :root[data-theme="dark"] { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
+      :root[data-theme="dark"] { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); --hud-solid: #1b2420; }
       html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); touch-action: none; overscroll-behavior: none; }
       /* A stroke or a tap-walk must never turn into text selection, an iOS callout or an image drag. */
       html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -20,9 +20,11 @@
       #dev-gear:hover, #dev-gear.open { opacity: 1; }
       #dev-gear.open { transform: rotate(60deg); }
       #dev-gear svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-      #dev-panel { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 48px); right: max(12px, env(safe-area-inset-right)); width: min(320px, calc(100vw - 24px)); max-height: calc(100dvh - 80px - max(16px, env(safe-area-inset-bottom)) - 70px); overflow: auto; box-sizing: border-box; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font: 400 12.5px/1.35 system-ui, -apple-system, sans-serif; z-index: 3; touch-action: pan-y; overscroll-behavior: contain; }
-      #dev-panel[hidden] { display: none; }
-      #dev-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13.5px; }
+      #dev-modal { position: fixed; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: rgba(35,50,42,.35); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); touch-action: none; animation: dev-fade .2s ease-out; }
+      #dev-modal[hidden] { display: none; }
+      @keyframes dev-fade { from { opacity: 0; } }
+      #dev-panel { position: relative; width: min(360px, 100%); max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 0 14px 12px; border-radius: 16px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(20,28,24,.3); font: 400 12.5px/1.35 system-ui, -apple-system, sans-serif; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+      #dev-panel header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; margin: 0 -14px 6px; padding: 10px 10px 8px 14px; font-size: 13.5px; background: var(--hud-solid); border-bottom: 1px solid var(--hud-border); }
       #dev-panel section { border-top: 1px solid var(--hud-border); padding: 10px 0 4px; }
       #dev-panel h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
       #dev-panel h4 { margin: 10px 0 4px; font-size: 11.5px; font-weight: 600; }
