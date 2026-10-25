@@ -47,7 +47,7 @@ Handy URL parameters: `?seed=anything` reproduces a meadow, `?look=glade` switch
 
 ## Getting started
 
-Requirements: Node.js 20+ and npm.
+Requirements: Node.js 20.19+ or 22.12+ (what Vite 8 needs) and npm.
 
 ```bash
 git clone https://github.com/glrodasz/cirquimia.git
