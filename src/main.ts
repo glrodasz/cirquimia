@@ -405,7 +405,7 @@ const projected = new THREE.Vector3();
 renderer.setAnimationLoop((time) => {
   clock.update(time);
   const dt = Math.min(clock.getDelta(), 1 / 20);
-  world.update(dt);
+  if (!dev.open) world.update(dt);
   tutorial.update(dt);
   if (!help.open && !dev.open && !tutorial.paused) {
     hero.update(dt);
