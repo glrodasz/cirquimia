@@ -101,6 +101,8 @@ export class Tutorial {
   private timer = 0;
   private wait = START_DELAY;
   private hitWait = -1;
+  /** The wall lesson, put off because no rival was left to show it on. */
+  private pending: Lesson | null = null;
   private provoked = false;
   private demoTime = 0;
 
@@ -168,7 +170,7 @@ export class Tutorial {
 
   /** The alchemist took a hit: the first one opens the wall lesson. */
   hurt() {
-    if (this.stage === 'square' && !this.lesson && this.hitWait < 0) this.hitWait = HIT_PAUSE;
+    if (this.stage === 'square' && !this.lesson && !this.pending && this.hitWait < 0) this.hitWait = HIT_PAUSE;
   }
 
   /** A new match: a lesson under way starts over on the fresh meadow. */
@@ -185,10 +187,15 @@ export class Tutorial {
 
     if (!this.lesson) {
       if (this.stage === '' && this.host.foe() && (this.wait -= dt) <= 0) this.begin('square');
-      if (this.hitWait >= 0 && (this.hitWait -= dt) < 0 && this.host.foe()) this.begin('circle');
+      if (this.hitWait >= 0 && (this.hitWait -= dt) < 0) this.pending = 'circle';
+      if (this.pending === 'circle' && this.host.foe()) this.begin('circle');
       return;
     }
-    if (!this.host.foe()) return;
+    // Nobody left to spar with (e.g. switched to 0 rivals): shelve the lesson until a rival is back.
+    if (!this.host.foe()) {
+      this.shelve();
+      return;
+    }
     this.timer += dt;
 
     if (this.step === 'draw') this.animateDemo(dt);
@@ -211,6 +218,7 @@ export class Tutorial {
 
   private begin(lesson: Lesson) {
     this.lesson = lesson;
+    this.pending = null;
     this.root.hidden = false;
     this.root.dataset.lesson = lesson;
     void this.root.offsetWidth;
@@ -227,6 +235,15 @@ export class Tutorial {
     if (step === 'watch') this.say(text.watch, '');
     else this.say(...text[step]);
     if (step !== 'draw') this.demo.innerHTML = '';
+  }
+
+  private shelve() {
+    this.host.hold(false);
+    this.host.deselect();
+    this.pending = this.lesson === 'circle' ? 'circle' : null;
+    this.lesson = null;
+    this.root.classList.remove('show');
+    this.root.hidden = true;
   }
 
   private finish() {
