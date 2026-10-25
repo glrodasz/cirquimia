@@ -16,7 +16,7 @@ import { Spells } from './spells';
 import { Combat, type Difficulty } from './combat';
 import type { Kind } from './generator';
 import { GLADE } from './look';
-import { Bloom, gladeTime } from './glade';
+import { Bloom } from './glade';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -393,7 +393,6 @@ const projected = new THREE.Vector3();
 
 renderer.setAnimationLoop((time) => {
   clock.update(time);
-  gladeTime.value = time / 1000;
   const dt = Math.min(clock.getDelta(), 1 / 20);
   world.update(dt);
   tutorial.update(dt);

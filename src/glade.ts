@@ -1,56 +1,30 @@
 import * as THREE from 'three';
 
 /**
- * Shader touches for the Glade look, patched into the stock Lambert material so lighting and shadows stay three's:
- * - sway: wind that bends instanced plants from the root, coherent across the meadow (gusts travel in world space);
- * - paint: low-frequency world-space blotches that break flat colour into a painted, leafy texture.
+ * Shader touch for the Glade look, patched into the stock Lambert material so lighting and shadows stay three's:
+ * low-frequency world-space blotches that break flat colour into a painted, leafy texture.
  */
-export const gladeTime = { value: 0 };
-
 interface Stylize {
-  /** Local-space height where bending starts, and over how much height it reaches full strength. */
-  sway?: { base: number; height: number; amp: number };
   /** World-space blotch frequency and how much it darkens/lightens. */
-  paint?: { scale: number; amount: number };
+  paint: { scale: number; amount: number };
 }
 
 const f = (n: number) => n.toFixed(4);
 
 export function stylize<M extends THREE.Material>(mat: M, opts: Stylize): M {
-  const defines: Record<string, string> = {};
-  if (opts.sway) {
-    defines.SWAY = '';
-    defines.SWAY_BASE = f(opts.sway.base);
-    defines.SWAY_HEIGHT = f(opts.sway.height);
-    defines.SWAY_AMP = f(opts.sway.amp);
-  }
-  if (opts.paint) {
-    defines.PAINT_SCALE = f(opts.paint.scale);
-    defines.PAINT_AMOUNT = f(opts.paint.amount);
-  }
+  const defines = { PAINT_SCALE: f(opts.paint.scale), PAINT_AMOUNT: f(opts.paint.amount) };
   mat.defines = { ...mat.defines, ...defines };
   mat.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = gladeTime;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec3 vPaintPos;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vPaintPos;')
       .replace(
         '#include <project_vertex>',
-        /* glsl */ `
-        vec4 mvPosition = vec4( transformed, 1.0 );
+        /* glsl */ `#include <project_vertex>
+        vec4 paintP = vec4( transformed, 1.0 );
         #ifdef USE_INSTANCING
-          mvPosition = instanceMatrix * mvPosition;
+          paintP = instanceMatrix * paintP;
         #endif
-        vec4 worldP = modelMatrix * mvPosition;
-        #if defined( SWAY ) && defined( USE_INSTANCING )
-          vec3 root = ( modelMatrix * instanceMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz;
-          float bend = clamp( ( position.y - SWAY_BASE ) / SWAY_HEIGHT, 0.0, 1.0 );
-          bend *= bend;
-          float gust = sin( uTime * 1.6 + root.x * 0.55 + root.z * 0.35 ) + 0.45 * sin( uTime * 2.9 + root.x * 1.7 - root.z * 1.1 );
-          worldP.xyz += vec3( 0.85, 0.0, 0.5 ) * gust * SWAY_AMP * bend;
-        #endif
-        vPaintPos = worldP.xyz;
-        mvPosition = viewMatrix * worldP;
-        gl_Position = projectionMatrix * mvPosition;`,
+        vPaintPos = ( modelMatrix * paintP ).xyz;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -75,11 +49,11 @@ export function stylize<M extends THREE.Material>(mat: M, opts: Stylize): M {
       .replace(
         '#include <color_fragment>',
         /* glsl */ `#include <color_fragment>
-        #ifdef PAINT_SCALE
+        {
           float blotch = paintNoise( vPaintPos * PAINT_SCALE ) * 0.65 + paintNoise( vPaintPos * PAINT_SCALE * 2.7 ) * 0.35;
           // Contrast-stretched so the blotches read as brush dabs rather than a faint haze.
           diffuseColor.rgb *= 1.0 + ( smoothstep( 0.3, 0.7, blotch ) - 0.5 ) * PAINT_AMOUNT;
-        #endif`,
+        }`,
       );
   };
   mat.customProgramCacheKey = () => JSON.stringify(defines);

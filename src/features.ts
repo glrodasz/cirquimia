@@ -680,7 +680,7 @@ export function buildFeatures(layout: Layout, obstacles: Obstacle[]): BuiltFeatu
     bushes: GLADE
       ? new Batch(
           new THREE.IcosahedronGeometry(0.5, 1),
-          stylize(lambert({ flatShading: false }), { sway: { base: -2, height: 3, amp: 0.03 }, paint: { scale: 4, amount: 0.5 } }),
+          stylize(lambert({ flatShading: false }), { paint: { scale: 4, amount: 0.5 } }),
           leafTint,
         )
       : new Batch(new THREE.IcosahedronGeometry(0.5, 0), lambert()),
