@@ -287,7 +287,7 @@ export class Tutorial {
     if (!foe) return;
     const head = this.host.toScreen(foe, 0.75);
     const feet = this.host.toScreen(foe, 0.3);
-    this.placeArrow(head.x, head.y - 26);
+    this.placeArrow(head.x, head.y - 18);
     this.spot(feet.x, feet.y, 60);
   }
 
