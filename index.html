@@ -4,13 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Cirquimia Meadow Test</title>
+    <!-- Installed to the home screen, the game runs without browser chrome, so no system sheet or swipe can steal a stroke. -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="theme-color" content="#3f5a57" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cirquimia" />
     <style>
       :root { --sky: #c9d3d1; --hud-bg: rgba(255,255,255,.72); --hud-fg: #23322a; --hud-border: rgba(35,50,42,.15); }
       @media (prefers-color-scheme: dark) {
         :root:not([data-theme="light"]) { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
       }
       :root[data-theme="dark"] { --hud-bg: rgba(20,28,24,.72); --hud-fg: #e6efe9; --hud-border: rgba(230,239,233,.18); }
-      html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); touch-action: none; overscroll-behavior: none; }
+      html, body { margin: 0; height: 100%; overflow: hidden; position: fixed; inset: 0; background: var(--sky); touch-action: none; overscroll-behavior: none; }
       /* A stroke or a tap-walk must never turn into text selection, an iOS callout or an image drag. */
       html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
       input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
