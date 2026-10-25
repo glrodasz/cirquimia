@@ -88,6 +88,8 @@ function search(sx: number, sz: number, gx: number, gz: number, all: Obstacle[],
     gx = x0 + i * CELL;
     gz = z0 + ((goal - i) / cols) * CELL;
   }
+  // Already in the goal cell (e.g. spawned against a tree): one short leg, never an empty route.
+  if (goal === start) return [{ x: gx, z: gz }];
 
   const gi = goal % cols;
   const gj = (goal - gi) / cols;
@@ -132,7 +134,7 @@ function search(sx: number, sz: number, gx: number, gz: number, all: Obstacle[],
       }
     }
   }
-  if (from[goal] < 0 && goal !== start) return null;
+  if (from[goal] < 0) return null;
 
   const cells: Waypoint[] = [];
   for (let c = goal; c !== start && c >= 0; c = from[c]) {
