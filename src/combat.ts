@@ -3,6 +3,7 @@ import { BODY_RADIUS, Character } from './character';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
 import { PILLAR_AREA, PILLAR_WARN, STAR_REACH, starTips, type Element, type Spells } from './spells';
+import { t } from './i18n';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35.
 export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35 };
@@ -25,7 +26,7 @@ export type Fluid = 'fire' | 'water';
 export type SourceFinder = (element: Fluid, from: THREE.Vector3) => THREE.Vector3 | null;
 
 export type Difficulty = 'facil' | 'normal' | 'dificil';
-export const DIFFICULTY_LABEL: Record<Difficulty, string> = { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil' };
+export const DIFFICULTY_LABEL: Record<Difficulty, string> = t.difficulty;
 
 interface Tuning {
   speed: number;
