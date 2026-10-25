@@ -74,11 +74,35 @@ function waterIcon(rand: () => number) {
   return svg([drop(12, 'water', rand), stroke(arc(24, 29, 4.5, Math.PI * 0.6, Math.PI * 0.95), 2, 'water', rand)], rand);
 }
 
-/** The alchemist standing in a dashed rune ring. */
-function runesIcon(rand: () => number) {
-  const dashes = Array.from({ length: 6 }, (_, i) => stroke(arc(24, 24, 15, (i * Math.PI) / 3 + 0.15, (i * Math.PI) / 3 + 0.8), 2.4, 'glyph', rand));
-  return svg([...dashes, person(24, 0.62, 'hero', rand)], rand);
+/** The alchemist standing in a rune circle on the ground, seen at the game's tilt, with a ring of power at the feet. */
+function runesScene(rand: () => number) {
+  const cx = 48;
+  const cy = 50;
+  const flat = (line: Pt[]): Pt[] => line.map(([x, y]) => [x, cy + (y - cy) * 0.42]);
+  const tri = [0, 1, 2, 3].map((k): Pt => {
+    const a = -Math.PI / 2 + (k * Math.PI * 2) / 3;
+    return [cx + Math.cos(a) * 27, cy + Math.sin(a) * 27];
+  });
+  const parts = [
+    stroke(flat(arc(cx, cy, 40, -2.9, -2.9 + Math.PI * 2.04)), 2.6, 'glyph', rand),
+    stroke(flat(arc(cx, cy, 31, 0.4, 0.4 + Math.PI * 2.04)), 1.8, 'glyph', rand),
+    stroke(flat(poly(tri)), 1.8, 'glyph', rand),
+    ...[0.8, 2.35, 3.95, 5.5].map((a) => stroke(flat(arc(cx + Math.cos(a) * 45, cy + Math.sin(a) * 45, 1.2, 0, Math.PI * 2.2)), 3, 'glyph', rand)),
+    stroke(flat(arc(cx, cy, 15, 0.2, 0.2 + Math.PI * 2.05)), 2.2, 'hero', rand),
+    ...[-2.6, -Math.PI / 2, -0.54].map((a) => stroke(segment([cx + Math.cos(a) * 11, cy - 27 + Math.sin(a) * 11], [cx + Math.cos(a) * 16, cy - 27 + Math.sin(a) * 16]), 1.8, 'glyph', rand)),
+  ];
+  // The figure is drawn on the 48-unit HUD grid; scale it so its shoulders end on the circle's centre.
+  const fig = person(24, 0.9, 'hero', rand);
+  const place = `translate(${cx - 24 * 1.5} ${cy - 34.8 * 1.5}) scale(1.5)`;
+  const id = `helprune${++sceneId}`;
+  return (
+    `<svg viewBox="0 0 96 72" aria-hidden="true">` +
+    `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">` +
+    `<rect width="96" height="72" fill="#fff"/><path d="${parts.map((p) => p.dry).join('')}" fill="#000"/><g transform="${place}"><path d="${fig.dry}" fill="#000"/></g></mask>` +
+    `<g mask="url(#${id})">${parts.map((p) => p.ink).join('')}<g transform="${place}">${fig.ink}</g></g></svg>`
+  );
 }
+let sceneId = 0;
 
 function questionIcon(rand: () => number) {
   const hook = arc(24, 19, 6.5, Math.PI * 1.05, Math.PI * 2.3);
@@ -88,13 +112,13 @@ function questionIcon(rand: () => number) {
   ], rand);
 }
 
-const SHAPES: Array<{ kind: ShapeKind; name: string; value: string; source?: 'fire' | 'water' }> = [
-  { kind: 'circle', name: 'Muro', value: 'bloquea' },
-  { kind: 'square', name: 'Tierra', value: '20' },
-  { kind: 'triangle', name: 'Fuego', value: '35', source: 'fire' },
-  { kind: 'triangleDown', name: 'Agua', value: '35', source: 'water' },
-  { kind: 'rhombus', name: 'Cura', value: '+25' },
-  { kind: 'pentagram', name: 'Estrella', value: '5×10' },
+const SHAPES: Array<{ kind: ShapeKind; name: string; label: string; value: string; source?: 'fire' | 'water' }> = [
+  { kind: 'circle', name: 'Muro', label: '', value: 'Defensa' },
+  { kind: 'square', name: 'Tierra', label: 'Daño', value: '20' },
+  { kind: 'triangle', name: 'Fuego', label: 'Daño', value: '35', source: 'fire' },
+  { kind: 'triangleDown', name: 'Agua', label: 'Daño', value: '35', source: 'water' },
+  { kind: 'rhombus', name: 'Cura', label: 'Curación', value: '+25' },
+  { kind: 'pentagram', name: 'Estrella', label: 'Daño', value: '5×10' },
 ];
 
 const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</span>`;
@@ -104,22 +128,26 @@ function content() {
   const rand = random();
   const shapes = SHAPES.map(
     (s) =>
-      `<li>${fig(s.kind, shapeIcon(s.kind))}<b>${s.name}</b><span class="val">${s.value}</span>` +
+      `<li>${fig(s.kind, shapeIcon(s.kind))}<b>${s.name}</b><span class="val">${s.label ? `<small>${s.label}</small> ` : ''}${s.value}</span>` +
       (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon(rand) : waterIcon(rand)}</span>` : '') +
       '</li>',
   ).join('');
   return (
     '<div class="card"><h2 id="help-title">Cómo jugar</h2>' +
     '<ol class="steps">' +
-    `<li>${fig('', tapIcon(rand))}<span>Toca<br><small>camina</small></span></li>` +
-    `<li>${fig('', drawIcon(rand))}<span>Dibuja<br><small>guarda</small></span></li>` +
-    `<li><span class="pair">${fig('square', shapeIcon('square'))}${arrow}${fig('', targetIcon(rand))}</span><span>Elige<br><small>lanza</small></span></li>` +
+    `<li><span class="pair">${fig('', tapIcon(rand))}</span><span>Toca el suelo para <b>moverte</b></span></li>` +
+    `<li><span class="pair">${fig('', drawIcon(rand))}${arrow}${fig('square', shapeIcon('square'))}</span><span>Dibuja un símbolo: se <b>guarda</b> abajo</span></li>` +
+    `<li><span class="pair">${fig('square selected', shapeIcon('square'))}${arrow}${fig('', targetIcon(rand))}</span><span>Toca el símbolo y luego el objetivo para <b>usarlo</b></span></li>` +
     '</ol>' +
+    '<h3>Símbolos disponibles</h3>' +
     `<ul class="shapes">${shapes}</ul>` +
     '<div class="flow" aria-label="Fuego y agua: toca el triángulo, luego la fogata o la laguna; vuelve a tocarlo y lanza">' +
     `${fig('triangle', shapeIcon('triangle'))}${arrow}${fig('', flameIcon(rand))}${arrow}` +
     `${fig('triangle charged', shapeIcon('triangle'))}${arrow}${fig('', targetIcon(rand))}</div>` +
-    `<div class="runes">${fig('', runesIcon(rand))}<span>Sobre runas<br><b>+25%</b></span></div>` +
+    '<p class="note">Fuego y agua se cargan en una fogata o laguna</p>' +
+    '<h3>Runas</h3>' +
+    `<div class="runes"><span class="scene">${runesScene(rand)}</span>` +
+    '<span>Lanza desde una <b>runa</b> y tu poder <b>aumenta</b><br><small>+25% de área · curación 33</small></span></div>' +
     '<button type="button" class="match-btn go"><span class="cap">¡A jugar!</span></button></div>'
   );
 }
