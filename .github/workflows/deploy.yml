@@ -91,7 +91,7 @@ jobs:
               '| | |',
               '|---|---|',
               `| Rama (siempre la última versión) | ${ALIAS_URL || '—'} |`,
-              `| Este commit (\`${SHA.slice(0, 7)}\`) | ${DEPLOY_URL} |`,
+              `| Este push (\`${SHA.slice(0, 7)}\` fusionado con la base) | ${DEPLOY_URL} |`,
               `| Actualizado | ${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC |`,
             ].join('\n');
             const { owner, repo } = context.repo;
