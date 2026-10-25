@@ -1,5 +1,6 @@
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
+import { LOOK, setLook } from './look';
 
 const STORE = 'cirquimia.dev';
 
@@ -123,7 +124,15 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   const viewRow = el('div', { class: 'dev-row' });
   if (tilt) viewRow.append(tilt);
   const perfBox = el('dl', { class: 'dev-stats' });
-  view.append(viewRow, fpsRow, debugRow, perfBox);
+  // Visual style experiment: switching reloads with the other look.
+  const lookRow = el('div', { class: 'dev-row' });
+  lookRow.append(el('label', {}, 'Estética'));
+  for (const [name, label] of [['bruma', 'Bruma'], ['glade', 'Glade']] as const) {
+    const button = el('button', { type: 'button', class: 'dev-toggle', 'aria-pressed': String(LOOK === name) }, label);
+    button.addEventListener('click', () => LOOK !== name && setLook(name));
+    lookRow.append(button);
+  }
+  view.append(lookRow, viewRow, fpsRow, debugRow, perfBox);
 
   panel.append(head, meadow, paramsSection, view);
   document.body.append(gear, panel);
