@@ -117,7 +117,7 @@ const SHAPES: Array<{ kind: ShapeKind; name: string; label: string; value: strin
   { kind: 'square', name: 'Tierra', label: 'Daño', value: '20' },
   { kind: 'triangle', name: 'Fuego', label: 'Daño', value: '35', source: 'fire' },
   { kind: 'triangleDown', name: 'Agua', label: 'Daño', value: '35', source: 'water' },
-  { kind: 'rhombus', name: 'Cura', label: 'Curación', value: '+25' },
+  { kind: 'rhombus', name: 'Cura', label: 'Curación', value: '25' },
   { kind: 'pentagram', name: 'Estrella', label: 'Daño', value: '5×10' },
 ];
 
@@ -128,7 +128,7 @@ function content() {
   const rand = random();
   const shapes = SHAPES.map(
     (s) =>
-      `<li>${fig(s.kind, shapeIcon(s.kind))}<b>${s.name}</b><span class="val">${s.label ? `<small>${s.label}</small> ` : ''}${s.value}</span>` +
+      `<li>${fig(s.kind, shapeIcon(s.kind))}<b>${s.name}</b><span class="val${s.label === 'Daño' ? ' val-dmg' : s.label === 'Curación' ? ' val-heal' : ''}">${s.label ? `<small>${s.label}</small> ` : ''}${s.value}</span>` +
       (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon(rand) : waterIcon(rand)}</span>` : '') +
       '</li>',
   ).join('');
@@ -141,13 +141,17 @@ function content() {
     '</ol>' +
     '<h3>Símbolos disponibles</h3>' +
     `<ul class="shapes">${shapes}</ul>` +
-    '<div class="flow" aria-label="Fuego y agua: toca el triángulo, luego la fogata o la laguna; vuelve a tocarlo y lanza">' +
+    '<div class="flow" aria-label="Fuego: toca el triángulo, luego la fogata; vuelve a tocarlo y lanza">' +
     `${fig('triangle', shapeIcon('triangle'))}${arrow}${fig('', flameIcon(rand))}${arrow}` +
     `${fig('triangle charged', shapeIcon('triangle'))}${arrow}${fig('', targetIcon(rand))}</div>` +
-    '<p class="note">Fuego y agua se cargan en una fogata o laguna</p>' +
+    '<p class="note">Fuego: cárgalo en una fogata</p>' +
+    '<div class="flow" aria-label="Agua: toca el triángulo invertido, luego la laguna; vuelve a tocarlo y lanza">' +
+    `${fig('triangleDown', shapeIcon('triangleDown'))}${arrow}${fig('', waterIcon(rand))}${arrow}` +
+    `${fig('triangleDown charged', shapeIcon('triangleDown'))}${arrow}${fig('', targetIcon(rand))}</div>` +
+    '<p class="note">Agua: cárgala en una laguna</p>' +
     '<h3>Runas</h3>' +
     `<div class="runes"><span class="scene">${runesScene(rand)}</span>` +
-    '<span>Lanza desde una <b>runa</b> y tu poder <b>aumenta</b><br><small>+25% de área · curación 33</small></span></div>' +
+    '<span>Lanza desde una <b>runa</b> y tu poder <b>aumenta</b><br><small>+25% de área · <span class="val-heal">curación 33</span></small></span></div>' +
     '<button type="button" class="match-btn go"><span class="cap">¡A jugar!</span></button></div>'
   );
 }
