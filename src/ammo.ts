@@ -241,6 +241,12 @@ export class AmmoBar {
     document.body.classList.toggle('aiming', slot !== null);
   }
 
+  /** The newest live slot holding this shape, or null. */
+  slotOf(kind: ShapeKind): HTMLButtonElement | null {
+    const slots = this.bar.querySelectorAll<HTMLButtonElement>(`.slot.${kind}:not(:disabled)`);
+    return slots[slots.length - 1] ?? null;
+  }
+
   /** The selected shape and whether it already carries fire or water, or null if nothing is selected. */
   selection(): { kind: ShapeKind; charged: boolean } | null {
     const slot = this.selected;
