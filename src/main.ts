@@ -392,6 +392,18 @@ for (const type of ['selectstart', 'dragstart', 'contextmenu']) {
   });
 }
 document.addEventListener('gesturestart', (e) => e.preventDefault());
+// iOS ignores touch-action inside in-app browser sheets and hands an unclaimed drag to the sheet (dismiss/move) or
+// the page scroller. Claiming every touch on the canvas, and any drag outside a scrollable panel, keeps strokes ours.
+const claimTouch = (e: TouchEvent) => e.cancelable && e.preventDefault();
+canvas.addEventListener('touchstart', claimTouch, { passive: false });
+canvas.addEventListener('touchmove', claimTouch, { passive: false });
+const canScroll = (t: EventTarget | null) => {
+  for (let el = t instanceof Element ? t : null; el; el = el.parentElement) {
+    if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)) return true;
+  }
+  return false;
+};
+document.addEventListener('touchmove', (e) => !canScroll(e.target) && claimTouch(e), { passive: false });
 
 addEventListener('resize', fitCamera);
 fitCamera();
