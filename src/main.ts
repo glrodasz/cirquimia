@@ -91,9 +91,11 @@ const findSource = (element: 'fire' | 'water', from: THREE.Vector3) => {
   }
   return best;
 };
-/** True when standing inside one of the meadow's rune circles. */
+/** True when standing inside one of the meadow's rune circles: the plain runes or the circle ringing the crystals. */
 const onRunes = (p: THREE.Vector3) =>
-  world.layout.features.some((f) => f.kind === 'runas' && Math.hypot(p.x - f.x, p.z - f.z) <= f.r * 0.85);
+  world.layout.features.some(
+    (f) => (f.kind === 'runas' || f.kind === 'cristales') && Math.hypot(p.x - f.x, p.z - f.z) <= f.r * 0.85,
+  );
 const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource, onRunes);
 scene.add(combat.root);
 
