@@ -1,5 +1,6 @@
 import { brushPath, ensoLine, type Pt } from './ammo';
 import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
+import { t } from './i18n';
 
 const STORE = 'cirquimia.match';
 const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before they moved to the HUD
@@ -123,7 +124,7 @@ export function mountMatchControls(match: MatchControls) {
   const box = document.createElement('div');
   box.id = 'match';
   box.setAttribute('role', 'toolbar');
-  box.setAttribute('aria-label', 'Partida');
+  box.setAttribute('aria-label', t.match.toolbar);
 
   const button = () => {
     const b = document.createElement('button');
@@ -149,11 +150,11 @@ export function mountMatchControls(match: MatchControls) {
     const n = match.rivals;
     const level = match.difficulty;
     rivalsBtn.querySelector('.disc')!.innerHTML = rivalsIcon(n);
-    rivalsBtn.querySelector('.cap')!.innerHTML = `<b>${n}</b> ${n === 1 ? 'rival' : 'rivales'}`;
-    rivalsBtn.setAttribute('aria-label', `Rivales: ${n}. Toca para cambiar y reiniciar la partida`);
+    rivalsBtn.querySelector('.cap')!.innerHTML = t.match.rivalsCap(n);
+    rivalsBtn.setAttribute('aria-label', t.match.rivalsAria(n));
     levelBtn.querySelector('.disc')!.innerHTML = levelIcon(level);
     levelBtn.querySelector('.cap')!.textContent = DIFFICULTY_LABEL[level];
-    levelBtn.setAttribute('aria-label', `Dificultad: ${DIFFICULTY_LABEL[level]}. Toca para cambiar y reiniciar la partida`);
+    levelBtn.setAttribute('aria-label', t.match.levelAria(DIFFICULTY_LABEL[level]));
     save({ rivals: n, difficulty: level });
   };
 
@@ -161,8 +162,7 @@ export function mountMatchControls(match: MatchControls) {
   const restarted = (b: HTMLElement) => {
     render();
     b.animate([{ transform: 'scale(.86)' }, { transform: 'scale(1.08)' }, { transform: 'scale(1)' }], { duration: 320, easing: 'ease-out' });
-    const n = match.rivals;
-    toast.textContent = `Nueva partida · ${n === 0 ? 'sin rivales' : n === 1 ? '1 rival' : `${n} rivales`} · ${DIFFICULTY_LABEL[match.difficulty]}`;
+    toast.textContent = t.match.restarted(match.rivals, DIFFICULTY_LABEL[match.difficulty]);
     toast.classList.remove('show');
     void toast.offsetWidth; // restart the fade when tapping quickly
     toast.classList.add('show');
@@ -191,7 +191,7 @@ export function mountMatchControls(match: MatchControls) {
   end.setAttribute('aria-modal', 'true');
   end.innerHTML =
     '<div class="card"><div class="disc"></div><h2></h2><p></p>' +
-    '<button type="button" class="match-btn again"><span class="cap">Jugar de nuevo</span></button></div>';
+    `<button type="button" class="match-btn again"><span class="cap">${t.match.again}</span></button></div>`;
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) end.addEventListener(type, (e) => e.stopPropagation());
   document.body.append(end);
   const again = end.querySelector<HTMLButtonElement>('.again')!;
@@ -212,11 +212,11 @@ export function mountMatchControls(match: MatchControls) {
       end.querySelector('.disc')!.innerHTML = won
         ? svg([person(24, 1, 'hero', rand)], rand)
         : svg([fallen('down', rand)], rand);
-      end.querySelector('h2')!.textContent = won ? '¡Victoria!' : 'Game Over';
+      end.querySelector('h2')!.textContent = won ? t.match.victory : t.match.defeat;
       end.querySelector('p')!.textContent = won
-        ? `Venciste a ${n === 1 ? 'tu rival' : `tus ${n} rivales`} · ${level}`
-        : `Has caído en combate · ${level}`;
-      end.setAttribute('aria-label', won ? 'Victoria' : 'Game Over');
+        ? t.match.won(n, level)
+        : t.match.lost(level);
+      end.setAttribute('aria-label', won ? t.match.victoryAria : t.match.defeat);
       end.hidden = false;
       void end.offsetWidth; // let the fade-in start from hidden
       end.classList.add('show');

@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import { brushPath, type Pt } from './ammo';
 import { arc, segment } from './match';
 import type { ShapeKind } from './gestures';
+import { t } from './i18n';
 
 const STORE = 'cirquimia.tutorial'; // 'square' once the attack lesson is done, 'done' after the wall one too
 const START_DELAY = 0.6; // s after the help card closes before the first lesson shows
@@ -15,23 +16,8 @@ const DEMO_HOLD = 0.8;
 type Lesson = 'square' | 'circle';
 type Step = 'draw' | 'pick' | 'aim' | 'watch';
 
-const TEXT: Record<Lesson, Record<Exclude<Step, 'watch'>, [string, string]> & { watch: string; done: string }> = {
-  square: {
-    draw: ['Dibuja un cuadrado', 'Un cuadrado crea una munición de ataque de tierra para usarla luego.'],
-    pick: ['Quedó guardado aquí', 'Toca el cuadrado para prepararlo.'],
-    aim: ['Toca al rival', 'El ataque de tierra sale justo donde toques.'],
-    watch: '¡Golpe!',
-    done: 'Dibuja más formas para seguir atacando.',
-  },
-  circle: {
-    draw: ['¡Te golpearon! Dibuja un círculo', 'Un círculo crea un muro de tierra que te protege de los ataques.'],
-    pick: ['Quedó guardado aquí', 'Toca el círculo para prepararlo.'],
-    aim: ['Toca hacia el rival', 'El muro se levanta a tu alrededor, de cara a donde toques.'],
-    watch: 'Lo que cae dentro del muro no te daña.',
-    done: '¡Listo! Ya sabes atacar y defenderte.',
-  },
-};
-const WRONG: Record<Lesson, string> = { square: 'Eso no fue un cuadrado. Sigue la guía e inténtalo otra vez.', circle: 'Eso no fue un círculo. Sigue la guía e inténtalo otra vez.' };
+const TEXT: Record<Lesson, Record<Exclude<Step, 'watch'>, [string, string]> & { watch: string; done: string }> = t.tutorial;
+const WRONG: Record<Lesson, string> = t.tutorial.wrong;
 
 /** What the lessons need from the game. */
 export interface TutorialHost {

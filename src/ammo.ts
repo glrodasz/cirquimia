@@ -1,4 +1,5 @@
 import type { ShapeKind } from './gestures';
+import { t } from './i18n';
 
 const MAX_SLOTS = 6;
 
@@ -160,14 +161,7 @@ export function shapeIcon(kind: ShapeKind): string {
   );
 }
 
-const LABELS: Record<ShapeKind, string> = {
-  circle: 'Círculo',
-  triangle: 'Triángulo',
-  triangleDown: 'Triángulo invertido',
-  square: 'Cuadrado',
-  rhombus: 'Rombo',
-  pentagram: 'Pentagrama',
-};
+const LABELS: Record<ShapeKind, string> = t.shapes;
 
 /**
  * Stored shapes along the bottom of the screen. Tap one, then tap the map to use it.
@@ -181,7 +175,7 @@ export class AmmoBar {
   constructor() {
     this.bar.id = 'ammo';
     this.bar.setAttribute('role', 'toolbar');
-    this.bar.setAttribute('aria-label', 'Círculos de transmutación');
+    this.bar.setAttribute('aria-label', t.ammoBar);
     document.body.append(this.bar);
   }
 

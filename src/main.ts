@@ -17,6 +17,7 @@ import { Combat, type Difficulty } from './combat';
 import type { Kind } from './generator';
 import { GLADE } from './look';
 import { Bloom } from './glade';
+import { t } from './i18n';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -169,10 +170,11 @@ let tiltShift = true;
 let focusY = 0.5;
 
 const tiltButton = document.getElementById('tilt') as HTMLButtonElement;
+tiltButton.textContent = t.tilt(tiltShift);
 tiltButton.addEventListener('click', (e) => {
   e.stopPropagation();
   tiltShift = !tiltShift;
-  tiltButton.textContent = `Miniatura: ${tiltShift ? 'on' : 'off'}`;
+  tiltButton.textContent = t.tilt(tiltShift);
 });
 tiltButton.addEventListener('pointerdown', (e) => e.stopPropagation());
 
