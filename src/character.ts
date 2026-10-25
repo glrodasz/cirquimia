@@ -285,7 +285,7 @@ export class Character {
     this.stuckCount = 0;
     const pos = this.root.position;
     const path = findPath(pos.x, pos.z, this.target.x, this.target.z, this.obstacles, BODY_RADIUS + 0.02);
-    if (path) {
+    if (path?.length) {
       this.path = path;
       const last = path[path.length - 1];
       this.target.x = last.x;

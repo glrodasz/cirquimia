@@ -457,7 +457,8 @@ export class Combat {
         const a = base + i * Math.PI + THREE.MathUtils.randFloatSpread(0.8);
         const r = THREE.MathUtils.randFloat(1.5, 2.1);
         const spot = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
-        if (!this.onScreen(spot) && tries < 11) continue;
+        const blocked = this.obstacles.some((o) => Math.hypot(o.x - spot.x, o.z - spot.z) < o.r + BODY_RADIUS + 0.05);
+        if ((blocked || !this.onScreen(spot)) && tries < 11) continue;
         rival.body.root.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
         rival.body.setTarget(rival.body.root.position);
         break;
