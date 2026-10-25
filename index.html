@@ -3,10 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <title>Cirquimia Meadow Test</title>
+    <title>Cirquimia · Dibuja símbolos y lanza hechizos de alquimia</title>
+    <meta name="description" content="Eres un alquimista en una pradera en miniatura: dibuja círculos, triángulos y estrellas con el dedo para lanzar hechizos contra tus rivales. Gratis en el móvil." />
+    <link rel="canonical" href="https://cirquimia.pages.dev/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cirquimia" />
+    <meta property="og:url" content="https://cirquimia.pages.dev/" />
+    <meta property="og:title" content="Cirquimia · Dibuja símbolos para lanzar hechizos" />
+    <meta property="og:description" content="Eres un alquimista que se bate en duelo en una pradera en miniatura. Dibuja símbolos con el dedo para atacar, defenderte y curarte. Juega gratis desde el móvil." />
+    <meta property="og:image" content="https://cirquimia.pages.dev/og/cirquimia.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="El alquimista de Cirquimia lanzando un hechizo en una pradera low poly en miniatura" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cirquimia · Dibuja símbolos para lanzar hechizos" />
+    <meta name="twitter:description" content="Eres un alquimista que se bate en duelo en una pradera en miniatura. Juega gratis desde el móvil." />
+    <meta name="twitter:image" content="https://cirquimia.pages.dev/og/cirquimia.jpg" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"VideoGame","name":"Cirquimia","url":"https://cirquimia.pages.dev/","image":"https://cirquimia.pages.dev/og/cirquimia.jpg","description":"Juego de navegador: un alquimista dibuja símbolos para lanzar hechizos en una pradera en miniatura.","genre":["Acción","Estrategia"],"gamePlatform":"Navegador web","applicationCategory":"Game","operatingSystem":"Web","inLanguage":["es","en"],"isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+    </script>
     <!-- Installed to the home screen, the game runs without browser chrome, so no system sheet or swipe can steal a stroke. -->
     <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./favicon.ico" sizes="48x48" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta name="theme-color" content="#3f5a57" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -24,6 +46,7 @@
       html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
       input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
       img, svg { -webkit-user-drag: none; user-drag: none; }
+      .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
       canvas { display: block; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
       #dev-gear { position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 9px; border-radius: 50%; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); cursor: pointer; z-index: 3; opacity: .75; transition: opacity .2s, transform .3s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       #dev-gear:hover, #dev-gear.open { opacity: 1; }
@@ -200,6 +223,9 @@
     </style>
   </head>
   <body>
+    <!-- The game is a canvas; this gives crawlers and screen readers the page's name and pitch. -->
+    <h1 class="sr-only">Cirquimia</h1>
+    <noscript><p style="padding:24px;font:16px/1.5 system-ui,sans-serif">Cirquimia es un juego de alquimia: dibuja símbolos para lanzar hechizos en una pradera en miniatura. Activa JavaScript para jugar.</p></noscript>
     <div id="hud" hidden>
       <button id="tilt" type="button">Miniatura: on</button>
       <span id="fps">-- fps</span>
