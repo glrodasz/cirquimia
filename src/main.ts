@@ -15,6 +15,7 @@ import { AmmoBar } from './ammo';
 import { Spells } from './spells';
 import { Combat, type Difficulty } from './combat';
 import type { Kind } from './generator';
+import { GLADE } from './look';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -26,8 +27,8 @@ const VIEW_WIDTH_PORTRAIT = 5.4; // world units visible horizontally on tall scr
 const INSET_X = 0.9;
 const INSET_Y = 0.82;
 
-// "Bruma" palette: muted, cool blue-green morning light.
-const SKY = new THREE.Color('#c9d3d1');
+// "Bruma" palette: muted, cool blue-green morning light. Glade: warm late-afternoon haze.
+const SKY = new THREE.Color(GLADE ? '#e3d6b4' : '#c9d3d1');
 const isTouch = matchMedia('(pointer: coarse)').matches;
 
 // No canvas MSAA: the scene is drawn into a multisampled target and only a fullscreen quad reaches the canvas.
@@ -35,17 +36,19 @@ const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'h
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
-renderer.toneMapping = THREE.NeutralToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = GLADE ? THREE.ACESFilmicToneMapping : THREE.NeutralToneMapping;
+renderer.toneMappingExposure = GLADE ? 0.95 : 1.05;
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = SKY;
 scene.fog = new THREE.Fog(SKY, 30, 70);
 
-scene.add(new THREE.HemisphereLight('#e4eef0', '#4f5f5a', 1.5));
-const sun = new THREE.DirectionalLight('#f2f4f0', 1.9);
-sun.position.set(8, 15, 6);
+scene.add(GLADE ? new THREE.HemisphereLight('#d9e4f2', '#5a4a2a', 1.0) : new THREE.HemisphereLight('#e4eef0', '#4f5f5a', 1.5));
+// Glade's sun is low and golden: longer, softer shadows that model every tuft and stone.
+const sun = new THREE.DirectionalLight(GLADE ? '#ffd49a' : '#f2f4f0', GLADE ? 2.8 : 1.9);
+if (GLADE) sun.position.set(11, 9, 3);
+else sun.position.set(8, 15, 6);
 sun.castShadow = true;
 // Shadow sharpness is set as world units per shadow texel; fitCamera() sizes the shadow box to what
 // the screen shows and the map to match, so a smaller screen footprint means a smaller map, same look.
@@ -54,6 +57,8 @@ sun.shadow.camera.near = 1;
 sun.shadow.camera.far = 60;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
+// Same five shadow taps either way; Glade spreads them wider for a soft penumbra.
+if (GLADE) sun.shadow.radius = 3.5;
 scene.add(sun, sun.target);
 
 const world = new World(scene);
@@ -149,6 +154,7 @@ const sceneTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.
 const blurTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
 const hBlur = new THREE.ShaderMaterial(tiltShiftShader('horizontal'));
 const vBlur = new THREE.ShaderMaterial(tiltShiftShader('vertical'));
+if (GLADE) vBlur.defines.GRADE = '';
 const hQuad = new FullScreenQuad(hBlur);
 const vQuad = new FullScreenQuad(vBlur);
 const BLUR_STRENGTH = vBlur.uniforms.strength.value;

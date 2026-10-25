@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { dentBase, heightAt, mulberry32 } from './noise';
 import type { Obstacle } from './meadow';
 import type { Feature, Kind, Layout } from './generator';
+import { GLADE, leafTint, stoneTint } from './look';
 
 const dummy = new THREE.Object3D();
 const color = new THREE.Color();
@@ -17,11 +18,13 @@ class Batch {
   constructor(
     private readonly geo: THREE.BufferGeometry,
     private readonly mat: THREE.Material,
+    /** Lets the look recolour a batch (stone, leaves); the default keeps every tint. */
+    private readonly recolor: (tint: THREE.ColorRepresentation) => THREE.ColorRepresentation = (tint) => tint,
   ) {}
   add(tint: THREE.ColorRepresentation) {
     dummy.updateMatrix();
     this.matrices.push(dummy.matrix.clone());
-    this.colors.push(new THREE.Color(tint));
+    this.colors.push(new THREE.Color(this.recolor(tint)));
   }
   build(cast = true, receive = true): THREE.InstancedMesh | null {
     if (!this.matrices.length) {
@@ -314,7 +317,9 @@ function estanque(f: Feature, c: Ctx) {
   const water = new THREE.Mesh(
     geo,
     // Clear lagoon blue rather than murky green, so it reads as open water you can draw from.
-    new THREE.MeshLambertMaterial({ color: '#8fc4d2', emissive: '#4b8ea2', emissiveIntensity: 0.45, transparent: true, opacity: 0.84 }),
+    GLADE
+      ? new THREE.MeshLambertMaterial({ color: '#79b7b0', emissive: '#2f7a7c', emissiveIntensity: 0.4, transparent: true, opacity: 0.86 })
+      : new THREE.MeshLambertMaterial({ color: '#8fc4d2', emissive: '#4b8ea2', emissiveIntensity: 0.45, transparent: true, opacity: 0.84 }),
   );
   water.position.set(f.x, level, f.z);
   water.receiveShadow = true;
@@ -662,14 +667,16 @@ export function buildFeatures(layout: Layout, obstacles: Obstacle[]): BuiltFeatu
     rand: Math.random,
     obstacles,
     group,
-    stones: new Batch(new THREE.BoxGeometry(1, 1, 1), lambert()),
+    stones: new Batch(new THREE.BoxGeometry(1, 1, 1), lambert(), stoneTint),
     wood: new Batch(new THREE.CylinderGeometry(0.5, 0.5, 1, 6), lambert()),
     planks: new Batch(new THREE.BoxGeometry(1, 1, 1), lambert()),
     metal: new Batch(new THREE.BoxGeometry(1, 1, 1), lambert()),
     crystals: new Batch(new THREE.OctahedronGeometry(0.5, 0), lambert({ emissive: '#2c6f68', emissiveIntensity: 0.9 })),
     embers: new Batch(new THREE.DodecahedronGeometry(0.5, 0), lambert({ emissive: '#c4421c', emissiveIntensity: 0.9 })),
-    bushes: new Batch(new THREE.IcosahedronGeometry(0.5, 0), lambert()),
-    rubble: new Batch(new THREE.DodecahedronGeometry(0.5, 0), lambert()),
+    bushes: GLADE
+      ? new Batch(new THREE.IcosahedronGeometry(0.5, 1), lambert({ flatShading: false }), leafTint)
+      : new Batch(new THREE.IcosahedronGeometry(0.5, 0), lambert()),
+    rubble: new Batch(new THREE.DodecahedronGeometry(0.5, 0), lambert(), stoneTint),
     reeds: new Batch(new THREE.ConeGeometry(0.025, 0.55, 3).translate(0, 0.27, 0), lambert()),
     pads: new Batch(new THREE.CylinderGeometry(0.11, 0.11, 0.01, 6), lambert()),
     ribbons: [],
