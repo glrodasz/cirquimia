@@ -323,6 +323,8 @@ canvas.addEventListener('pointerdown', (e) => {
   // Once the match is decided (or the alchemist lies fallen) there is nothing left to draw or walk to.
   if (activePointer !== null || combat.over) return;
   activePointer = e.pointerId;
+  // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
+  e.preventDefault();
   canvas.setPointerCapture(e.pointerId);
   drawing = false;
   stroke = [{ x: e.clientX, y: e.clientY }];
@@ -371,6 +373,15 @@ canvas.addEventListener('pointercancel', (e) => {
   drawing = false;
 });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// Native gestures (selection, long-press menu, image drag, iOS pinch) are never wanted outside text fields.
+const isTextField = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement;
+for (const type of ['selectstart', 'dragstart', 'contextmenu']) {
+  document.addEventListener(type, (e) => {
+    if (!isTextField(e.target)) e.preventDefault();
+  });
+}
+document.addEventListener('gesturestart', (e) => e.preventDefault());
 
 addEventListener('resize', fitCamera);
 fitCamera();
