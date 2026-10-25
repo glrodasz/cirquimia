@@ -5,6 +5,8 @@ const STORE = 'cirquimia.match';
 const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before they moved to the HUD
 const LEVELS = Object.keys(DIFFICULTY_LABEL) as Difficulty[];
 const STEP = 0.7;
+/** A first-time player gets one easy rival to learn against; returning players keep their own choice. */
+const FIRST_MATCH: Saved = { rivals: 1, difficulty: 'facil' };
 
 /** What the HUD needs from the game: the current match and a way to restart it. */
 export interface MatchControls {
@@ -26,9 +28,9 @@ function load(): Saved {
     const own = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Saved | null;
     if (own) return own;
     const old = JSON.parse(localStorage.getItem(OLD_STORE) ?? '{}') as Saved;
-    return { rivals: old.rivals, difficulty: old.difficulty };
+    return { rivals: old.rivals ?? FIRST_MATCH.rivals, difficulty: old.difficulty ?? FIRST_MATCH.difficulty };
   } catch {
-    return {};
+    return FIRST_MATCH;
   }
 }
 
