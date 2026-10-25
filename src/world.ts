@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { heightAt, setTerrain } from './noise';
 import { buildCover, buildSolids, type Obstacle } from './meadow';
 import { buildFeatures } from './features';
+import { t } from './i18n';
 import {
   DEFAULT_PARAMS,
   KIND_LABEL,
@@ -179,7 +180,7 @@ export class World {
         if (layout.features[i].solid && (worst < 0 || a > features.blockedArea[worst])) worst = i;
       });
       const [removed] = layout.features.splice(worst, 1);
-      drops.push(`${KIND_LABEL[removed.kind]} (bloqueaba el paso)`);
+      drops.push(`${KIND_LABEL[removed.kind]} (${t.dev.blockedPath})`);
       dispose(features.group);
       dispose(solids);
       this.obstacles.length = 0;

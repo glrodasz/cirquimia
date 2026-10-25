@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32, type Dent } from './noise';
+import { t } from './i18n';
 
 // The camera never moves, so the playable meadow is what the screen shows. Layouts are composed in
 // screen-aligned coordinates (u to the right, v away from the camera) and converted to world x/z.
@@ -41,31 +42,9 @@ export type Kind =
   | 'troncos'
   | 'estandarte';
 
-export const MATERIAL_LABEL: Record<Material, string> = {
-  roca: 'Roca',
-  tierra: 'Tierra',
-  agua: 'Agua',
-  fuego: 'Fuego',
-  magia: 'Magia',
-  restos: 'Restos',
-};
+export const MATERIAL_LABEL: Record<Material, string> = t.materials;
 
-export const KIND_LABEL: Record<Kind, string> = {
-  menhires: 'Anillo de menhires',
-  muro: 'Muro roto',
-  penascos: 'Peñascos',
-  monticulo: 'Montículo',
-  tierraSuelta: 'Tierra removida',
-  estanque: 'Estanque',
-  fogata: 'Fogata',
-  crater: 'Cráter quemado',
-  cristales: 'Cristales',
-  runas: 'Círculo rúnico',
-  empalizada: 'Empalizada',
-  carreta: 'Carreta abandonada',
-  troncos: 'Troncos caídos',
-  estandarte: 'Estandarte',
-};
+export const KIND_LABEL: Record<Kind, string> = t.kinds;
 
 interface KindSpec {
   material: Material;
@@ -165,20 +144,20 @@ export interface ParamSpec {
 }
 
 export const PARAM_SPECS: ParamSpec[] = [
-  { key: 'roca', label: 'Roca', min: 0, max: 4, step: 1, group: 'Materiales' },
-  { key: 'tierra', label: 'Tierra', min: 0, max: 3, step: 1, group: 'Materiales' },
-  { key: 'agua', label: 'Agua', min: 0, max: 2, step: 1, group: 'Materiales' },
-  { key: 'fuego', label: 'Fuego', min: 0, max: 2, step: 1, group: 'Materiales' },
-  { key: 'magia', label: 'Magia', min: 0, max: 2, step: 1, group: 'Materiales' },
-  { key: 'restos', label: 'Restos (madera, ruinas)', min: 0, max: 4, step: 1, group: 'Materiales' },
-  { key: 'sendero', label: 'Sendero', min: 0, max: 1, step: 1, group: 'Materiales' },
-  { key: 'arboles', label: 'Árboles', min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
-  { key: 'rocas', label: 'Rocas sueltas', min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
-  { key: 'hierba', label: 'Hierba', min: 0, max: 1.5, step: 0.1, group: 'Densidad', unit: '×' },
-  { key: 'flores', label: 'Flores y setas', min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
-  { key: 'relieve', label: 'Relieve', min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
-  { key: 'caminableMin', label: 'Caminable mínimo', min: 60, max: 95, step: 1, group: 'Límites', unit: '%' },
-  { key: 'animadosMax', label: 'Elementos animados máx.', min: 0, max: 6, step: 1, group: 'Límites' },
+  { key: 'roca', label: t.dev.paramLabels.roca, min: 0, max: 4, step: 1, group: 'Materiales' },
+  { key: 'tierra', label: t.dev.paramLabels.tierra, min: 0, max: 3, step: 1, group: 'Materiales' },
+  { key: 'agua', label: t.dev.paramLabels.agua, min: 0, max: 2, step: 1, group: 'Materiales' },
+  { key: 'fuego', label: t.dev.paramLabels.fuego, min: 0, max: 2, step: 1, group: 'Materiales' },
+  { key: 'magia', label: t.dev.paramLabels.magia, min: 0, max: 2, step: 1, group: 'Materiales' },
+  { key: 'restos', label: t.dev.paramLabels.restos, min: 0, max: 4, step: 1, group: 'Materiales' },
+  { key: 'sendero', label: t.dev.paramLabels.sendero, min: 0, max: 1, step: 1, group: 'Materiales' },
+  { key: 'arboles', label: t.dev.paramLabels.arboles, min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
+  { key: 'rocas', label: t.dev.paramLabels.rocas, min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
+  { key: 'hierba', label: t.dev.paramLabels.hierba, min: 0, max: 1.5, step: 0.1, group: 'Densidad', unit: '×' },
+  { key: 'flores', label: t.dev.paramLabels.flores, min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
+  { key: 'relieve', label: t.dev.paramLabels.relieve, min: 0, max: 2, step: 0.1, group: 'Densidad', unit: '×' },
+  { key: 'caminableMin', label: t.dev.paramLabels.caminableMin, min: 60, max: 95, step: 1, group: 'Límites', unit: '%' },
+  { key: 'animadosMax', label: t.dev.paramLabels.animadosMax, min: 0, max: 6, step: 1, group: 'Límites' },
 ];
 
 /** FNV-1a: any text works as a seed (later, the date will be the daily seed). */
@@ -277,7 +256,7 @@ export function generateLayout(seed: string, params: GenParams): Layout {
     const insetU = r * 0.85 - SIDE_SLACK;
     const insetV = r * 0.5;
     if (halfWidthAt(PLAY_AREA.vMax) < insetU) {
-      skipped.push(`${KIND_LABEL[w.kind]} (no cabe en vertical)`);
+      skipped.push(`${KIND_LABEL[w.kind]} (${t.dev.noRoomPortrait})`);
       continue;
     }
     let placed: Feature | null = null;
@@ -309,7 +288,7 @@ export function generateLayout(seed: string, params: GenParams): Layout {
       };
     }
     if (!placed) {
-      skipped.push(`${KIND_LABEL[w.kind]} (sin espacio)`);
+      skipped.push(`${KIND_LABEL[w.kind]} (${t.dev.noRoom})`);
       continue;
     }
     if (spec.animates && animated < params.animadosMax) {

@@ -1,6 +1,7 @@
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
 import { LOOK, setLook } from './look';
+import { formatNumber, LANG, setLang, t } from './i18n';
 
 const STORE = 'cirquimia.dev';
 
@@ -57,37 +58,37 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   const saved = load();
   world.params = { ...DEFAULT_PARAMS, ...saved.params };
 
-  const gear = el('button', { id: 'dev-gear', type: 'button', 'aria-label': 'Herramientas de desarrollo', 'aria-expanded': 'false' });
+  const gear = el('button', { id: 'dev-gear', type: 'button', 'aria-label': t.dev.title, 'aria-expanded': 'false' });
   gear.innerHTML = GEAR;
-  const panel = el('aside', { id: 'dev-panel', 'aria-label': 'Herramientas de desarrollo' });
+  const panel = el('aside', { id: 'dev-panel', 'aria-label': t.dev.title });
   panel.hidden = true;
 
   const head = el('header');
-  head.append(el('strong', {}, 'Herramientas de desarrollo'));
-  const close = el('button', { type: 'button', class: 'dev-close', 'aria-label': 'Cerrar' }, '×');
+  head.append(el('strong', {}, t.dev.title));
+  const close = el('button', { type: 'button', class: 'dev-close', 'aria-label': t.dev.close }, '×');
   head.append(close);
 
   // Meadow
   const meadow = el('section');
-  meadow.append(el('h3', {}, 'Pradera'));
-  const regen = el('button', { type: 'button', class: 'dev-primary' }, 'Generar nueva pradera');
+  meadow.append(el('h3', {}, t.dev.meadow));
+  const regen = el('button', { type: 'button', class: 'dev-primary' }, t.dev.regenerate);
   const seedRow = el('div', { class: 'dev-row' });
-  const seedInput = el('input', { type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Semilla' }) as HTMLInputElement;
-  const seedApply = el('button', { type: 'button' }, 'Usar semilla');
-  seedRow.append(el('label', {}, 'Semilla'), seedInput, seedApply);
+  const seedInput = el('input', { type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': t.dev.seed }) as HTMLInputElement;
+  const seedApply = el('button', { type: 'button' }, t.dev.useSeed);
+  seedRow.append(el('label', {}, t.dev.seed), seedInput, seedApply);
   const statsBox = el('dl', { class: 'dev-stats' });
   const contents = el('div', { class: 'dev-contents' });
   meadow.append(regen, seedRow, statsBox, contents);
 
   // Generator parameters
   const paramsSection = el('section');
-  paramsSection.append(el('h3', {}, 'Parámetros del generador'));
+  paramsSection.append(el('h3', {}, t.dev.params));
   const inputs = new Map<keyof GenParams, { input: HTMLInputElement; show: () => void }>();
   let group = '';
   for (const spec of PARAM_SPECS) {
     if (spec.group !== group) {
       group = spec.group;
-      paramsSection.append(el('h4', {}, group));
+      paramsSection.append(el('h4', {}, t.dev.groups[spec.group]));
     }
     const row = el('label', { class: 'dev-slider' });
     const input = el('input', { type: 'range', min: String(spec.min), max: String(spec.max), step: String(spec.step) }) as HTMLInputElement;
@@ -96,7 +97,7 @@ export function mountDevTools(world: World, onGenerated: () => void) {
     paramsSection.append(row);
     const show = () => {
       const v = Number(input.value);
-      out.textContent = spec.key === 'sendero' ? (v ? 'sí' : 'no') : spec.unit === '×' ? `${v.toFixed(1)}×` : `${v}${spec.unit ?? ''}`;
+      out.textContent = spec.key === 'sendero' ? (v ? t.dev.yes : t.dev.no) : spec.unit === '×' ? `${v.toFixed(1)}×` : `${v}${spec.unit ?? ''}`;
     };
     input.addEventListener('input', show);
     // Changing a parameter rebuilds the same seed, so you see exactly what that parameter does.
@@ -107,32 +108,39 @@ export function mountDevTools(world: World, onGenerated: () => void) {
     });
     inputs.set(spec.key, { input, show });
   }
-  const reset = el('button', { type: 'button' }, 'Restablecer valores');
+  const reset = el('button', { type: 'button' }, t.dev.reset);
   paramsSection.append(reset);
 
   // View and performance
   const view = el('section');
-  view.append(el('h3', {}, 'Vista y rendimiento'));
+  view.append(el('h3', {}, t.dev.view));
   const tilt = document.getElementById('tilt');
   const fps = document.getElementById('fps');
   const fpsRow = el('label', { class: 'dev-check' });
   const fpsBox = el('input', { type: 'checkbox' }) as HTMLInputElement;
-  fpsRow.append(fpsBox, el('span', {}, 'Mostrar FPS'));
+  fpsRow.append(fpsBox, el('span', {}, t.dev.showFps));
   const debugRow = el('label', { class: 'dev-check' });
   const debugBox = el('input', { type: 'checkbox' }) as HTMLInputElement;
-  debugRow.append(debugBox, el('span', {}, 'Mostrar obstáculos y zonas bloqueadas'));
+  debugRow.append(debugBox, el('span', {}, t.dev.showDebug));
   const viewRow = el('div', { class: 'dev-row' });
   if (tilt) viewRow.append(tilt);
   const perfBox = el('dl', { class: 'dev-stats' });
   // Visual style experiment: switching reloads with the other look.
   const lookRow = el('div', { class: 'dev-row' });
-  lookRow.append(el('label', {}, 'Estética'));
+  lookRow.append(el('label', {}, t.dev.look));
   for (const [name, label] of [['bruma', 'Bruma'], ['glade', 'Glade']] as const) {
     const button = el('button', { type: 'button', class: 'dev-toggle', 'aria-pressed': String(LOOK === name) }, label);
     button.addEventListener('click', () => LOOK !== name && setLook(name));
     lookRow.append(button);
   }
-  view.append(lookRow, viewRow, fpsRow, debugRow, perfBox);
+  const langRow = el('div', { class: 'dev-row' });
+  langRow.append(el('label', {}, t.dev.language));
+  for (const [lang, label] of [['es', 'Español'], ['en', 'English']] as const) {
+    const button = el('button', { type: 'button', class: 'dev-toggle', 'aria-pressed': String(LANG === lang) }, label);
+    button.addEventListener('click', () => LANG !== lang && setLang(lang));
+    langRow.append(button);
+  }
+  view.append(lookRow, langRow, viewRow, fpsRow, debugRow, perfBox);
 
   panel.append(head, meadow, paramsSection, view);
   document.body.append(gear, panel);
@@ -164,10 +172,10 @@ export function mountDevTools(world: World, onGenerated: () => void) {
     seedInput.value = s.seed;
     const ok = s.walk.reachable >= world.params.caminableMin;
     stat(statsBox, [
-      ['Caminable', `${s.walk.reachable.toFixed(0)} %`, ok ? 'dev-ok' : 'dev-warn'],
-      ['Bloqueado', `${s.walk.blocked.toFixed(0)} %`],
-      ['Obstáculos', String(s.obstacles)],
-      ['Generada en', `${s.ms.toFixed(0)} ms`],
+      [t.dev.walkable, `${s.walk.reachable.toFixed(0)} %`, ok ? 'dev-ok' : 'dev-warn'],
+      [t.dev.blocked, `${s.walk.blocked.toFixed(0)} %`],
+      [t.dev.obstacles, String(s.obstacles)],
+      [t.dev.generatedIn, `${s.ms.toFixed(0)} ms`],
     ]);
     const byMaterial = new Map<Material, string[]>();
     for (const f of world.layout.features) {
@@ -185,17 +193,17 @@ export function mountDevTools(world: World, onGenerated: () => void) {
     }
     if (world.layout.trail) {
       const li = el('li');
-      li.append(el('b', { class: 'dev-mat dev-tierra' }, 'Tierra'), document.createTextNode('Sendero'));
+      li.append(el('b', { class: 'dev-mat dev-tierra' }, MATERIAL_LABEL.tierra), document.createTextNode(t.dev.trail));
       list.append(li);
     }
     contents.replaceChildren(list);
-    if (world.layout.skipped.length) contents.append(el('p', { class: 'dev-note' }, `Descartado: ${world.layout.skipped.join(', ')}`));
-    contents.append(el('p', { class: 'dev-note' }, '✦ animado'));
+    if (world.layout.skipped.length) contents.append(el('p', { class: 'dev-note' }, `${t.dev.skipped}: ${world.layout.skipped.join(', ')}`));
+    contents.append(el('p', { class: 'dev-note' }, t.dev.animatedNote));
     stat(perfBox, [
-      ['Mallas (draw calls)', String(s.meshes)],
-      ['Instancias', s.instances.toLocaleString('es')],
-      ['Triángulos', s.triangles.toLocaleString('es')],
-      ['Animados', `${s.animated} / ${world.params.animadosMax}`],
+      [t.dev.meshes, String(s.meshes)],
+      [t.dev.instances, formatNumber(s.instances)],
+      [t.dev.triangles, formatNumber(s.triangles)],
+      [t.dev.animated, `${s.animated} / ${world.params.animadosMax}`],
     ]);
   }
   world.listeners.push(render);
