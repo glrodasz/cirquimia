@@ -16,6 +16,7 @@ import { Spells } from './spells';
 import { Combat, type Difficulty } from './combat';
 import type { Kind } from './generator';
 import { GLADE } from './look';
+import { Bloom } from './glade';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -44,9 +45,9 @@ const scene = new THREE.Scene();
 scene.background = SKY;
 scene.fog = new THREE.Fog(SKY, 30, 70);
 
-scene.add(GLADE ? new THREE.HemisphereLight('#d9e4f2', '#5a4a2a', 1.0) : new THREE.HemisphereLight('#e4eef0', '#4f5f5a', 1.5));
+scene.add(GLADE ? new THREE.HemisphereLight('#d9e4f2', '#5a4a2a', 0.85) : new THREE.HemisphereLight('#e4eef0', '#4f5f5a', 1.5));
 // Glade's sun is low and golden: longer, softer shadows that model every tuft and stone.
-const sun = new THREE.DirectionalLight(GLADE ? '#ffd49a' : '#f2f4f0', GLADE ? 2.8 : 1.9);
+const sun = new THREE.DirectionalLight(GLADE ? '#ffdaa8' : '#f2f4f0', GLADE ? 3.2 : 1.9);
 if (GLADE) sun.position.set(11, 9, 3);
 else sun.position.set(8, 15, 6);
 sun.castShadow = true;
@@ -154,7 +155,13 @@ const sceneTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.
 const blurTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
 const hBlur = new THREE.ShaderMaterial(tiltShiftShader('horizontal'));
 const vBlur = new THREE.ShaderMaterial(tiltShiftShader('vertical'));
-if (GLADE) vBlur.defines.GRADE = '';
+// Glade grades the final pass and adds a soft bloom of the sunlit highlights.
+const bloom = GLADE ? new Bloom(FullScreenQuad) : null;
+if (bloom) {
+  vBlur.defines.GRADE = '';
+  vBlur.defines.BLOOM = '';
+  vBlur.uniforms.tBloom = { value: bloom.texture };
+}
 const hQuad = new FullScreenQuad(hBlur);
 const vQuad = new FullScreenQuad(vBlur);
 const BLUR_STRENGTH = vBlur.uniforms.strength.value;
@@ -193,6 +200,7 @@ function fitCamera() {
   const bufferH = Math.floor(h * renderer.getPixelRatio());
   sceneTarget.setSize(bufferW, bufferH);
   blurTarget.setSize(bufferW, bufferH);
+  bloom?.setSize(bufferW, bufferH);
   hBlur.uniforms.texel.value.set(1 / bufferW, 0);
   vBlur.uniforms.texel.value.set(0, 1 / bufferH);
 
@@ -410,6 +418,7 @@ renderer.setAnimationLoop((time) => {
 
   renderer.setRenderTarget(sceneTarget);
   renderer.render(scene, camera);
+  bloom?.render(renderer, sceneTarget.texture);
   if (tiltShift) {
     projected.copy(hero.root.position).project(camera);
     focusY += ((projected.y + 1) / 2 - focusY) * Math.min(1, dt * 4);

@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { dentBase, heightAt, mulberry32 } from './noise';
 import type { Obstacle } from './meadow';
 import type { Feature, Kind, Layout } from './generator';
 import { GLADE, leafTint, stoneTint } from './look';
+import { stylize } from './glade';
 
 const dummy = new THREE.Object3D();
 const color = new THREE.Color();
@@ -667,16 +669,22 @@ export function buildFeatures(layout: Layout, obstacles: Obstacle[]): BuiltFeatu
     rand: Math.random,
     obstacles,
     group,
-    stones: new Batch(new THREE.BoxGeometry(1, 1, 1), lambert(), stoneTint),
+    stones: GLADE
+      ? new Batch(new RoundedBoxGeometry(1, 1, 1, 1, 0.1), stylize(lambert(), { paint: { scale: 3, amount: 0.3 } }), stoneTint)
+      : new Batch(new THREE.BoxGeometry(1, 1, 1), lambert(), stoneTint),
     wood: new Batch(new THREE.CylinderGeometry(0.5, 0.5, 1, 6), lambert()),
     planks: new Batch(new THREE.BoxGeometry(1, 1, 1), lambert()),
     metal: new Batch(new THREE.BoxGeometry(1, 1, 1), lambert()),
     crystals: new Batch(new THREE.OctahedronGeometry(0.5, 0), lambert({ emissive: '#2c6f68', emissiveIntensity: 0.9 })),
     embers: new Batch(new THREE.DodecahedronGeometry(0.5, 0), lambert({ emissive: '#c4421c', emissiveIntensity: 0.9 })),
     bushes: GLADE
-      ? new Batch(new THREE.IcosahedronGeometry(0.5, 1), lambert({ flatShading: false }), leafTint)
+      ? new Batch(
+          new THREE.IcosahedronGeometry(0.5, 1),
+          stylize(lambert({ flatShading: false }), { paint: { scale: 4, amount: 0.5 } }),
+          leafTint,
+        )
       : new Batch(new THREE.IcosahedronGeometry(0.5, 0), lambert()),
-    rubble: new Batch(new THREE.DodecahedronGeometry(0.5, 0), lambert(), stoneTint),
+    rubble: new Batch(new THREE.DodecahedronGeometry(0.5, 0), GLADE ? stylize(lambert(), { paint: { scale: 3, amount: 0.3 } }) : lambert(), stoneTint),
     reeds: new Batch(new THREE.ConeGeometry(0.025, 0.55, 3).translate(0, 0.27, 0), lambert()),
     pads: new Batch(new THREE.CylinderGeometry(0.11, 0.11, 0.01, 6), lambert()),
     ribbons: [],
