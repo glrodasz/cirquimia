@@ -326,6 +326,10 @@ export class Combat {
   private endTimer = 0;
   /** Called once when the match is decided, after the falling body has landed. */
   onEnd: (outcome: Outcome) => void = () => {};
+  /** Called whenever a strike hurts the alchemist. */
+  onHeroHit: () => void = () => {};
+  /** While set, rivals stand still and do not attack (the tutorial is showing a cast play out). */
+  private held = false;
 
   constructor(
     heroBody: Character,
@@ -368,9 +372,30 @@ export class Combat {
     this.spells.wall(this.hero.position, toward, this.hero.ink);
   }
 
-  /** The alchemist strikes a point. */
-  cast(at: THREE.Vector3, element: Element) {
-    this.strikeFrom(this.hero, at, element);
+  /** The alchemist strikes a point. A sure strike gives rivals no chance to step out of it. */
+  cast(at: THREE.Vector3, element: Element, sure = false) {
+    this.strikeFrom(this.hero, at, element, undefined, sure);
+  }
+
+  /** The first rival still standing, or null. */
+  foe(): THREE.Vector3 | null {
+    return this.rivals.find((r) => !r.down)?.position ?? null;
+  }
+
+  /** Freezes the rivals where they stand, or lets them fight again. */
+  hold(on: boolean) {
+    this.held = on;
+    if (on) for (const r of this.rivals) r.body.setTarget(r.position);
+  }
+
+  /** The first standing rival strikes at the alchemist right now, aiming true. */
+  provoke() {
+    const rival = this.rivals.find((r) => !r.down);
+    if (!rival || this.hero.down) return;
+    const aim = this.hero.position.clone();
+    rival.body.face(aim);
+    rival.body.cast();
+    this.strikeFrom(rival, aim, 'earth', TUNING[this.level].warn);
   }
 
   /** The alchemist heals itself with a rhombus. */
@@ -391,7 +416,7 @@ export class Combat {
   }
 
   /** A strike in the caster's ink; rivals near the warning may try to step out of it. */
-  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number) {
+  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false) {
     // Cast from inside a rune circle, the strike is 25% bigger.
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
     if (element === 'columns') {
@@ -399,17 +424,17 @@ export class Combat {
       for (const tip of starTips(at, STAR_REACH * scale)) this.strikeOne(caster, tip.at, element, (warn ?? PILLAR_WARN) + tip.delay, scale);
       return;
     }
-    this.strikeOne(caster, at, element, warn, scale);
+    this.strikeOne(caster, at, element, warn, scale, sure);
   }
 
-  private strikeOne(caster: Fighter, at: THREE.Vector3, element: Element, warn: number | undefined, scale: number) {
+  private strikeOne(caster: Fighter, at: THREE.Vector3, element: Element, warn: number | undefined, scale: number, sure = false) {
     // Aimed into a standing wall's zone, it never starts: only a cross where it would have broken out.
     if (this.spells.shielded(at.x, at.z)) {
       this.spells.denied(at, caster.ink, scale);
       return;
     }
     this.spells.pillars(caster.position, at, element, caster, warn, caster.ink, scale);
-    for (const r of this.rivals) if (r !== caster) r.threatened(at);
+    if (!sure) for (const r of this.rivals) if (r !== caster) r.threatened(at);
   }
 
   /** Puts fresh rivals on screen around the alchemist, everyone at full health. */
@@ -419,6 +444,7 @@ export class Combat {
       r.dispose();
     }
     this.rivals = [];
+    this.held = false;
     this.hero.reset();
     this.outcome = null;
     this.endTimer = 0;
@@ -447,7 +473,9 @@ export class Combat {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
-      if (Math.hypot(f.position.x - x, f.position.z - z) <= area + BODY_RADIUS) f.hit(DAMAGE[element], element, this.camera);
+      if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+      f.hit(DAMAGE[element], element, this.camera);
+      if (f === this.hero) this.onHeroHit();
     }
   }
 
@@ -465,7 +493,7 @@ export class Combat {
     const standing = all.filter((f) => !f.down);
     for (const r of this.rivals) {
       // Fallen rivals lie still; once the match is decided nobody attacks any more.
-      if (!r.down && !this.over) r.think(dt, standing.filter((f) => f !== r), this, this.onScreen);
+      if (!r.down && !this.over && !this.held) r.think(dt, standing.filter((f) => f !== r), this, this.onScreen);
       r.body.update(dt);
       r.update(this.camera);
     }

@@ -4,6 +4,7 @@ import { World } from './world';
 import { mountDevTools } from './devtools';
 import { mountMatchControls } from './match';
 import { mountHelp } from './help';
+import { Tutorial } from './tutorial';
 import { Character } from './character';
 import { TapMarker } from './marker';
 import { heightAt } from './noise';
@@ -89,6 +90,24 @@ const onRunes = (p: THREE.Vector3) =>
 const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource, onRunes);
 scene.add(combat.root);
 
+// How to play: full screen on the first visit, then behind the "?" next to the gear. The match waits while it is open.
+const help = mountHelp();
+// The first match walks through the square (attack) and, after the first hit taken, the circle (wall).
+const tutorial = new Tutorial({
+  covered: () => help.open || combat.over,
+  foe: () => combat.foe(),
+  toScreen: (p, lift) => {
+    const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
+    return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
+  },
+  slot: (kind) => ammo.slotOf(kind),
+  selected: () => ammo.selection()?.kind ?? null,
+  deselect: () => ammo.select(null),
+  hold: (on) => combat.hold(on),
+  provoke: () => combat.provoke(),
+});
+combat.onHeroHit = () => tutorial.hurt();
+
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(
   world,
@@ -97,6 +116,7 @@ const dev = mountDevTools(
     hero.root.position.set(0, heightAt(0, 0), 0);
     hero.setTarget(hero.root.position);
     combat.respawn();
+    tutorial.reset();
   },
 );
 
@@ -122,8 +142,6 @@ const matchHud = mountMatchControls({
   },
 });
 combat.onEnd = (outcome) => matchHud.showEnd(outcome);
-// How to play: full screen on the first visit, then behind the "?" next to the gear. The match waits while it is open.
-const help = mountHelp();
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -250,6 +268,12 @@ function tapAt(clientX: number, clientY: number) {
   const x = (clientX / innerWidth) * 2 - 1;
   const y = -(clientY / innerHeight) * 2 + 1;
   if (!groundFromNdc(x, y, hit)) return;
+  // During the tutorial the tap snaps onto the rival, so the first strike (and the wall's facing) cannot go wrong.
+  const lesson = tutorial.aim();
+  if (lesson) {
+    hit.copy(lesson);
+    hero.setTarget(hero.root.position); // and the alchemist stays put inside its wall
+  }
   const selected = ammo.selection();
   if (selected) {
     // Triangles first draw fire or water out of a source on the map; the slot then lets go and is cast once picked again.
@@ -269,11 +293,12 @@ function tapAt(clientX: number, clientY: number) {
     hero.face(hit);
     hero.cast();
     if (selected.kind === 'circle') combat.wall(hit);
-    else if (selected.kind === 'square') combat.cast(hit, 'earth');
+    else if (selected.kind === 'square') combat.cast(hit, 'earth', lesson !== null);
     else if (selected.kind === 'pentagram') combat.cast(hit, 'columns');
     else if (selected.kind === 'rhombus') combat.heal();
     else if (element) combat.cast(hit, element);
     else impact.show(hit.x, hit.z);
+    tutorial.cast();
     return;
   }
   hero.setTarget(hit);
@@ -305,7 +330,7 @@ canvas.addEventListener('pointermove', (e) => {
     stroke.push(p);
     if (drawing) ink.add(p);
   }
-  if (!drawing && Math.hypot(e.clientX - stroke[0].x, e.clientY - stroke[0].y) > DRAW_THRESHOLD) {
+  if (!drawing && tutorial.canDraw && Math.hypot(e.clientX - stroke[0].x, e.clientY - stroke[0].y) > DRAW_THRESHOLD) {
     drawing = true;
     ink.begin(stroke);
   }
@@ -314,11 +339,15 @@ canvas.addEventListener('pointerup', (e) => {
   if (e.pointerId !== activePointer) return;
   activePointer = null;
   if (!drawing) {
-    tapAt(e.clientX, e.clientY);
+    if (tutorial.canTap) tapAt(e.clientX, e.clientY);
     return;
   }
   drawing = false;
   const shape = recognize(stroke);
+  if (!tutorial.drawn(shape?.kind ?? null)) {
+    ink.end(null);
+    return;
+  }
   if (shape) {
     ink.end(shape);
     ammo.add(shape.kind, shape.cx, shape.cy);
@@ -352,7 +381,8 @@ renderer.setAnimationLoop((time) => {
   clock.update(time);
   const dt = Math.min(clock.getDelta(), 1 / 20);
   world.update(dt);
-  if (!help.open) {
+  tutorial.update(dt);
+  if (!help.open && !tutorial.paused) {
     hero.update(dt);
     marker.update(dt);
     impact.update(dt);
