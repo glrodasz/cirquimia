@@ -100,7 +100,7 @@ scene.add(combat.root);
 const help = mountHelp();
 // The first match walks through the square (attack) and, after the first hit taken, the circle (wall).
 const tutorial = new Tutorial({
-  covered: () => help.open || combat.over,
+  covered: () => help.open || dev.open || combat.over,
   foe: () => combat.foe(),
   toScreen: (p, lift) => {
     const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
@@ -407,7 +407,7 @@ renderer.setAnimationLoop((time) => {
   const dt = Math.min(clock.getDelta(), 1 / 20);
   world.update(dt);
   tutorial.update(dt);
-  if (!help.open && !tutorial.paused) {
+  if (!help.open && !dev.open && !tutorial.paused) {
     hero.update(dt);
     marker.update(dt);
     impact.update(dt);
