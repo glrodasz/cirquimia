@@ -102,24 +102,33 @@
       #help .fig .glyph { fill: currentColor; opacity: .92; }
       #help .hero { fill: #3d7fd6; } #help .red { fill: #d9483b; } #help .fire { fill: #e0712c; } #help .water { fill: #3f8fb0; }
       #help .arrow { opacity: .45; font-size: 15px; }
-      #help .steps { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 6px; }
-      #help .steps li { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-      #help .steps .pair { display: flex; align-items: center; gap: 4px; }
-      #help .shapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 6px; padding: 10px 0; border-block: 1px solid var(--hud-border); }
+      #help h3 { margin: 0; font: 800 12px/1 system-ui, -apple-system, sans-serif; letter-spacing: .08em; text-transform: uppercase; opacity: .6; }
+      #help .steps { display: flex; flex-direction: column; gap: 6px; text-align: left; font-weight: 500; font-size: 14px; }
+      #help .steps li { display: grid; grid-template-columns: 104px 1fr; align-items: center; gap: 10px; }
+      #help .steps .pair { display: flex; align-items: center; justify-content: center; gap: 4px; }
+      #help .steps b, #help .runes b { font-weight: 800; }
+      #help .fig.selected .ring { fill: #e0a23c; opacity: .95; }
+      #help .shapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 6px; margin-top: -4px; }
       #help .shapes li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; }
       #help .shapes .fig { width: 52px; height: 52px; margin-bottom: 2px; }
       #help .shapes .val { font: 800 15px/1 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
+      #help .shapes .val small { font-size: 12px; }
+      #help .val-dmg { color: #c4473a; } #help .val-heal { color: #3f8a4a; }
+      #help .note { margin: -6px 0 0; font-weight: 500; font-size: 12px; opacity: .65; }
+      #help h3 { padding-top: 12px; border-top: 1px solid var(--hud-border); }
       #help .shapes .src { position: absolute; top: -2px; left: calc(50% + 14px); width: 24px; height: 24px; border-radius: 50%; background: var(--hud-bg); }
       #help .shapes .src .ring { opacity: 0; }
       #help .flow { display: flex; align-items: center; justify-content: center; gap: 4px; }
       #help .flow .fig { width: 40px; height: 40px; }
-      #help .runes { display: flex; align-items: center; justify-content: center; gap: 10px; text-align: left; }
-      #help .runes b { font-size: 17px; color: #b5761f; }
-      @media (max-height: 700px) { #help .card { gap: 8px; padding: 12px 14px 14px; } #help h2 { font-size: 19px; } #help .fig, #help .flow .fig { width: 36px; height: 36px; } #help .shapes { padding: 6px 0; gap: 4px; } #help .shapes .fig { width: 42px; height: 42px; } #help .shapes .src { width: 20px; height: 20px; left: calc(50% + 10px); } #help .go { height: 40px; } }
+      #help .runes { display: flex; align-items: center; justify-content: center; gap: 10px; text-align: left; font-weight: 500; font-size: 14px; margin-top: -4px; }
+      #help .runes .scene { flex: none; width: 110px; height: 82px; color: #b5761f; }
+      #help .runes .scene svg { fill: currentColor; }
+      #help .runes b { color: #b5761f; }
+      @media (max-height: 700px) { #help .card { gap: 8px; padding: 12px 14px 14px; } #help h2 { font-size: 19px; } #help .fig, #help .flow .fig { width: 36px; height: 36px; } #help .shapes { padding: 6px 0; gap: 4px; } #help .shapes .fig { width: 42px; height: 42px; } #help .shapes .src { width: 20px; height: 20px; left: calc(50% + 10px); } #help .runes .scene { width: 92px; height: 69px; } #help h3 { padding-top: 8px; } #help .go { height: 40px; } }
       #help .go .cap::after { content: none; }
       #help .go { align-self: center; padding: 0 26px; height: 44px; font-size: 15px; background: #3f5a57; color: #f1f5f2; }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #help-btn .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root:not([data-theme="light"]) #help .hero { fill: #7fb2f0; } :root:not([data-theme="light"]) #help .red { fill: #ff7a6b; } :root:not([data-theme="light"]) #help .fire { fill: #ff9a5c; } :root:not([data-theme="light"]) #help .water { fill: #8cc4dc; } :root:not([data-theme="light"]) #help .runes b { color: #ffd27a; } :root:not([data-theme="light"]) #help .go { background: #9fbcb4; color: #14201c; } }
-      :root[data-theme="dark"] #help-btn .glyph { fill: #ffd27a; } :root[data-theme="dark"] #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root[data-theme="dark"] #help .hero { fill: #7fb2f0; } :root[data-theme="dark"] #help .red { fill: #ff7a6b; } :root[data-theme="dark"] #help .fire { fill: #ff9a5c; } :root[data-theme="dark"] #help .water { fill: #8cc4dc; } :root[data-theme="dark"] #help .runes b { color: #ffd27a; } :root[data-theme="dark"] #help .go { background: #9fbcb4; color: #14201c; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #help-btn .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root:not([data-theme="light"]) #help .hero { fill: #7fb2f0; } :root:not([data-theme="light"]) #help .red { fill: #ff7a6b; } :root:not([data-theme="light"]) #help .fire { fill: #ff9a5c; } :root:not([data-theme="light"]) #help .water { fill: #8cc4dc; } :root:not([data-theme="light"]) #help .val-dmg { color: #ff8a7a; } :root:not([data-theme="light"]) #help .val-heal { color: #8fd69a; } :root:not([data-theme="light"]) #help .runes b, :root:not([data-theme="light"]) #help .runes .scene { color: #ffd27a; } :root:not([data-theme="light"]) #help .go { background: #9fbcb4; color: #14201c; } }
+      :root[data-theme="dark"] #help-btn .glyph { fill: #ffd27a; } :root[data-theme="dark"] #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root[data-theme="dark"] #help .hero { fill: #7fb2f0; } :root[data-theme="dark"] #help .red { fill: #ff7a6b; } :root[data-theme="dark"] #help .fire { fill: #ff9a5c; } :root[data-theme="dark"] #help .water { fill: #8cc4dc; } :root[data-theme="dark"] #help .val-dmg { color: #ff8a7a; } :root[data-theme="dark"] #help .val-heal { color: #8fd69a; } :root[data-theme="dark"] #help .runes b, :root[data-theme="dark"] #help .runes .scene { color: #ffd27a; } :root[data-theme="dark"] #help .go { background: #9fbcb4; color: #14201c; }
       #tutorial { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .3s; }
       #tutorial[hidden] { display: none; }
       #tutorial.show { opacity: 1; }
