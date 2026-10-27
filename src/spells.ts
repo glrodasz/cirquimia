@@ -153,7 +153,7 @@ class EarthWall extends Effect {
   private readonly zoneMaterials: THREE.MeshBasicMaterial[] = [];
   private readonly zoneGeos: THREE.BufferGeometry[] = [];
 
-  constructor(cx: number, cz: number, toward: THREE.Vector3, ink: string | null = null) {
+  constructor(cx: number, cz: number, toward: THREE.Vector3, ink: string | null = null, readonly owner: unknown = null) {
     super(0, WALL_RISE, WALL_HOLD, WALL_SINK);
     const dx = toward.x - cx;
     const dz = toward.z - cz;
@@ -687,9 +687,9 @@ export class Spells {
 
   constructor(private readonly obstacles: Obstacle[]) {}
 
-  /** Raises a defensive arc around the caster, facing the tapped point (clamped to close range). */
-  wall(caster: THREE.Vector3, toward: THREE.Vector3, ink: string | null = null) {
-    this.start(new EarthWall(caster.x, caster.z, toward, ink));
+  /** Raises a defensive arc around the caster, facing the tapped point (clamped to close range); `owner` can strike through it. */
+  wall(caster: THREE.Vector3, toward: THREE.Vector3, ink: string | null = null, owner: unknown = null) {
+    this.start(new EarthWall(caster.x, caster.z, toward, ink, owner));
   }
 
   /** Strikes the tapped point after a short ground warning: rock pillars, or fire or water drawn earlier. */
@@ -744,8 +744,11 @@ export class Spells {
   }
 
   /** True while a standing earth wall protects this spot. */
-  shielded(x: number, z: number) {
-    return this.active.some((e) => e instanceof EarthWall && e.solid && Math.hypot(x - e.zone.x, z - e.zone.z) < e.zone.r);
+  shielded(x: number, z: number, by: unknown = null) {
+    // A wall only stops other people's strikes: its owner can still strike out of (or into) its own zone.
+    return this.active.some(
+      (e) => e instanceof EarthWall && e.solid && (by === null || e.owner !== by) && Math.hypot(x - e.zone.x, z - e.zone.z) < e.zone.r,
+    );
   }
 
   update(dt: number) {
@@ -753,7 +756,7 @@ export class Spells {
       const effect = this.active[i];
       // Pillars check for a wall at the moment they would break out, so raising one during the warning still saves you.
       if (effect instanceof PillarStrike && !effect.solid && !effect.blocked && effect.erupting(dt)) {
-        effect.blocked = this.shielded(effect.x, effect.z);
+        effect.blocked = this.shielded(effect.x, effect.z, effect.caster);
         if (effect.blocked) this.start(new DeniedMark(effect.x, effect.z, effect.ink, effect.area * 2.2));
         else this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area);
       }

@@ -54,8 +54,8 @@ interface Tuning {
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4, draw: 0, stagger: 0 },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25, draw: 0, stagger: 0 },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0 },
+  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0 },
   // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
   dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1 },
   // Hard pushed further (quicker, sharper, readier to dodge) yet the warning still leaves time to step out.
@@ -73,9 +73,12 @@ const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9
 
 const projected = new THREE.Vector3();
 
-// The shapes a rival draws over its head before casting, in a 40×40 box; every path starts where a hand would.
-export type Sketch = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus';
+// The alchemist's own cast flashes its shape quickly, as an echo of what the player drew.
+const HERO_SKETCH = 0.3;
+// The shapes drawn over a fighter's head when it casts, in a 40×40 box; every path starts where a hand would.
+export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus';
 const SKETCH_PATH: Record<Sketch, string> = {
+  circle: 'M20 5 A15 15 0 1 1 19.9 5',
   square: 'M9 9 H31 V31 H9 Z',
   pentagram: 'M20 4 L29.4 32.9 L4.8 15.1 H35.2 L10.6 32.9 Z',
   triangle: 'M20 6 L34 32 H6 Z',
@@ -122,14 +125,16 @@ class Fighter {
     document.body.append(this.sketch);
   }
 
-  /** Starts tracing `shape` over the head, finishing in `seconds`. */
-  drawSketch(shape: Sketch, seconds: number) {
+  /** Starts tracing `shape` over the head, finishing in `seconds`; a brief one fades away by itself once traced. */
+  drawSketch(shape: Sketch, seconds: number, brief = false) {
+    if (this.down) return;
     this.sketchPath.setAttribute('d', SKETCH_PATH[shape]);
     this.sketch.style.setProperty('--draw', `${seconds}s`);
     this.sketch.style.display = '';
-    this.sketch.classList.remove('drawing');
+    this.sketch.classList.remove('drawing', 'brief');
     void this.sketch.getBoundingClientRect(); // restart the trace
     this.sketch.classList.add('drawing');
+    this.sketch.classList.toggle('brief', brief);
   }
 
   hideSketch() {
@@ -475,12 +480,14 @@ export class Combat {
 
   /** The alchemist raises a wall; its protected zone shows in the alchemist's ink. */
   wall(toward: THREE.Vector3) {
-    this.spells.wall(this.hero.position, toward, this.hero.ink);
+    this.spells.wall(this.hero.position, toward, this.hero.ink, this.hero);
+    this.hero.drawSketch('circle', HERO_SKETCH, true);
   }
 
   /** The alchemist strikes a point. A sure strike gives rivals no chance to step out of it. */
   cast(at: THREE.Vector3, element: Element, sure = false) {
     this.strikeFrom(this.hero, at, element, undefined, sure);
+    this.hero.drawSketch(SKETCH_FOR[element], HERO_SKETCH, true);
   }
 
   /** The first rival still standing, or null. */
@@ -507,6 +514,7 @@ export class Combat {
   /** The alchemist heals itself with a rhombus. */
   heal() {
     this.healFrom(this.hero);
+    this.hero.drawSketch('rhombus', HERO_SKETCH, true);
   }
 
   /** Heals the caster, 30% more from inside a rune circle, with rising lines of light on it. */
@@ -548,8 +556,8 @@ export class Combat {
   }
 
   private strikeOne(caster: Fighter, at: THREE.Vector3, element: Element, warn: number | undefined, scale: number, sure = false) {
-    // Aimed into a standing wall's zone, it never starts: only a cross where it would have broken out.
-    if (this.spells.shielded(at.x, at.z)) {
+    // Aimed into someone else's standing wall zone, it never starts: only a cross where it would have broken out.
+    if (this.spells.shielded(at.x, at.z, caster)) {
       this.spells.denied(at, caster.ink, scale);
       return;
     }
