@@ -193,8 +193,10 @@
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; } }
       :root[data-theme="dark"] #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; }
       #ink { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-      #ammo { position: fixed; left: 16px; right: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 8px); display: flex; justify-content: center; gap: 8px; min-height: 54px; pointer-events: none; }
-      #ammo .slot { pointer-events: auto; width: 54px; height: 54px; padding: 0; border-radius: 50%; border: 0; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #b5761f; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s, box-shadow .15s; }
+      /* Kept well clear of the bottom edge, where iOS/iPadOS reserve the swipe-up home gesture. */
+      #ammo { --slot: 54px; position: fixed; left: 16px; right: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 24px); display: flex; justify-content: center; gap: 8px; min-height: var(--slot); pointer-events: none; }
+      @media (min-width: 600px) and (min-height: 800px) { #ammo { --slot: 76px; gap: 14px; bottom: calc(max(24px, env(safe-area-inset-bottom)) + 48px); } }
+      #ammo .slot { pointer-events: auto; width: var(--slot); height: var(--slot); padding: 0; border-radius: 50%; border: 0; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #b5761f; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s, box-shadow .15s; }
       #ammo .slot svg { display: block; width: 100%; height: 100%; fill: currentColor; overflow: visible; }
       #ammo .slot .ring { fill: var(--hud-fg); opacity: .32; transition: opacity .15s, fill .15s; }
       #ammo .slot .glyph { opacity: .92; filter: drop-shadow(0 .6px .4px rgba(0,0,0,.18)); }
