@@ -99,13 +99,13 @@ function rivalsIcon(count: number) {
   return svg([person(18, 0.8, 'red', rand), person(30.5, 0.8, 'green', rand)], rand);
 }
 
-/** Three brush bars, inked up to the difficulty level, like a signal meter. */
+/** One brush bar per level, inked up to the difficulty level, like a signal meter. */
 function levelIcon(level: Difficulty) {
   const rand = random();
   const filled = LEVELS.indexOf(level) + 1;
-  const bars = [0, 1, 2].map((i) => {
-    const x = 15 + i * 9 + (rand() - 0.5) * 0.8;
-    const top = 27 - i * 6.5;
+  const bars = LEVELS.map((_, i) => {
+    const x = 12 + i * 8 + (rand() - 0.5) * 0.8;
+    const top = 29 - i * 5.5;
     const b = brushPath(segment([x, 36], [x + (rand() - 0.5), top]), 5, rand);
     return { ink: `<path class="${i < filled ? 'glyph' : 'faint'}" d="${b.ink}"/>`, dry: b.dry };
   });

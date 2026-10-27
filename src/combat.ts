@@ -25,7 +25,7 @@ export type Fluid = 'fire' | 'water';
 /** The nearest fire or water source the fighter at `from` could draw from, or null if there is none in play. */
 export type SourceFinder = (element: Fluid, from: THREE.Vector3) => THREE.Vector3 | null;
 
-export type Difficulty = 'facil' | 'normal' | 'dificil';
+export type Difficulty = 'facil' | 'normal' | 'dificil' | 'experto';
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = t.difficulty;
 
 interface Tuning {
@@ -36,8 +36,8 @@ interface Tuning {
   warn: number;
   /** World units of random aim error. */
   aimError: number;
-  /** Aims where the alchemist is heading instead of where it stands. */
-  leads: boolean;
+  /** How far ahead it aims along where the foe is heading: 0 aims where it stands, 1 where it will be. */
+  lead: number;
   /** Chance of stepping out of an incoming strike, and how fast it reacts. */
   dodge: number;
   reaction: number;
@@ -47,12 +47,19 @@ interface Tuning {
   heal: number;
   /** Chance of an earth attack being the pentagram's columns (10) instead of the square's pillars (20). */
   columns: number;
+  /** Seconds spent drawing the shape over its head before the spell goes off, as the player has to draw too. */
+  draw: number;
+  /** Seconds kept between two rivals' strikes at the alchemist, so they do not land together. */
+  stagger: number;
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, leads: false, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4 },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, leads: false, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25 },
-  dificil: { speed: 1.4, cooldown: [1.8, 2.6], warn: 0.42, aimError: 0.05, leads: true, dodge: 0.75, reaction: 0.04, elemental: 0.5, heal: 0.5, columns: 0.15 },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4, draw: 0, stagger: 0 },
+  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25, draw: 0, stagger: 0 },
+  // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
+  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1 },
+  // Hard pushed further (quicker, sharper, readier to dodge) yet the warning still leaves time to step out.
+  experto: { speed: 1.5, cooldown: [2.3, 3], warn: 0.58, aimError: 0.09, lead: 0.55, dodge: 0.6, reaction: 0.1, elemental: 0.55, heal: 0.4, columns: 0.15, draw: 0.6, stagger: 0.8 },
 };
 
 // Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
@@ -66,11 +73,25 @@ const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9
 
 const projected = new THREE.Vector3();
 
+// The shapes a rival draws over its head before casting, in a 40×40 box; every path starts where a hand would.
+export type Sketch = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus';
+const SKETCH_PATH: Record<Sketch, string> = {
+  square: 'M9 9 H31 V31 H9 Z',
+  pentagram: 'M20 4 L29.4 32.9 L4.8 15.1 H35.2 L10.6 32.9 Z',
+  triangle: 'M20 6 L34 32 H6 Z',
+  triangleDown: 'M20 34 L6 8 H34 Z',
+  rhombus: 'M20 4 L34 20 L20 36 L6 20 Z',
+};
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
 /** Health bar floating over a character's head, and the damage numbers that pop out of it. */
 class Fighter {
   hp = MAX_HP;
   private readonly bar = document.createElement('div');
   private readonly fill = document.createElement('div');
+  /** The shape being drawn over its head, traced in its ink while it gets a spell ready. */
+  private readonly sketch = document.createElementNS(SVG_NS, 'svg');
+  private readonly sketchPath = document.createElementNS(SVG_NS, 'path');
   /** Position on the previous frame, to tell where it is heading. */
   readonly prev = new THREE.Vector3();
 
@@ -92,6 +113,28 @@ class Fighter {
     this.fill.style.background = ink;
     this.bar.append(this.fill);
     document.body.append(this.bar);
+    this.sketch.setAttribute('class', 'sketch');
+    this.sketch.setAttribute('viewBox', '0 0 40 40');
+    this.sketch.style.color = ink;
+    this.sketchPath.setAttribute('pathLength', '1');
+    this.sketch.append(this.sketchPath);
+    this.sketch.style.display = 'none';
+    document.body.append(this.sketch);
+  }
+
+  /** Starts tracing `shape` over the head, finishing in `seconds`. */
+  drawSketch(shape: Sketch, seconds: number) {
+    this.sketchPath.setAttribute('d', SKETCH_PATH[shape]);
+    this.sketch.style.setProperty('--draw', `${seconds}s`);
+    this.sketch.style.display = '';
+    this.sketch.classList.remove('drawing');
+    void this.sketch.getBoundingClientRect(); // restart the trace
+    this.sketch.classList.add('drawing');
+  }
+
+  hideSketch() {
+    this.sketch.style.display = 'none';
+    this.sketch.classList.remove('drawing');
   }
 
   get position() {
@@ -130,6 +173,7 @@ class Fighter {
     this.body.flash();
     this.hp = Math.max(0, this.hp - amount);
     if (this.hp === 0) {
+      this.hideSketch();
       this.body.fall();
       this.bar.classList.add('ko');
     }
@@ -166,7 +210,11 @@ class Fighter {
     const visible = this.screen(camera);
     this.bar.hidden = !visible;
     this.bar.classList.toggle('gone', this.down);
-    if (visible) this.bar.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
+    if (visible) {
+      this.bar.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
+      this.sketch.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
+    }
+    this.sketch.classList.toggle('off', !visible);
   }
 
   /** Projects the head to screen pixels into `projected`; false when it is behind the camera. */
@@ -181,8 +229,18 @@ class Fighter {
 
   dispose() {
     this.bar.remove();
+    this.sketch.remove();
   }
 }
+
+type Plan = { kind: 'heal' } | { kind: 'charge'; element: Fluid } | { kind: 'strike'; element: Element };
+const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
+  earth: 'square',
+  columns: 'pentagram',
+  fire: 'triangle',
+  water: 'triangleDown',
+  heal: 'rhombus',
+};
 
 /** An opposing alchemist: picks someone to fight, circles them, strikes with warnings and steps out of incoming ones. */
 class Rival extends Fighter {
@@ -194,6 +252,9 @@ class Rival extends Fighter {
   /** Fire or water already drawn from a source, kept until the next attack. */
   private charged: Fluid | null = null;
   private retarget = 0;
+  /** The spell whose shape is being drawn right now, and how long until it is finished. */
+  private plan: Plan | null = null;
+  private planTimer = 0;
 
   constructor(
     obstacles: Obstacle[],
@@ -261,47 +322,87 @@ class Rival extends Fighter {
       }
     }
 
-    this.attackTimer -= dt;
-    if (this.attackTimer <= 0) {
-      this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
-      // Hurt rivals sometimes spend the turn on a rhombus instead.
-      if (this.hp <= 50 && Math.random() < this.tuning.heal) {
-        this.body.cast();
-        combat.healFrom(this);
-        return;
-      }
-      // Fire and water have to be drawn from a source on the map first, like the player does; that takes this turn.
-      if (!this.charged && Math.random() < this.tuning.elemental) {
-        const order: Fluid[] = Math.random() < 0.5 ? ['fire', 'water'] : ['water', 'fire'];
-        for (const element of order) {
-          const source = combat.findSource(element, pos);
-          if (!source) continue;
-          this.charged = element;
-          this.body.face(source);
-          this.body.cast();
-          combat.channel(this, source, element);
-          this.attackTimer = THREE.MathUtils.randFloat(0.8, 1.4);
-          return;
-        }
-      }
-      const aim = target.clone();
-      if (this.tuning.leads && dt > 0) {
-        // Where the foe will be when the warning ends, if it keeps walking.
-        const k = this.tuning.warn / dt;
-        aim.x += (target.x - foe.prev.x) * k * 0.7;
-        aim.z += (target.z - foe.prev.z) * k * 0.7;
-      }
-      const a = Math.random() * Math.PI * 2;
-      const e = Math.random() * this.tuning.aimError;
-      aim.x += Math.sin(a) * e;
-      aim.z += Math.cos(a) * e;
-      aim.y = heightAt(aim.x, aim.z);
-      const element: Element = this.charged ?? (Math.random() < this.tuning.columns ? 'columns' : 'earth');
-      this.charged = null;
-      this.body.face(aim);
-      this.body.cast();
-      combat.strikeFrom(this, aim, element, this.tuning.warn);
+    // A spell being drawn goes off once the shape is finished.
+    if (this.plan) {
+      if ((this.planTimer -= dt) > 0) return;
+      const plan = this.plan;
+      this.plan = null;
+      this.hideSketch();
+      this.act(plan, foe, combat, dt);
+      return;
     }
+
+    this.attackTimer -= dt;
+    if (this.attackTimer > 0) return;
+    this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
+    const plan = this.choose(combat);
+    // Two rivals never bring their strikes down on the alchemist together: the later one waits a moment.
+    if (plan.kind === 'strike' && !combat.book(foe, this.tuning.draw, this.tuning.stagger)) {
+      this.attackTimer = THREE.MathUtils.randFloat(0.4, 0.8);
+      return;
+    }
+    if (this.tuning.draw <= 0) {
+      this.act(plan, foe, combat, dt);
+      return;
+    }
+    this.plan = plan;
+    this.planTimer = this.tuning.draw;
+    this.drawSketch(SKETCH_FOR[plan.kind === 'strike' ? plan.element : plan.kind === 'charge' ? plan.element : 'heal'], this.tuning.draw);
+  }
+
+  /** What to do this turn: heal when hurt, sometimes fetch fire or water first, otherwise strike. */
+  private choose(combat: Combat): Plan {
+    // Hurt rivals sometimes spend the turn on a rhombus instead.
+    if (this.hp <= 50 && Math.random() < this.tuning.heal) return { kind: 'heal' };
+    // Fire and water have to be drawn from a source on the map first, like the player does; that takes this turn.
+    if (!this.charged && Math.random() < this.tuning.elemental) {
+      const order: Fluid[] = Math.random() < 0.5 ? ['fire', 'water'] : ['water', 'fire'];
+      const element = order.find((e) => combat.findSource(e, this.position));
+      if (element) return { kind: 'charge', element };
+    }
+    return { kind: 'strike', element: this.charged ?? (Math.random() < this.tuning.columns ? 'columns' : 'earth') };
+  }
+
+  private act(plan: Plan, foe: Fighter, combat: Combat, dt: number) {
+    if (plan.kind === 'heal') {
+      this.body.cast();
+      combat.healFrom(this);
+      return;
+    }
+    if (plan.kind === 'charge') {
+      const source = combat.findSource(plan.element, this.position);
+      if (!source) return;
+      this.charged = plan.element;
+      this.body.face(source);
+      this.body.cast();
+      combat.channel(this, source, plan.element);
+      this.attackTimer = THREE.MathUtils.randFloat(0.8, 1.4);
+      return;
+    }
+    // Aimed now, when the shape is done, at where the foe is (and, on harder levels, a little where it is going).
+    const target = foe.position;
+    const aim = target.clone();
+    if (this.tuning.lead > 0 && dt > 0) {
+      // Where the foe will be when the warning ends, if it keeps walking.
+      const k = this.tuning.warn / dt;
+      aim.x += (target.x - foe.prev.x) * k * this.tuning.lead;
+      aim.z += (target.z - foe.prev.z) * k * this.tuning.lead;
+    }
+    const a = Math.random() * Math.PI * 2;
+    const e = Math.random() * this.tuning.aimError;
+    aim.x += Math.sin(a) * e;
+    aim.z += Math.cos(a) * e;
+    aim.y = heightAt(aim.x, aim.z);
+    this.charged = null;
+    this.body.face(aim);
+    this.body.cast();
+    combat.strikeFrom(this, aim, plan.element, this.tuning.warn);
+  }
+
+  /** Drops a spell half drawn, as when the match ends or the tutorial freezes everyone. */
+  cancel() {
+    this.plan = null;
+    this.hideSketch();
   }
 
   dispose() {
@@ -331,6 +432,9 @@ export class Combat {
   onHeroHit: () => void = () => {};
   /** While set, rivals stand still and do not attack (the tutorial is showing a cast play out). */
   private held = false;
+  /** Seconds since the match started, and when the last rival strike booked against the alchemist goes off. */
+  private clock = 0;
+  private heroStrikeAt = -Infinity;
 
   constructor(
     heroBody: Character,
@@ -411,6 +515,15 @@ export class Combat {
     this.spells.heal(caster.position, caster.ink, boosted);
   }
 
+  /** Books a strike at `foe` going off in `delay` s; false when another one lands on the alchemist within `gap` s of it. */
+  book(foe: Fighter, delay: number, gap: number) {
+    if (foe !== this.hero || gap <= 0) return true;
+    const at = this.clock + delay;
+    if (Math.abs(at - this.heroStrikeAt) < gap) return false;
+    this.heroStrikeAt = at;
+    return true;
+  }
+
   /** Shows fire or water flying from its source into a rival. */
   channel(rival: Rival, source: THREE.Vector3, element: Fluid) {
     this.spells.channel(source, rival.position, element);
@@ -482,6 +595,7 @@ export class Combat {
   }
 
   update(dt: number) {
+    this.clock += dt;
     // Decide the match before anyone acts, so nobody picks a fallen foe this frame.
     if (!this.outcome) {
       if (this.hero.down) this.outcome = 'defeat';
@@ -496,6 +610,7 @@ export class Combat {
     for (const r of this.rivals) {
       // Fallen rivals lie still; once the match is decided nobody attacks any more.
       if (!r.down && !this.over && !this.held) r.think(dt, standing.filter((f) => f !== r), this, this.onScreen);
+      else r.cancel();
       r.body.update(dt);
       r.update(this.camera);
     }
