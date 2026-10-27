@@ -129,7 +129,7 @@ const dev = mountDevTools(
   },
 );
 
-// Rivals and difficulty live in the HUD, top left; any change restarts the match, and every new match is a new meadow.
+// Rivals and difficulty live in the HUD, bottom left; any change restarts the match, and every new match is a new meadow.
 const matchHud = mountMatchControls({
   get rivals() {
     return combat.rivalCount;

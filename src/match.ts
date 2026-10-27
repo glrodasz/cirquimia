@@ -113,7 +113,7 @@ function levelIcon(level: Difficulty) {
 }
 
 /**
- * Player-facing match controls, top left (the gear on the right is for developers):
+ * Player-facing match controls, bottom left (the gear on the right is for developers):
  * how many rivals to spar with and how hard they play. Each tap cycles the value and restarts the match.
  */
 export function mountMatchControls(match: MatchControls) {

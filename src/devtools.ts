@@ -49,9 +49,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
 }
 
 /**
- * Floating gear (top right) that opens every development option: regenerate the meadow,
+ * Floating gear (bottom right) that opens every development option: regenerate the meadow,
  * tweak the generator, see what it produced and what it costs.
- * The miniature toggle (#tilt) moves into the panel; the fps counter (#fps) floats top left, under the match controls, when its toggle is on.
+ * The miniature toggle (#tilt) moves into the panel; the fps counter (#fps) floats bottom left, above the match controls, when its toggle is on.
  */
 export function mountDevTools(world: World, onGenerated: () => void) {
   const saved = load();
