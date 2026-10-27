@@ -19,7 +19,7 @@ export const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist w
 // Pentagram = earth columns: five separate, lower square strikes at the tips of a star around the target.
 const COLUMN_SCALE = 0.6; // pillar height against the square's: each one only hits for half
 export const STAR_REACH = 0.5; // from the target to each tip, world units: the target itself sits between them
-const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
+export const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
 
 /** The five tips of a star around a point, one pointing straight up the screen, in drawing order. */
 export function starTips(at: THREE.Vector3, reach = STAR_REACH) {

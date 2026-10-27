@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { BODY_RADIUS, Character } from './character';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { PILLAR_AREA, PILLAR_WARN, STAR_REACH, starTips, type Element, type Spells } from './spells';
+import { PILLAR_AREA, PILLAR_WARN, STAR_REACH, STAR_STAGGER, starTips, type Element, type Spells } from './spells';
 import { t } from './i18n';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35.
@@ -337,7 +337,7 @@ class Rival extends Fighter {
     this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
     const plan = this.choose(combat);
     // Two rivals never bring their strikes down on the alchemist together: the later one waits a moment.
-    if (plan.kind === 'strike' && !combat.book(foe, this.tuning.draw, this.tuning.stagger)) {
+    if (plan.kind === 'strike' && !combat.book(foe, this.tuning.draw, plan.element === 'columns' ? STAR_STAGGER * 4 : 0, this.tuning.stagger)) {
       this.attackTimer = THREE.MathUtils.randFloat(0.4, 0.8);
       return;
     }
@@ -432,9 +432,10 @@ export class Combat {
   onHeroHit: () => void = () => {};
   /** While set, rivals stand still and do not attack (the tutorial is showing a cast play out). */
   private held = false;
-  /** Seconds since the match started, and when the last rival strike booked against the alchemist goes off. */
+  /** Seconds since the match started, and when the last rival strike booked against the alchemist starts and stops landing. */
   private clock = 0;
-  private heroStrikeAt = -Infinity;
+  private heroStrikeFrom = -Infinity;
+  private heroStrikeTo = -Infinity;
 
   constructor(
     heroBody: Character,
@@ -515,12 +516,17 @@ export class Combat {
     this.spells.heal(caster.position, caster.ink, boosted);
   }
 
-  /** Books a strike at `foe` going off in `delay` s; false when another one lands on the alchemist within `gap` s of it. */
-  book(foe: Fighter, delay: number, gap: number) {
+  /**
+   * Books a strike at `foe` landing from `delay` s for `span` s (the star's tips land one after another);
+   * false when another one lands on the alchemist within `gap` s of it.
+   */
+  book(foe: Fighter, delay: number, span: number, gap: number) {
     if (foe !== this.hero || gap <= 0) return true;
-    const at = this.clock + delay;
-    if (Math.abs(at - this.heroStrikeAt) < gap) return false;
-    this.heroStrikeAt = at;
+    const from = this.clock + delay;
+    const to = from + span;
+    if (from < this.heroStrikeTo + gap && to > this.heroStrikeFrom - gap) return false;
+    this.heroStrikeFrom = from;
+    this.heroStrikeTo = to;
     return true;
   }
 
