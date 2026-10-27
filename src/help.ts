@@ -36,34 +36,20 @@ function poly(points: Pt[]): Pt[] {
   return points.slice(1).flatMap((p, i) => segment(points[i], p).slice(i ? 1 : 0));
 }
 
-/** Points turned (radians), scaled and moved, so one outline can be drawn anywhere at any size. */
-function place(line: Pt[], x: number, y: number, s: number, turn = 0): Pt[] {
-  const c = Math.cos(turn);
-  const n = Math.sin(turn);
-  return line.map(([px, py]): Pt => [x + (px * c - py * n) * s, y + (px * n + py * c) * s]);
-}
+/** A pointing hand like the 👆 emoji, fingertip at the origin: index up, three folded knuckles, thumb out to the left. */
+const HAND =
+  'M-2.6 2.6A2.6 2.6 0 0 1 2.6 2.6V9.6C2.6 7.6 6.4 7.6 6.4 9.8C6.4 8.2 9.8 8.2 9.8 10.4C9.8 9.2 12.9 9.4 12.9 11.6V17' +
+  'C12.9 21.2 10.4 24 6.4 24H3.2C0.8 24-0.8 23-2.2 21.4L-6.9 15.8C-7.9 14.5-6.4 12.8-4.9 13.8L-2.6 15.4Z';
+const KNUCKLES = 'M6.4 9.8V12.6M9.8 10.4V13';
 
-/** A pointing hand with the fingertip at the origin: index finger up, two folded knuckles, thumb tucked in. */
-const HAND: Pt[] = poly([[-2.6, 11], [-2.6, 2.6]]).concat(
-  arc(0, 2.6, 2.6, Math.PI, Math.PI * 2),
-  poly([[2.6, 2.6], [2.6, 11]]),
-  arc(4.9, 11, 2.3, Math.PI, Math.PI * 2),
-  arc(9.3, 12, 2.1, Math.PI, Math.PI * 2),
-  poly([[11.4, 12], [11.4, 18]]),
-  arc(6, 18, 5.4, 0, Math.PI * 0.85),
-  poly([[1.2, 20.4], [-4.5, 15.2]]),
-  arc(-3.1, 13.8, 2, Math.PI * 0.75, Math.PI * 1.75),
-  poly([[-1.7, 12.4], [-2.6, 11]]),
-);
-
-/** A pale hand under a brush outline, with the ripple a tap leaves around its fingertip. */
-function hand(x: number, y: number, s: number, rand: () => number, tap = true) {
-  const outline = place(HAND, x, y, s, -0.25);
-  const ripple = tap ? [arc(x, y, 7 * s, -2.75, -1.95), arc(x, y, 7 * s, -1.2, -0.4)].map((l) => brushPath(l, 2.2, rand).ink).join('') : '';
+/** The hand with a clean outline, plus the ripple a tap leaves around its fingertip. */
+function hand(x: number, y: number, s: number, tap = true) {
+  const r = 6.5 * s;
+  const ripple = (a: number, b: number) =>
+    `M${(x + Math.cos(a) * r).toFixed(1)} ${(y + Math.sin(a) * r).toFixed(1)}A${r} ${r} 0 0 1 ${(x + Math.cos(b) * r).toFixed(1)} ${(y + Math.sin(b) * r).toFixed(1)}`;
   return (
-    (ripple ? `<path class="tap" d="${ripple}"/>` : '') +
-    `<path class="skin" d="M${outline.map(([px, py]) => `${px.toFixed(1)} ${py.toFixed(1)}`).join('L')}Z"/>` +
-    `<path class="hand" d="${brushPath(outline, 2, rand).ink}"/>`
+    (tap ? `<path class="tap" d="${ripple(-2.75, -1.95)}${ripple(-1.2, -0.4)}"/>` : '') +
+    `<g class="hand" transform="translate(${x} ${y}) rotate(-12) scale(${s})"><path d="${HAND}"/><path class="knuckles" d="${KNUCKLES}"/></g>`
   );
 }
 
@@ -95,21 +81,21 @@ const GLOWS =
 
 /** Hands, arrows and slots drawn over each screenshot, in the screenshot's own 312×234 frame. */
 const OVERLAYS: Array<(rand: () => number) => string> = [
-  (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4, rand),
-  (rand) => `<path class="arrow" d="${arrowLine([[206, 112], [204, 84], [186, 64]], 0, rand)}"/>` + hand(121, 200, 1.4, rand, false),
+  (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4),
+  (rand) => `<path class="arrow" d="${arrowLine([[206, 112], [204, 84], [186, 64]], 0, rand)}"/>` + hand(121, 200, 1.4, false),
   (rand) =>
     `<rect class="bar" x="4" y="4" width="54" height="54" rx="27"/>` +
     slot('square', 7, 7, 48, ' selected') +
     `<path class="arrow" d="${arrowLine([[62, 36], [92, 52], [108, 76]], 0, rand)}"/>` +
-    hand(42, 44, 1.1, rand) +
-    hand(132, 112, 1.4, rand),
+    hand(42, 44, 1.1) +
+    hand(132, 112, 1.4),
   (rand) =>
     slot('triangle', 70, 128, 38, '', 'fire') +
     `<path class="arrow" d="${arrowLine([[78, 168], [62, 180]], 0, rand)}"/>` +
-    hand(46, 186, 1.2, rand) +
+    hand(46, 186, 1.2) +
     slot('triangleDown', 196, 128, 38, '', 'water') +
     `<path class="arrow" d="${arrowLine([[226, 128], [242, 108]], 0, rand)}"/>` +
-    hand(262, 92, 1.2, rand),
+    hand(262, 92, 1.2),
   () => `<g class="badge"><rect x="140" y="160" width="64" height="26" rx="13"/><text x="172" y="178">+25%</text></g>`,
 ];
 const SHOTS = [moveShot, drawShot, useShot, chargeShot, runesShot];

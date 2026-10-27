@@ -147,9 +147,10 @@
       #help .shot img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
       #help .shot svg { position: absolute; inset: 0; }
       #help .shot .arrow { fill: #fff6e0; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
-      #help .shot .tap { fill: #fff6e0; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
-      #help .shot .skin { fill: #fdf8ef; }
-      #help .shot .hand { fill: #23322a; }
+      #help .shot .tap { fill: none; stroke: #fff6e0; stroke-width: 2.4; stroke-linecap: round; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
+      #help .shot .hand path { fill: #fffaf0; stroke: #23322a; stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; }
+      #help .shot .hand { filter: drop-shadow(0 2px 2px rgba(20,28,24,.4)); }
+      #help .shot .hand .knuckles { fill: none; stroke-width: 1.1; }
       #help .shot .bar { fill: rgba(255,255,255,.72); }
       #help .shot .mini .ring { fill: #23322a; opacity: .32; }
       #help .shot .mini .glyph { fill: currentColor; }
