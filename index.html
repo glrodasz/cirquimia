@@ -121,52 +121,72 @@
       #match-end .again .cap::after { content: " ↻"; opacity: .7; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #match-end.victory h2 { color: #ffd27a; } :root:not([data-theme="light"]) #match-end .again { background: #9fbcb4; color: #14201c; } :root:not([data-theme="light"]) #match-end .hero { fill: #7fb2f0; } }
       :root[data-theme="dark"] #match-end.victory h2 { color: #ffd27a; } :root[data-theme="dark"] #match-end .again { background: #9fbcb4; color: #14201c; } :root[data-theme="dark"] #match-end .hero { fill: #7fb2f0; }
-      #help-btn { position: fixed; bottom: var(--edge-bottom); right: calc(max(12px, env(safe-area-inset-right)) + 48px); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
-      #help-btn:active { transform: scale(.92); }
-      #help-btn:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
-      #help-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
-      #help-btn .ring, #help .ring { fill: var(--hud-fg); opacity: .32; }
-      #help-btn .glyph { fill: #b5761f; }
-      #help { position: fixed; inset: 0; z-index: 6; display: grid; place-items: safe center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.4), rgba(35,50,42,.6)); backdrop-filter: blur(3px) saturate(.8); -webkit-backdrop-filter: blur(3px) saturate(.8); opacity: 0; transition: opacity .3s; touch-action: pan-y; overflow: auto; }
+      #help-btn, #book-btn { position: fixed; bottom: var(--edge-bottom); right: calc(max(12px, env(safe-area-inset-right)) + 48px); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
+      #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 96px); }
+      :is(#help-btn, #book-btn):active { transform: scale(.92); }
+      :is(#help-btn, #book-btn):focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
+      #help-btn svg, #book-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
+      :is(#help-btn, #book-btn, #help) .ring { fill: var(--hud-fg); opacity: .32; }
+      :is(#help-btn, #book-btn) .glyph { fill: #b5761f; }
+      /* Sized to the visible viewport (--seen, set from visualViewport) so mobile toolbars never cover the buttons. */
+      #help { position: fixed; top: 0; left: 0; right: 0; height: 100%; height: min(100dvh, var(--seen, 100dvh)); box-sizing: border-box; z-index: 6; display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.4), rgba(35,50,42,.6)); backdrop-filter: blur(3px) saturate(.8); -webkit-backdrop-filter: blur(3px) saturate(.8); opacity: 0; transition: opacity .3s; touch-action: none; }
       #help[hidden] { display: none; }
       #help.show { opacity: 1; }
-      #help .card { display: flex; flex-direction: column; align-items: stretch; gap: 12px; width: min(360px, 100%); box-sizing: border-box; padding: 16px 16px 18px; border-radius: 22px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(20,28,24,.3); font: 600 13px/1.15 system-ui, -apple-system, sans-serif; text-align: center; transform: translateY(10px) scale(.96); transition: transform .4s cubic-bezier(.2,1.4,.4,1); }
+      #help .card { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(380px, 100%); max-height: 100%; box-sizing: border-box; padding: 14px 0; border-radius: 22px; overflow: hidden; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(20,28,24,.3); font: 600 13px/1.15 system-ui, -apple-system, sans-serif; text-align: center; transform: translateY(10px) scale(.96); transition: transform .4s cubic-bezier(.2,1.4,.4,1); }
       #help.show .card { transform: none; }
-      #help h2 { margin: 0; font: 800 22px/1.1 system-ui, -apple-system, sans-serif; }
+      #help h2 { flex: none; margin: 0; padding: 0 48px; font: 800 20px/1.2 system-ui, -apple-system, sans-serif; }
+      #help .x { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--hud-fg); opacity: .55; font: 400 26px/1 system-ui, sans-serif; cursor: pointer; touch-action: manipulation; }
       #help ol, #help ul { list-style: none; margin: 0; padding: 0; }
       #help small { font-weight: 500; opacity: .65; }
-      #help .fig { display: inline-block; flex: none; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.35); color: #b5761f; }
+      #help b { font-weight: 800; }
+      #help .track { flex: 1 1 auto; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x; overscroll-behavior: contain; }
+      #help .track::-webkit-scrollbar { display: none; }
+      #help .slide { flex: 0 0 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 16px; scroll-snap-align: start; scroll-snap-stop: always; overflow-y: auto; }
+      /* The screenshot shrinks on short screens so the text and buttons always fit. */
+      #help .shot { position: relative; flex: none; width: min(100%, calc((var(--seen, 100dvh) - 290px) * 4 / 3)); min-width: 160px; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--hud-border), 0 2px 10px rgba(20,28,24,.18); }
+      #help .shot img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
+      #help .shot svg { position: absolute; inset: 0; }
+      #help .shot .arrow { fill: #fff6e0; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
+      #help .shot .tap { fill: #fff6e0; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
+      #help .shot .skin { fill: #fdf8ef; }
+      #help .shot .hand { fill: #23322a; }
+      #help .shot .bar { fill: rgba(255,255,255,.72); }
+      #help .shot .mini .ring { fill: #23322a; opacity: .32; }
+      #help .shot .mini.selected .ring { fill: #e0a23c; opacity: .95; }
+      #help .shot .disc { fill: rgba(255,255,255,.8); } #help .shot .disc.fire { fill: url(#help-fire); } #help .shot .disc.water { fill: url(#help-water); }
+      #help .shot .badge rect { fill: #e0a23c; } #help .shot .badge text { fill: #23322a; font: 800 15px system-ui, -apple-system, sans-serif; text-anchor: middle; }
+      #help .slide h3 { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; font: 800 17px/1.2 system-ui, -apple-system, sans-serif; }
+      #help .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #e0a23c; color: #23322a; font-size: 13px; }
+      #help .slide p { margin: 0; max-width: 300px; font-weight: 500; font-size: 15px; line-height: 1.3; }
+      #help .dots { flex: none; display: flex; justify-content: center; gap: 2px; }
+      #help .dot { width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+      #help .dot::after { content: ''; display: block; width: 8px; height: 8px; margin: auto; border-radius: 50%; background: var(--hud-fg); opacity: .25; transition: opacity .2s, transform .2s; }
+      #help .dot.on::after { opacity: .85; transform: scale(1.25); }
+      #help .nav { flex: none; display: flex; justify-content: center; gap: 10px; padding: 0 16px; }
+      #help .nav .match-btn { height: 44px; padding: 0 22px; font-size: 15px; }
+      #help .nav .match-btn .cap::after { content: none; }
+      #help .back { background: transparent; box-shadow: inset 0 0 0 1.5px var(--hud-border); }
+      #help .back.hide { visibility: hidden; }
+      #help .go { background: #3f5a57; color: #f1f5f2; }
+      #help .scroll { min-height: 0; overflow-y: auto; padding: 4px 16px; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+      #help .fig { display: inline-block; flex: none; width: 52px; height: 52px; margin-bottom: 2px; border-radius: 50%; background: rgba(255,255,255,.35); color: #b5761f; }
       #help .fig svg { fill: currentColor; }
       #help .fig .glyph { fill: currentColor; opacity: .92; }
-      #help .hero { fill: #3d7fd6; } #help .red { fill: #d9483b; } #help .fire { fill: #e0712c; } #help .water { fill: #3f8fb0; }
-      #help .arrow { opacity: .45; font-size: 15px; }
-      #help h3 { margin: 0; font: 800 12px/1 system-ui, -apple-system, sans-serif; letter-spacing: .08em; text-transform: uppercase; opacity: .6; }
-      #help .steps { display: flex; flex-direction: column; gap: 6px; text-align: left; font-weight: 500; font-size: 14px; }
-      #help .steps li { display: grid; grid-template-columns: 104px 1fr; align-items: center; gap: 10px; }
-      #help .steps .pair { display: flex; align-items: center; justify-content: center; gap: 4px; }
-      #help .steps b, #help .runes b { font-weight: 800; }
-      #help .fig.selected .ring { fill: #e0a23c; opacity: .95; }
-      #help .shapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 6px; margin-top: -4px; }
+      #help .fire { fill: #e0712c; } #help .water { fill: #3f8fb0; }
+      #help .shapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 6px; }
       #help .shapes li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-      #help .shapes .fig { width: 52px; height: 52px; margin-bottom: 2px; }
       #help .shapes .val { font: 800 15px/1 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
       #help .shapes .val small { font-size: 12px; }
       #help .val-dmg { color: #c4473a; } #help .val-heal { color: #3f8a4a; }
-      #help .note { margin: -6px 0 0; font-weight: 500; font-size: 12px; opacity: .65; }
-      #help h3 { padding-top: 12px; border-top: 1px solid var(--hud-border); }
       #help .shapes .src { position: absolute; top: -2px; left: calc(50% + 14px); width: 24px; height: 24px; border-radius: 50%; background: var(--hud-bg); }
-      #help .shapes .src .ring { opacity: 0; }
-      #help .flow { display: flex; align-items: center; justify-content: center; gap: 4px; }
-      #help .flow .fig { width: 40px; height: 40px; }
-      #help .runes { display: flex; align-items: center; justify-content: center; gap: 10px; text-align: left; font-weight: 500; font-size: 14px; margin-top: -4px; }
-      #help .runes .scene { flex: none; width: 110px; height: 82px; color: #b5761f; }
-      #help .runes .scene svg { fill: currentColor; }
-      #help .runes b { color: #b5761f; }
-      @media (max-height: 700px) { #help .card { gap: 8px; padding: 12px 14px 14px; } #help h2 { font-size: 19px; } #help .fig, #help .flow .fig { width: 36px; height: 36px; } #help .shapes { padding: 6px 0; gap: 4px; } #help .shapes .fig { width: 42px; height: 42px; } #help .shapes .src { width: 20px; height: 20px; left: calc(50% + 10px); } #help .runes .scene { width: 92px; height: 69px; } #help h3 { padding-top: 8px; } #help .go { height: 40px; } }
-      #help .go .cap::after { content: none; }
-      #help .go { align-self: center; padding: 0 26px; height: 44px; font-size: 15px; background: #3f5a57; color: #f1f5f2; }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #help-btn .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root:not([data-theme="light"]) #help .hero { fill: #7fb2f0; } :root:not([data-theme="light"]) #help .red { fill: #ff7a6b; } :root:not([data-theme="light"]) #help .fire { fill: #ff9a5c; } :root:not([data-theme="light"]) #help .water { fill: #8cc4dc; } :root:not([data-theme="light"]) #help .val-dmg { color: #ff8a7a; } :root:not([data-theme="light"]) #help .val-heal { color: #8fd69a; } :root:not([data-theme="light"]) #help .runes b, :root:not([data-theme="light"]) #help .runes .scene { color: #ffd27a; } :root:not([data-theme="light"]) #help .go { background: #9fbcb4; color: #14201c; } }
-      :root[data-theme="dark"] #help-btn .glyph { fill: #ffd27a; } :root[data-theme="dark"] #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root[data-theme="dark"] #help .hero { fill: #7fb2f0; } :root[data-theme="dark"] #help .red { fill: #ff7a6b; } :root[data-theme="dark"] #help .fire { fill: #ff9a5c; } :root[data-theme="dark"] #help .water { fill: #8cc4dc; } :root[data-theme="dark"] #help .val-dmg { color: #ff8a7a; } :root[data-theme="dark"] #help .val-heal { color: #8fd69a; } :root[data-theme="dark"] #help .runes b, :root[data-theme="dark"] #help .runes .scene { color: #ffd27a; } :root[data-theme="dark"] #help .go { background: #9fbcb4; color: #14201c; }
+      #help .src .ring { opacity: 0; }
+      #help .notes { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hud-border); text-align: left; font-weight: 500; font-size: 13.5px; }
+      #help .notes li { display: flex; align-items: center; gap: 8px; }
+      #help .notes .src { flex: none; width: 26px; height: 26px; }
+      #help .notes .rune { display: grid; place-items: center; color: #b5761f; font-size: 17px; }
+      @media (max-height: 640px) { #help .card { gap: 6px; padding: 10px 0; } #help h2 { font-size: 18px; } #help .slide p { font-size: 14px; } #help .slide h3 { font-size: 16px; } #help .fig { width: 44px; height: 44px; } #help .shapes { gap: 8px 6px; } #help .nav .match-btn { height: 40px; } }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root:not([data-theme="light"]) #help .fire { fill: #ff9a5c; } :root:not([data-theme="light"]) #help .water { fill: #8cc4dc; } :root:not([data-theme="light"]) #help .val-dmg { color: #ff8a7a; } :root:not([data-theme="light"]) #help .val-heal { color: #8fd69a; } :root:not([data-theme="light"]) #help .notes .rune { color: #ffd27a; } :root:not([data-theme="light"]) #help .go { background: #9fbcb4; color: #14201c; } }
+      :root[data-theme="dark"] :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; } :root[data-theme="dark"] #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root[data-theme="dark"] #help .fire { fill: #ff9a5c; } :root[data-theme="dark"] #help .water { fill: #8cc4dc; } :root[data-theme="dark"] #help .val-dmg { color: #ff8a7a; } :root[data-theme="dark"] #help .val-heal { color: #8fd69a; } :root[data-theme="dark"] #help .notes .rune { color: #ffd27a; } :root[data-theme="dark"] #help .go { background: #9fbcb4; color: #14201c; }
       #tutorial { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .3s; }
       #tutorial[hidden] { display: none; }
       #tutorial.show { opacity: 1; }
@@ -203,13 +223,13 @@
       #ammo .slot .ring { fill: var(--hud-fg); opacity: .32; transition: opacity .15s, fill .15s; }
       #ammo .slot .glyph { opacity: .92; filter: drop-shadow(0 .6px .4px rgba(0,0,0,.18)); }
       #ammo .slot.selected .ring { fill: #e0a23c; opacity: .95; }
-      :is(#ammo .slot, #help .fig).triangle { color: #b0482c; }
-      :is(#ammo .slot, #help .fig).square { color: #3f6f8a; }
-      :is(#ammo .slot, #help .fig).triangleDown { color: #8a3f5c; }
-      :is(#ammo .slot, #help .fig).rhombus { color: #4f7a52; }
-      :is(#ammo .slot, #help .fig).pentagram { color: #6a4f8a; }
-      :is(#ammo .slot, #help .fig).charged.triangle { background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, var(--hud-bg) 75%); }
-      :is(#ammo .slot, #help .fig).charged.triangleDown { background: radial-gradient(circle, #d9ecef 0%, #7fb3c299 45%, var(--hud-bg) 75%); }
+      :is(#ammo .slot, #help .fig, #help .mini).triangle { color: #b0482c; }
+      :is(#ammo .slot, #help .fig, #help .mini).square { color: #3f6f8a; }
+      :is(#ammo .slot, #help .fig, #help .mini).triangleDown { color: #8a3f5c; }
+      :is(#ammo .slot, #help .fig, #help .mini).rhombus { color: #4f7a52; }
+      :is(#ammo .slot, #help .fig, #help .mini).pentagram { color: #6a4f8a; }
+      :is(#ammo .slot, #help .fig, #help .mini).charged.triangle { background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, var(--hud-bg) 75%); }
+      :is(#ammo .slot, #help .fig, #help .mini).charged.triangleDown { background: radial-gradient(circle, #d9ecef 0%, #7fb3c299 45%, var(--hud-bg) 75%); }
       #ammo .slot.selected { transform: translateY(8px) scale(1.08); box-shadow: 0 6px 18px rgba(255,170,60,.45); }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #ammo .slot { color: #ffd27a; } :root:not([data-theme="light"]) :is(#ammo .slot, #help .fig).triangle { color: #ff9a76; } :root:not([data-theme="light"]) :is(#ammo .slot, #help .fig).square { color: #8cc4dc; } :root:not([data-theme="light"]) :is(#ammo .slot, #help .fig).triangleDown { color: #e899b6; } :root:not([data-theme="light"]) :is(#ammo .slot, #help .fig).rhombus { color: #9fd0a2; } :root:not([data-theme="light"]) :is(#ammo .slot, #help .fig).pentagram { color: #c3a8e8; } }
       :root[data-theme="dark"] #ammo .slot { color: #ffd27a; } :root[data-theme="dark"] :is(#ammo .slot, #help .fig).triangle { color: #ff9a76; } :root[data-theme="dark"] :is(#ammo .slot, #help .fig).square { color: #8cc4dc; } :root[data-theme="dark"] :is(#ammo .slot, #help .fig).triangleDown { color: #e899b6; } :root[data-theme="dark"] :is(#ammo .slot, #help .fig).rhombus { color: #9fd0a2; } :root[data-theme="dark"] :is(#ammo .slot, #help .fig).pentagram { color: #c3a8e8; }
