@@ -53,7 +53,7 @@ interface Lesson {
 
 const es = {
   title: 'Cirquimia',
-  difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil' },
+  difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' },
   shapes: {
     circle: 'Círculo',
     triangle: 'Triángulo',
@@ -189,7 +189,7 @@ export type Strings = typeof es;
 
 const en: Strings = {
   title: 'Cirquimia',
-  difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard' },
+  difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard' },
   shapes: {
     circle: 'Circle',
     triangle: 'Triangle',

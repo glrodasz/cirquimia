@@ -32,7 +32,7 @@ Cirquimia is a free, open-source browser game built for phones. You play a state
 
 | Symbol | Spell | Effect |
 | --- | --- | --- |
-| Circle | Muro (wall) | Raises an earth wall around you, facing where you tap; strikes into its zone are blocked |
+| Circle | Muro (wall) | Raises an earth wall around you, facing where you tap; other fighters' strikes into its zone are blocked, yours go through |
 | Square | Tierra (earth) | Stone pillars erupt at the target: 20 damage |
 | Triangle ▲ | Fuego (fire) | 35 damage. Walk to a campfire (fogata) to charge it first |
 | Triangle ▼ | Agua (water) | 35 damage. Charge it at the lagoon (laguna) first |

@@ -218,6 +218,14 @@
       .hp[hidden] { display: none; }
       .hp-fill { height: 100%; transform-origin: left; transition: transform .25s ease-out; }
       .hp.ko .hp-fill { filter: grayscale(1) brightness(.8); }
+      /* A fighter tracing the shape of its spell over its head, in its ink: slowly for rivals before they cast, briefly for the alchemist. */
+      .sketch { position: fixed; left: 0; top: 0; width: 30px; height: 30px; margin: -50px 0 0 -15px; overflow: visible; pointer-events: none; z-index: 1; will-change: transform; filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+      .sketch.off { visibility: hidden; }
+      .sketch path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+      .sketch.drawing path { animation: sketch-trace var(--draw, .7s) linear forwards; }
+      @keyframes sketch-trace { to { stroke-dashoffset: 0; } }
+      .sketch.brief { animation: sketch-fade calc(var(--draw, .3s) + .45s) ease-in forwards; }
+      @keyframes sketch-fade { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
       .hp { transition: opacity .6s .5s; }
       .hp.gone { opacity: 0; }
       .hp.hurt { animation: hp-shake .25s; }
