@@ -164,7 +164,7 @@ export function shapeIcon(kind: ShapeKind): string {
 const LABELS: Record<ShapeKind, string> = t.shapes;
 
 /**
- * Stored shapes along the bottom of the screen. Tap one, then tap the map to use it.
+ * Stored shapes along the top of the screen. Tap one, then tap the map to use it.
  * Triangles take two rounds: tap the slot and a fire or water source to charge it (the slot lets go),
  * then tap the charged slot again and the target.
  */
@@ -221,7 +221,7 @@ export class AmmoBar {
     const out = slot.animate(
       [
         { transform: 'scale(1)', opacity: 1 },
-        { transform: 'translateY(16px) scale(0.6)', opacity: 0 },
+        { transform: 'translateY(-16px) scale(0.6)', opacity: 0 },
       ],
       { duration: 200, easing: 'ease-in' },
     );
@@ -256,13 +256,13 @@ export class AmmoBar {
     if (!slot) return;
     slot.classList.add('charged');
     this.select(null);
-    slot.animate([{ transform: 'translateY(-8px) scale(1.3)' }, { transform: 'translateY(0) scale(1)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    slot.animate([{ transform: 'translateY(8px) scale(1.3)' }, { transform: 'translateY(0) scale(1)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
   }
 
   /** Shakes the selected slot: it cannot be used where the player tapped. */
   reject() {
     this.selected?.animate(
-      [0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translate(${x}px, -8px) scale(1.08)` })),
+      [0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translate(${x}px, 8px) scale(1.08)` })),
       { duration: 300, easing: 'ease-out' },
     );
   }
@@ -276,7 +276,7 @@ export class AmmoBar {
     const out = slot.animate(
       [
         { transform: 'scale(1)', opacity: 1 },
-        { transform: 'translateY(-24px) scale(0.4)', opacity: 0 },
+        { transform: 'translateY(24px) scale(0.4)', opacity: 0 },
       ],
       { duration: 220, easing: 'ease-in' },
     );

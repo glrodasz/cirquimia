@@ -294,16 +294,18 @@ export class Tutorial {
     this.spot(feet.x, feet.y, 60);
   }
 
-  /** Arrow over an element, and a pool of light on it. */
+  /** Arrow under an element (the bar runs along the top), and a pool of light on it. */
   private point(el: HTMLElement | null) {
     if (!el) return;
     const box = el.getBoundingClientRect();
-    this.placeArrow(box.left + box.width / 2, box.top - 6);
+    this.placeArrow(box.left + box.width / 2, box.bottom + 6, true);
     this.spot(box.left + box.width / 2, box.top + box.height / 2, box.width * 0.75);
   }
 
-  private placeArrow(x: number, bottom: number) {
-    this.arrow.style.transform = `translate(${x.toFixed(1)}px, ${bottom.toFixed(1)}px)`;
+  /** Places the arrow's tip at (x, y): pointing down from above, or up from below. */
+  private placeArrow(x: number, y: number, up = false) {
+    // The arrow box ends at its anchor; turned around its centre, its tip sits a box height higher.
+    this.arrow.style.transform = up ? `translate(${x.toFixed(1)}px, ${(y + 44).toFixed(1)}px) rotate(180deg)` : `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
   }
 
   private spot(x: number, y: number, r: number) {
