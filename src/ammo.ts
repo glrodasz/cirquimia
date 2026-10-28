@@ -248,14 +248,14 @@ export class AmmoBar {
   }
 
   /**
-   * Marks the selected slot as charged and lets go of it, so the next tap on the ground walks.
+   * Marks the selected slot as charged and, unless kept, lets go of it, so the next tap on the ground walks.
    * Tapping the charged slot again picks it up to cast.
    */
-  charge() {
+  charge(release = true) {
     const slot = this.selected;
     if (!slot) return;
     slot.classList.add('charged');
-    this.select(null);
+    if (release) this.select(null);
     slot.animate([{ transform: 'translateY(8px) scale(1.3)' }, { transform: 'translateY(0) scale(1)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
   }
 

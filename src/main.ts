@@ -9,7 +9,7 @@ import { Character } from './character';
 import { TapMarker } from './marker';
 import { heightAt } from './noise';
 import { tiltShiftShader } from './tiltShift';
-import { recognize, type Point } from './gestures';
+import { recognize, type Point, type ShapeKind } from './gestures';
 import { Ink } from './ink';
 import { AmmoBar } from './ammo';
 import { Spells } from './spells';
@@ -18,6 +18,7 @@ import type { Kind } from './generator';
 import { GLADE } from './look';
 import { Bloom } from './glade';
 import { t } from './i18n';
+import { castMode } from './castMode';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -276,16 +277,46 @@ function sourceAt(point: THREE.Vector3, element: 'fire' | 'water'): THREE.Vector
   return null;
 }
 
+/** Screen pixels to the ground point under them. */
+function groundAt(clientX: number, clientY: number, out: THREE.Vector3) {
+  return groundFromNdc((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1, out);
+}
+
+const elementOf = (kind: ShapeKind) => (kind === 'triangle' ? 'fire' : kind === 'triangleDown' ? 'water' : null);
+
 /**
- * A quick tap walks there, or casts the selected circle: circle = earth wall around the alchemist,
- * square = pillars at that spot, pentagram = five short earth columns around that spot, rhombus = heal the alchemist,
- * triangles = fire / water drawn from a source, then picked again and cast like the square.
+ * Casts a shape at a ground point: circle = earth wall around the alchemist, square = pillars at that spot,
+ * pentagram = five short earth columns around that spot, rhombus = heal the alchemist, triangles = fire / water.
  */
+function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
+  const element = elementOf(kind);
+  hero.face(at);
+  hero.cast();
+  if (kind === 'circle') combat.wall(at);
+  else if (kind === 'square') combat.cast(at, 'earth', sure);
+  else if (kind === 'pentagram') combat.cast(at, 'columns');
+  else if (kind === 'rhombus') combat.heal();
+  else if (element) combat.cast(at, element);
+  else impact.show(at.x, at.z);
+}
+
+/** Draws fire or water into the selected triangle from the source under a ground point. False if there is none. */
+function chargeAt(at: THREE.Vector3, element: 'fire' | 'water') {
+  const source = sourceAt(at, element);
+  if (!source) return false;
+  // With the bar the slot lets go; with the shape in hand it stays picked, ready for the target.
+  ammo.charge(castMode === 'barra');
+  hero.face(source);
+  spells.channel(source, hero.root.position, element);
+  return true;
+}
+
+const HERO_TAP = 48; // px: a tap this close to the alchemist puts the shape in hand back in the bar
+
+/** A quick tap walks there, or uses the selected shape: triangles are first charged from a source, then cast. */
 function tapAt(clientX: number, clientY: number) {
   if (combat.over) return;
-  const x = (clientX / innerWidth) * 2 - 1;
-  const y = -(clientY / innerHeight) * 2 + 1;
-  if (!groundFromNdc(x, y, hit)) return;
+  if (!groundAt(clientX, clientY, hit)) return;
   // During the tutorial the tap snaps onto the rival, so the first strike (and the wall's facing) cannot go wrong.
   const lesson = tutorial.aim();
   if (lesson) {
@@ -294,33 +325,52 @@ function tapAt(clientX: number, clientY: number) {
   }
   const selected = ammo.selection();
   if (selected) {
-    // Triangles first draw fire or water out of a source on the map; the slot then lets go and is cast once picked again.
-    const element = selected.kind === 'triangle' ? 'fire' : selected.kind === 'triangleDown' ? 'water' : null;
-    if (element && !selected.charged) {
-      const source = sourceAt(hit, element);
-      if (!source) {
-        ammo.reject();
+    if (castMode !== 'barra' && !lesson) {
+      const self = hero.root.position.clone().setY(hero.root.position.y + 0.3).project(camera);
+      const sx = ((self.x + 1) / 2) * innerWidth;
+      const sy = ((1 - self.y) / 2) * innerHeight;
+      if (Math.hypot(clientX - sx, clientY - sy) < HERO_TAP) {
+        ammo.select(null);
         return;
       }
-      ammo.charge();
-      hero.face(source);
-      spells.channel(source, hero.root.position, element);
+    }
+    const element = elementOf(selected.kind);
+    if (element && !selected.charged) {
+      if (!chargeAt(hit, element)) ammo.reject();
       return;
     }
     ammo.spend();
-    hero.face(hit);
-    hero.cast();
-    if (selected.kind === 'circle') combat.wall(hit);
-    else if (selected.kind === 'square') combat.cast(hit, 'earth', lesson !== null);
-    else if (selected.kind === 'pentagram') combat.cast(hit, 'columns');
-    else if (selected.kind === 'rhombus') combat.heal();
-    else if (element) combat.cast(hit, element);
-    else impact.show(hit.x, hit.z);
+    castShape(selected.kind, hit, lesson !== null);
     tutorial.cast();
     return;
   }
   hero.setTarget(hit);
   marker.show(hero.target.x, hero.target.z);
+}
+
+/**
+ * A recognized stroke outside the classic bar flow. Circles and rhombi need no target, so they go off at once
+ * (the wall faces the nearest rival). With 'dibujo' squares and stars land where they were drawn. Everything
+ * else is held in hand (the newest slot, picked) for the next tap; a triangle drawn over its source comes charged.
+ */
+function useDrawn(kind: ShapeKind, cx: number, cy: number) {
+  const drawnAt = new THREE.Vector3();
+  if (!groundAt(cx, cy, drawnAt)) drawnAt.copy(hero.root.position);
+  // The lessons walk through the bar step by step, so while one runs every shape is just held.
+  if (!tutorial.active) {
+    if (kind === 'circle' || kind === 'rhombus') {
+      castShape(kind, combat.foe() ?? drawnAt);
+      return;
+    }
+    if (castMode === 'dibujo' && (kind === 'square' || kind === 'pentagram')) {
+      castShape(kind, drawnAt);
+      return;
+    }
+  }
+  ammo.add(kind, cx, cy);
+  ammo.select(ammo.slotOf(kind));
+  const element = elementOf(kind);
+  if (element) chargeAt(drawnAt, element);
 }
 
 // One finger at a time: a short press is a tap, anything that travels further is a drawing.
@@ -370,7 +420,8 @@ canvas.addEventListener('pointerup', (e) => {
   }
   if (shape) {
     ink.end(shape);
-    ammo.add(shape.kind, shape.cx, shape.cy);
+    if (castMode === 'barra') ammo.add(shape.kind, shape.cx, shape.cy);
+    else useDrawn(shape.kind, shape.cx, shape.cy);
   } else {
     ink.end(null);
     // With a circle selected, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
