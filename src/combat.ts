@@ -291,7 +291,8 @@ class Rival extends Fighter {
   think(dt: number, others: Fighter[], combat: Combat, onScreen: (p: THREE.Vector3) => boolean) {
     const pos = this.position;
     this.retarget -= dt;
-    if (!this.foe || !others.includes(this.foe) || this.retarget <= 0) this.chooseFoe(others);
+    // A spell already booked against a foe keeps that foe until it is cast.
+    if (!this.foe || !others.includes(this.foe) || (this.retarget <= 0 && !this.plan)) this.chooseFoe(others);
     const foe = this.foe!;
     const target = foe.position;
 
