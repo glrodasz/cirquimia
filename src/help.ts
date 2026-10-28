@@ -1,7 +1,12 @@
 import { brushPath, shapeIcon, type Pt } from './ammo';
-import { arc, person, random, segment, svg } from './match';
+import { arc, random, segment, svg } from './match';
 import type { ShapeKind } from './gestures';
 import { t } from './i18n';
+import moveShot from './assets/help/move.webp';
+import drawShot from './assets/help/draw.webp';
+import useShot from './assets/help/use.webp';
+import chargeShot from './assets/help/charge.webp';
+import runesShot from './assets/help/runes.webp';
 
 const STORE = 'cirquimia.help';
 
@@ -31,35 +36,69 @@ function poly(points: Pt[]): Pt[] {
   return points.slice(1).flatMap((p, i) => segment(points[i], p).slice(i ? 1 : 0));
 }
 
-/** A fingertip and the ripple it leaves on the ground. */
-function tapIcon(rand: () => number) {
-  return svg([
-    stroke(arc(24, 24, 2.2, 0, Math.PI * 2.2), 3.6, 'hero', rand),
-    stroke(arc(24, 24, 9, -2.5, -0.65), 2.6, 'hero', rand),
-    stroke(arc(24, 24, 9, 0.65, 2.5), 2.6, 'hero', rand),
-  ], rand);
+/** A pointing hand like the 👆 emoji, fingertip at the origin: index up, three folded knuckles, thumb out to the left. */
+const HAND =
+  'M-2.6 2.6A2.6 2.6 0 0 1 2.6 2.6V9.6C2.6 7.6 6.4 7.6 6.4 9.8C6.4 8.2 9.8 8.2 9.8 10.4C9.8 9.2 12.9 9.4 12.9 11.6V17' +
+  'C12.9 21.2 10.4 24 6.4 24H3.2C0.8 24-0.8 23-2.2 21.4L-6.9 15.8C-7.9 14.5-6.4 12.8-4.9 13.8L-2.6 15.4Z';
+const KNUCKLES = 'M6.4 9.8V12.6M9.8 10.4V13';
+
+/** The hand with a clean outline, plus the ripple a tap leaves around its fingertip. */
+function hand(x: number, y: number, s: number, tap = true) {
+  const r = 6.5 * s;
+  const ripple = (a: number, b: number) =>
+    `M${(x + Math.cos(a) * r).toFixed(1)} ${(y + Math.sin(a) * r).toFixed(1)}A${r} ${r} 0 0 1 ${(x + Math.cos(b) * r).toFixed(1)} ${(y + Math.sin(b) * r).toFixed(1)}`;
+  return (
+    (tap ? `<path class="tap" d="${ripple(-2.75, -1.95)}${ripple(-1.2, -0.4)}"/>` : '') +
+    `<g class="hand" transform="translate(${x} ${y}) rotate(-12) scale(${s})"><path d="${HAND}"/><path class="knuckles" d="${KNUCKLES}"/></g>`
+  );
 }
 
-/** A loose freehand loop, the way a shape gets drawn on the map. */
-function drawIcon(rand: () => number) {
-  const line: Pt[] = [];
-  for (let i = 0; i <= 120; i++) {
-    const t = i / 120;
-    const a = -2.4 + t * Math.PI * 2.15;
-    const r = 11 - 3 * t;
-    line.push([24 + Math.cos(a) * r, 24 + Math.sin(a) * r * 0.9]);
-  }
-  return svg([stroke(line, 3.6, 'hero', rand)], rand);
+/** A brush arrow with an open head, optionally broken into dashes like footsteps. */
+function arrowLine(points: Pt[], dashes: number, rand: () => number) {
+  const line = poly(points);
+  const parts: Pt[][] = [];
+  if (dashes) {
+    const per = line.length / (dashes * 2 - 1);
+    for (let i = 0; i < dashes; i++) parts.push(line.slice(Math.round(i * 2 * per), Math.round((i * 2 + 1) * per) + 1));
+  } else parts.push(line);
+  const [a, b] = points.slice(-2);
+  const dir = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  for (const side of [-1, 1]) parts.push(segment(b, [b[0] - Math.cos(dir + side * 0.55) * 9, b[1] - Math.sin(dir + side * 0.55) * 9]));
+  return parts.map((l) => brushPath(l, 3.4, rand).ink).join('');
 }
 
-/** Crosshair on a rival. */
-function targetIcon(rand: () => number) {
-  return svg([
-    stroke(arc(24, 24, 7.5, -1, -1 + Math.PI * 2.05), 2.8, 'red', rand),
-    stroke(segment([24, 11], [24, 37]), 2.4, 'red', rand),
-    stroke(segment([11, 24], [37, 24]), 2.4, 'red', rand),
-  ], rand);
+/** A slot from the top bar, dropped onto a screenshot; a charged one glows like its source. */
+function slot(kind: ShapeKind, x: number, y: number, size: number, extra = '', glow = '') {
+  const r = size / 2;
+  return (
+    `<circle class="disc ${glow}" cx="${x + r}" cy="${y + r}" r="${r * 0.96}"/>` +
+    shapeIcon(kind).replace('<svg ', `<svg class="mini ${kind}${extra}" x="${x}" y="${y}" width="${size}" height="${size}" `)
+  );
 }
+const GLOWS =
+  '<defs><radialGradient id="help-fire"><stop offset="0" stop-color="#ffcf7a"/><stop offset=".55" stop-color="#f08a3a" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity=".85"/></radialGradient>' +
+  '<radialGradient id="help-water"><stop offset="0" stop-color="#d9ecef"/><stop offset=".55" stop-color="#7fb3c2" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity=".85"/></radialGradient></defs>';
+
+/** Hands, arrows and slots drawn over each screenshot, in the screenshot's own 312×234 frame. */
+const OVERLAYS: Array<(rand: () => number) => string> = [
+  (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4),
+  (rand) => `<path class="arrow" d="${arrowLine([[206, 112], [204, 84], [186, 64]], 0, rand)}"/>` + hand(121, 200, 1.4, false),
+  (rand) =>
+    `<rect class="bar" x="4" y="4" width="54" height="54" rx="27"/>` +
+    slot('square', 7, 7, 48, ' selected') +
+    `<path class="arrow" d="${arrowLine([[62, 36], [92, 52], [108, 76]], 0, rand)}"/>` +
+    hand(42, 44, 1.1) +
+    hand(132, 112, 1.4),
+  (rand) =>
+    slot('triangle', 70, 128, 38, '', 'fire') +
+    `<path class="arrow" d="${arrowLine([[78, 168], [62, 180]], 0, rand)}"/>` +
+    hand(46, 186, 1.2) +
+    slot('triangleDown', 196, 128, 38, '', 'water') +
+    `<path class="arrow" d="${arrowLine([[226, 128], [242, 108]], 0, rand)}"/>` +
+    hand(262, 92, 1.2),
+  () => `<g class="badge"><rect x="140" y="160" width="64" height="26" rx="13"/><text x="172" y="178">+25%</text></g>`,
+];
+const SHOTS = [moveShot, drawShot, useShot, chargeShot, runesShot];
 
 /** A teardrop: the tip, down one side, round the belly and back up. */
 function drop(tipY: number, cls: string, rand: () => number) {
@@ -75,41 +114,21 @@ function waterIcon(rand: () => number) {
   return svg([drop(12, 'water', rand), stroke(arc(24, 29, 4.5, Math.PI * 0.6, Math.PI * 0.95), 2, 'water', rand)], rand);
 }
 
-/** The alchemist standing in a rune circle on the ground, seen at the game's tilt, with a ring of power at the feet. */
-function runesScene(rand: () => number) {
-  const cx = 48;
-  const cy = 50;
-  const flat = (line: Pt[]): Pt[] => line.map(([x, y]) => [x, cy + (y - cy) * 0.42]);
-  const tri = [0, 1, 2, 3].map((k): Pt => {
-    const a = -Math.PI / 2 + (k * Math.PI * 2) / 3;
-    return [cx + Math.cos(a) * 27, cy + Math.sin(a) * 27];
-  });
-  const parts = [
-    stroke(flat(arc(cx, cy, 40, -2.9, -2.9 + Math.PI * 2.04)), 2.6, 'glyph', rand),
-    stroke(flat(arc(cx, cy, 31, 0.4, 0.4 + Math.PI * 2.04)), 1.8, 'glyph', rand),
-    stroke(flat(poly(tri)), 1.8, 'glyph', rand),
-    ...[0.8, 2.35, 3.95, 5.5].map((a) => stroke(flat(arc(cx + Math.cos(a) * 45, cy + Math.sin(a) * 45, 1.2, 0, Math.PI * 2.2)), 3, 'glyph', rand)),
-    stroke(flat(arc(cx, cy, 15, 0.2, 0.2 + Math.PI * 2.05)), 2.2, 'hero', rand),
-    ...[-2.6, -Math.PI / 2, -0.54].map((a) => stroke(segment([cx + Math.cos(a) * 11, cy - 27 + Math.sin(a) * 11], [cx + Math.cos(a) * 16, cy - 27 + Math.sin(a) * 16]), 1.8, 'glyph', rand)),
-  ];
-  // The figure is drawn on the 48-unit HUD grid; scale it so its shoulders end on the circle's centre.
-  const fig = person(24, 0.9, 'hero', rand);
-  const place = `translate(${cx - 24 * 1.5} ${cy - 34.8 * 1.5}) scale(1.5)`;
-  const id = `helprune${++sceneId}`;
-  return (
-    `<svg viewBox="0 0 96 72" aria-hidden="true">` +
-    `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">` +
-    `<rect width="96" height="72" fill="#fff"/><path d="${parts.map((p) => p.dry).join('')}" fill="#000"/><g transform="${place}"><path d="${fig.dry}" fill="#000"/></g></mask>` +
-    `<g mask="url(#${id})">${parts.map((p) => p.ink).join('')}<g transform="${place}">${fig.ink}</g></g></svg>`
-  );
-}
-let sceneId = 0;
-
 function questionIcon(rand: () => number) {
   const hook = arc(24, 19, 6.5, Math.PI * 1.05, Math.PI * 2.3);
   return svg([
     stroke(hook.concat(segment(hook[hook.length - 1], [24, 29])), 3.6, 'glyph', rand),
     stroke(arc(24, 35.5, 0.8, 0, Math.PI * 2.2), 3.4, 'glyph', rand),
+  ], rand);
+}
+
+/** An open book: two pages sagging from the spine. */
+function bookIcon(rand: () => number) {
+  const page = (side: number) => poly([[24, 33], [24 - side * 4, 31], [24 - side * 11, 31.5], [24 - side * 11, 16], [24 - side * 4, 15.5], [24, 17.5]]);
+  return svg([
+    stroke(page(1), 2.8, 'glyph', rand),
+    stroke(page(-1), 2.8, 'glyph', rand),
+    stroke(segment([24, 18], [24, 32.5]), 2.2, 'glyph', rand),
   ], rand);
 }
 
@@ -124,9 +143,33 @@ const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; s
 const EFFECT = { dmg: t.help.damage, heal: t.help.healing };
 
 const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</span>`;
-const arrow = '<span class="arrow" aria-hidden="true">→</span>';
+const closeButton = `<button type="button" class="x" aria-label="${t.help.close}">×</button>`;
 
-function content() {
+/** How to play: one screenshot per step, swiped sideways. */
+function guide() {
+  const rand = random();
+  const total = t.help.slides.length;
+  const slides = t.help.slides
+    .map(
+      ([title, text], i) =>
+        `<section class="slide" aria-label="${t.help.slideOf(i + 1, total)}">` +
+        `<div class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
+        `<svg viewBox="0 0 312 234" aria-hidden="true">${i === 3 ? GLOWS : ''}${OVERLAYS[i](rand)}</svg></div>` +
+        `<h3><span class="num">${i + 1}</span>${title}</h3><p>${text}</p></section>`,
+    )
+    .join('');
+  const dots = t.help.slides.map((_, i) => `<button type="button" class="dot" aria-label="${t.help.slideOf(i + 1, total)}" data-i="${i}"></button>`).join('');
+  return (
+    `<div class="card guide">${closeButton}<h2 id="help-title">${t.help.title}</h2>` +
+    `<div class="track">${slides}</div>` +
+    `<div class="dots">${dots}</div>` +
+    `<div class="nav"><button type="button" class="match-btn back"><span class="cap">${t.help.back}</span></button>` +
+    `<button type="button" class="match-btn go"><span class="cap">${t.help.next}</span></button></div></div>`
+  );
+}
+
+/** The symbols manual: every shape, what it does, and where fire and water get charged. */
+function symbols() {
   const rand = random();
   const shapes = SHAPES.map(
     (s) =>
@@ -135,39 +178,33 @@ function content() {
       '</li>',
   ).join('');
   return (
-    `<div class="card"><h2 id="help-title">${t.help.title}</h2>` +
-    '<ol class="steps">' +
-    `<li><span class="pair">${fig('', tapIcon(rand))}</span><span>${t.help.move}</span></li>` +
-    `<li><span class="pair">${fig('', drawIcon(rand))}${arrow}${fig('square', shapeIcon('square'))}</span><span>${t.help.draw}</span></li>` +
-    `<li><span class="pair">${fig('square selected', shapeIcon('square'))}${arrow}${fig('', targetIcon(rand))}</span><span>${t.help.use}</span></li>` +
-    '</ol>' +
-    `<h3>${t.help.shapesTitle}</h3>` +
-    `<ul class="shapes">${shapes}</ul>` +
-    `<div class="flow" aria-label="${t.help.fireFlow}">` +
-    `${fig('triangle', shapeIcon('triangle'))}${arrow}${fig('', flameIcon(rand))}${arrow}` +
-    `${fig('triangle charged', shapeIcon('triangle'))}${arrow}${fig('', targetIcon(rand))}</div>` +
-    `<p class="note">${t.help.fireNote}</p>` +
-    `<div class="flow" aria-label="${t.help.waterFlow}">` +
-    `${fig('triangleDown', shapeIcon('triangleDown'))}${arrow}${fig('', waterIcon(rand))}${arrow}` +
-    `${fig('triangleDown charged', shapeIcon('triangleDown'))}${arrow}${fig('', targetIcon(rand))}</div>` +
-    `<p class="note">${t.help.waterNote}</p>` +
-    `<h3>${t.help.runesTitle}</h3>` +
-    `<div class="runes"><span class="scene">${runesScene(rand)}</span>` +
-    `<span>${t.help.runes}<br><small>${t.help.runesBonus} · <span class="val-heal">${t.help.runesHeal}</span></small></span></div>` +
-    `<button type="button" class="match-btn go"><span class="cap">${t.help.go}</span></button></div>`
+    `<div class="card manual">${closeButton}<h2 id="help-title">${t.help.shapesTitle}</h2>` +
+    `<div class="scroll"><ul class="shapes">${shapes}</ul>` +
+    `<ul class="notes"><li><span class="src">${flameIcon(rand)}</span>${t.help.fireNote}</li>` +
+    `<li><span class="src">${waterIcon(rand)}</span>${t.help.waterNote}</li>` +
+    `<li><span class="src rune">✦</span>${t.help.runesNote}</li></ul></div>` +
+    `<div class="nav"><button type="button" class="match-btn back how"><span class="cap">${t.help.howTo}</span></button>` +
+    `<button type="button" class="match-btn go"><span class="cap">${t.help.ok}</span></button></div></div>`
   );
 }
 
 /**
- * How to play, as pictures: full screen on the first visit, then behind a "?" next to the gear.
- * The game holds still while it is open.
+ * Two cards behind two buttons next to the gear: "?" swipes through how to play (also shown on the
+ * first visit) and the book lists the symbols. The game holds still while either is open.
  */
 export function mountHelp() {
+  const rand = random();
   const button = document.createElement('button');
   button.type = 'button';
   button.id = 'help-btn';
   button.setAttribute('aria-label', t.help.button);
-  button.innerHTML = questionIcon(random());
+  button.innerHTML = questionIcon(rand);
+
+  const book = document.createElement('button');
+  book.type = 'button';
+  book.id = 'book-btn';
+  book.setAttribute('aria-label', t.help.symbolsButton);
+  book.innerHTML = bookIcon(rand);
 
   const overlay = document.createElement('div');
   overlay.id = 'help';
@@ -175,19 +212,52 @@ export function mountHelp() {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'help-title');
-  for (const node of [button, overlay]) for (const type of ['pointerdown', 'pointerup', 'pointermove']) node.addEventListener(type, (e) => e.stopPropagation());
-  document.body.append(button, overlay);
+  for (const node of [button, book, overlay]) for (const type of ['pointerdown', 'pointerup', 'pointermove']) node.addEventListener(type, (e) => e.stopPropagation());
+  document.body.append(book, button, overlay);
+
+  // Mobile browsers can lay fixed elements out under their own toolbars; size the card to what is actually visible.
+  const fit = () => overlay.style.setProperty('--seen', `${Math.round(visualViewport?.height ?? innerHeight)}px`);
+  visualViewport?.addEventListener('resize', fit);
+  addEventListener('resize', fit);
+  fit();
 
   let open = false;
-  const show = () => {
-    overlay.innerHTML = content(); // fresh brush jitter each time
-    overlay.querySelector('.go')!.addEventListener('click', hide);
+  const show = (page: 'guide' | 'symbols') => {
+    overlay.innerHTML = page === 'guide' ? guide() : symbols(); // fresh brush jitter each time
+    overlay.querySelector('.x')!.addEventListener('click', hide);
+    if (page === 'guide') wireSlides();
+    else {
+      overlay.querySelector('.go')!.addEventListener('click', hide);
+      overlay.querySelector('.how')!.addEventListener('click', () => show('guide'));
+    }
     overlay.hidden = false;
     open = true;
     void overlay.offsetWidth; // let the fade-in start from hidden
     overlay.classList.add('show');
     overlay.querySelector<HTMLButtonElement>('.go')!.focus({ preventScroll: true });
   };
+
+  function wireSlides() {
+    const track = overlay.querySelector<HTMLElement>('.track')!;
+    const dots = [...overlay.querySelectorAll<HTMLButtonElement>('.dot')];
+    const back = overlay.querySelector<HTMLButtonElement>('.back')!;
+    const next = overlay.querySelector<HTMLButtonElement>('.go')!;
+    const last = dots.length - 1;
+    let at = 0;
+    const go = (i: number) => track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+    const mark = () => {
+      at = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+      dots.forEach((d, i) => d.classList.toggle('on', i === at));
+      back.classList.toggle('hide', at === 0);
+      next.querySelector('.cap')!.textContent = at === last ? t.help.go : t.help.next;
+    };
+    track.addEventListener('scroll', mark, { passive: true });
+    dots.forEach((d, i) => d.addEventListener('click', () => go(i)));
+    back.addEventListener('click', () => go(at - 1));
+    next.addEventListener('click', () => (at === last ? hide() : go(at + 1)));
+    mark();
+  }
+
   function hide() {
     if (!open) return;
     open = false;
@@ -199,14 +269,18 @@ export function mountHelp() {
     (document.activeElement as HTMLElement | null)?.blur();
   }
 
-  button.addEventListener('click', show);
+  button.addEventListener('click', () => show('guide'));
+  book.addEventListener('click', () => show('symbols'));
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) hide();
   });
   addEventListener('keydown', (e) => {
-    if (open && e.key === 'Escape') hide();
+    if (!open) return;
+    if (e.key === 'Escape') hide();
+    const track = overlay.querySelector<HTMLElement>('.track');
+    if (track && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) track.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * track.clientWidth, behavior: 'smooth' });
   });
-  if (!seen()) show();
+  if (!seen()) show('guide');
 
   return {
     get open() {

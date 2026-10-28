@@ -401,7 +401,9 @@ canvas.addEventListener('touchstart', claimTouch, { passive: false });
 canvas.addEventListener('touchmove', claimTouch, { passive: false });
 const canScroll = (t: EventTarget | null) => {
   for (let el = t instanceof Element ? t : null; el; el = el.parentElement) {
-    if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)) return true;
+    const style = getComputedStyle(el);
+    if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(style.overflowY)) return true;
+    if (el.scrollWidth > el.clientWidth && /auto|scroll/.test(style.overflowX)) return true;
   }
   return false;
 };
