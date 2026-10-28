@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- App icon (home screen, install, maskable): the transmutation circle on Bruma teal, full bleed. -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="34%" r="78%">
+      <stop offset="0" stop-color="#55756f"/>
+      <stop offset="1" stop-color="#2c403d"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffd27a" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#ffd27a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="262" r="120" fill="url(#glow)"/>
+  <g fill="none" stroke="#eef3ee" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="256" cy="262" r="196" stroke-width="7" stroke-dasharray="34 20" opacity=".5"/>
+    <circle cx="256" cy="262" r="166" stroke-width="22"/>
+    <path d="M256 112 L386 337 L126 337 Z" stroke-width="20"/>
+  </g>
+  <g fill="#e8b04f">
+    <circle cx="256" cy="262" r="26"/>
+    <circle cx="256" cy="96" r="12"/>
+    <circle cx="400" cy="345" r="12"/>
+    <circle cx="112" cy="345" r="12"/>
+  </g>
+</svg>

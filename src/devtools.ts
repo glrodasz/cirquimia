@@ -1,7 +1,7 @@
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
 import { LOOK, setLook } from './look';
-import { formatNumber, LANG, setLang, t } from './i18n';
+import { formatNumber, langLink, t } from './i18n';
 
 const STORE = 'cirquimia.dev';
 
@@ -39,6 +39,16 @@ export function initialSeed(): string {
   return load().seed ?? randomSeed();
 }
 
+/** The gear is for developers only: it appears with ?dev or ?dev=true in the URL. */
+export const DEV = (() => {
+  try {
+    const value = new URLSearchParams(location.search).get('dev');
+    return value !== null && value !== 'false' && value !== '0';
+  } catch {
+    return false;
+  }
+})();
+
 const GEAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, text = '') {
@@ -49,12 +59,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
 }
 
 /**
- * Floating gear (bottom right) that opens every development option: regenerate the meadow,
+ * Floating gear (bottom right, only with ?dev) that opens every development option: regenerate the meadow,
  * tweak the generator, see what it produced and what it costs.
  * The miniature toggle (#tilt) moves into the panel; the fps counter (#fps) floats bottom left, above the match controls, when its toggle is on.
  */
 export function mountDevTools(world: World, onGenerated: () => void) {
-  const saved = load();
+  // Without ?dev the tweaks saved by an earlier dev session are ignored, since nothing could turn them off.
+  const saved: Saved = DEV ? load() : {};
   world.params = { ...DEFAULT_PARAMS, ...saved.params };
 
   const gear = el('button', { id: 'dev-gear', type: 'button', 'aria-label': t.dev.title, 'aria-expanded': 'false' });
@@ -136,16 +147,13 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   }
   const langRow = el('div', { class: 'dev-row' });
   langRow.append(el('label', {}, t.dev.language));
-  for (const [lang, label] of [['es', 'Español'], ['en', 'English']] as const) {
-    const button = el('button', { type: 'button', class: 'dev-toggle', 'aria-pressed': String(LANG === lang) }, label);
-    button.addEventListener('click', () => LANG !== lang && setLang(lang));
-    langRow.append(button);
-  }
+  for (const lang of ['es', 'en'] as const) langRow.append(langLink(lang, 'dev-toggle'));
   view.append(lookRow, langRow, viewRow, fpsRow, debugRow, perfBox);
 
   panel.append(head, meadow, paramsSection, view);
   modal.append(panel);
-  document.body.append(gear, modal);
+  if (DEV) document.body.append(gear, modal);
+  document.documentElement.classList.toggle('dev', DEV);
 
   const stop = (e: Event) => e.stopPropagation();
   for (const node of [gear, modal]) {

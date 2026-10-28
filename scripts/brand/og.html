@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- The link preview card (1200×630). scripts/brand.mjs renders it once per language: og.html?lang=es -->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { width: 1200px; height: 630px; overflow: hidden; position: relative; font-family: Inter, system-ui, sans-serif; color: #1f2d27;
+    background: radial-gradient(ellipse at 78% 55%, #b9c9c4 0%, #d5dedb 45%, #e6ecea 100%); }
+  .rings { position: absolute; left: 928px; top: 300px; width: 620px; height: 620px; transform: translate(-50%, -50%); opacity: .22; }
+  .copy { position: absolute; left: 72px; top: 64px; width: 600px; display: flex; flex-direction: column; height: 502px; }
+  .brand { display: flex; align-items: center; gap: 18px; }
+  .brand img { width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 6px 16px rgba(31,45,39,.25); }
+  .brand span { font: 800 50px/1 Inter, sans-serif; letter-spacing: -.02em; color: #2c403d; }
+  h1 { margin: 42px 0 0; font: 800 60px/1.04 Inter, sans-serif; letter-spacing: -.025em; }
+  h1 em { font-style: normal; color: #b5761f; }
+  p { margin: 20px 0 0; font: 500 25px/1.38 Inter, sans-serif; color: #3a4a43; max-width: 560px; }
+  .foot { margin-top: auto; display: flex; align-items: center; gap: 22px; }
+  .shapes { display: flex; gap: 12px; }
+  .shapes svg { width: 40px; height: 40px; fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+  .cta { display: flex; align-items: center; height: 52px; padding: 0 22px; border-radius: 999px; background: #2c403d; color: #f1f5f2; font: 700 21px/1 Inter, sans-serif; white-space: nowrap; }
+  .url { position: absolute; right: 40px; bottom: 26px; font: 600 18px/1 Inter, sans-serif; color: #3a4a43; opacity: .75; }
+  .phone { position: absolute; left: 760px; top: 38px; width: 336px; height: 504px; border-radius: 38px; padding: 10px; background: #f6f8f7;
+    box-shadow: 0 30px 60px rgba(31,45,39,.35), 0 0 0 1px rgba(31,45,39,.08); transform: rotate(4deg); }
+  .phone img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 29px; }
+</style>
+</head>
+<body>
+  <svg class="rings" viewBox="0 0 200 200" fill="none" stroke="#2c403d" stroke-linecap="round">
+    <circle cx="100" cy="100" r="96" stroke-width=".6" stroke-dasharray="6 4" />
+    <circle cx="100" cy="100" r="84" stroke-width="1.2" />
+    <path d="M100 26 L164 137 L36 137 Z" stroke-width="1" />
+    <circle cx="100" cy="100" r="40" stroke-width=".6" />
+  </svg>
+  <div class="copy">
+    <div class="brand"><img src="../../public/icon-512.png" alt="" /><span>Cirquimia</span></div>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+    <div class="foot">
+      <div class="shapes">
+        <svg viewBox="0 0 40 40" stroke="#8a7454"><circle cx="20" cy="20" r="15" /></svg>
+        <svg viewBox="0 0 40 40" stroke="#3f6f8a"><rect x="6" y="6" width="28" height="28" rx="1.5" /></svg>
+        <svg viewBox="0 0 40 40" stroke="#c0562f"><path d="M20 5 L36 33 L4 33 Z" /></svg>
+        <svg viewBox="0 0 40 40" stroke="#3f8fb0"><path d="M4 7 L36 7 L20 35 Z" /></svg>
+        <svg viewBox="0 0 40 40" stroke="#4f7a52"><path d="M20 3 L35 20 L20 37 L5 20 Z" /></svg>
+        <svg viewBox="0 0 40 40" stroke="#6a4f8a"><path d="M20 3 L30 34 L4 15 L36 15 L10 34 Z" /></svg>
+      </div>
+    </div>
+  </div>
+  <div class="phone"><img src="game.jpg" alt="" /></div>
+  <div class="url">cirquimia.pages.dev</div>
+  <script>
+    const copy = {
+      en: { title: 'Draw symbols.<br><em>Cast spells.</em>', sub: 'Duel rival alchemists in a miniature meadow. Attack, defend and heal with your finger.', cta: 'Play free on your phone' },
+      es: { title: 'Dibuja símbolos.<br><em>Lanza hechizos.</em>', sub: 'Bátete en duelo con alquimistas rivales en una pradera en miniatura. Ataca, defiéndete y cúrate con el dedo.', cta: 'Juega gratis en el móvil' },
+    };
+    const lang = new URLSearchParams(location.search).get('lang') === 'es' ? 'es' : 'en';
+    const c = copy[lang];
+    document.documentElement.lang = lang;
+    document.getElementById('title').innerHTML = c.title;
+    document.getElementById('sub').textContent = c.sub;
+    const cta = document.createElement('div');
+    cta.className = 'cta';
+    cta.textContent = c.cta;
+    document.querySelector('.foot').append(cta);
+  </script>
+</body>
+</html>

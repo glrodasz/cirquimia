@@ -1,45 +1,56 @@
 /**
  * Every player-facing string, in Spanish and English.
- * The language comes from ?lang=es|en, then the last choice, then the browser: Spanish if the
- * browser prefers it, English otherwise. Switching reloads the page, like the look does.
+ * The URL decides the language: / is English, /es is Spanish. On the first visit to /, the edge
+ * (functions/_middleware.ts) sends the player to their saved choice or their browser's language.
  */
-export type Lang = 'es' | 'en';
+import { LANGUAGE_NAMES, LOCALE_COOKIE, isLocale, localePrefix, pageLocale, readCookie, switchLocalePath, type Locale } from './locale';
+import { persistLocale } from './persistLocale';
 
-const STORE = 'cirquimia.lang';
-const isLang = (v: unknown): v is Lang => v === 'es' || v === 'en';
+export type Lang = Locale;
 
-function pick(): Lang {
-  try {
-    const fromUrl = new URLSearchParams(location.search).get('lang');
-    if (isLang(fromUrl)) return fromUrl;
-  } catch {
-    // ignore
-  }
-  try {
-    const stored = localStorage.getItem(STORE);
-    if (isLang(stored)) return stored;
-  } catch {
-    // Blocked storage: fall back to the browser.
-  }
-  const preferred = typeof navigator === 'undefined' ? [] : navigator.languages?.length ? navigator.languages : [navigator.language];
-  for (const tag of preferred) {
-    const base = tag?.toLowerCase().split('-')[0];
-    if (isLang(base)) return base;
-  }
-  return 'en';
+export const LANG: Lang = typeof location === 'undefined' ? 'en' : pageLocale(location.pathname);
+
+/** The counterpart of this page in another language, keeping ?seed, ?look and the like. */
+export function langHref(lang: Lang) {
+  return switchLocalePath(location.pathname, lang) + location.search + location.hash;
 }
 
-export const LANG: Lang = pick();
+/** A real link to the other language: crawlable, and it remembers the choice when followed. */
+export function langLink(lang: Lang, className: string, label = LANGUAGE_NAMES[lang]) {
+  const link = document.createElement('a');
+  link.className = className;
+  link.href = langHref(lang);
+  link.hreflang = lang;
+  link.lang = lang;
+  link.textContent = label;
+  link.setAttribute('aria-label', strings[lang].switchLanguage);
+  if (lang === LANG) link.setAttribute('aria-current', 'page');
+  link.addEventListener('click', () => persistLocale(lang));
+  return link;
+}
 
-export function setLang(lang: Lang) {
-  try {
-    localStorage.setItem(STORE, lang);
-  } catch {
-    // Storage may be blocked; the URL below still carries the choice.
-  }
+// Before the URL path carried the language, the choice lived in ?lang= and localStorage; move it to the cookie once.
+const LEGACY_STORE = 'cirquimia.lang';
+try {
   const url = new URL(location.href);
-  url.searchParams.set('lang', lang);
-  location.replace(url);
+  const fromQuery = url.searchParams.get('lang');
+  if (isLocale(fromQuery)) {
+    persistLocale(fromQuery);
+    localStorage.removeItem(LEGACY_STORE);
+    url.searchParams.delete('lang');
+    url.pathname = switchLocalePath(url.pathname, fromQuery);
+    location.replace(url);
+  }
+  const legacy = localStorage.getItem(LEGACY_STORE);
+  if (isLocale(legacy)) {
+    localStorage.removeItem(LEGACY_STORE);
+    if (!readCookie(document.cookie, LOCALE_COOKIE)) {
+      persistLocale(legacy);
+      if (legacy !== LANG && !localePrefix(location.pathname)) location.replace(langHref(legacy));
+    }
+  }
+} catch {
+  // Blocked storage or no DOM: nothing to migrate.
 }
 
 type Line = [title: string, body: string];
@@ -52,6 +63,7 @@ interface Lesson {
 
 const es = {
   title: 'Cirquimia',
+  switchLanguage: 'Cambiar a español',
   difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' },
   match: {
     toolbar: 'Partida',
@@ -183,6 +195,7 @@ export type Strings = typeof es;
 
 const en: Strings = {
   title: 'Cirquimia',
+  switchLanguage: 'Switch to English',
   difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard' },
   match: {
     toolbar: 'Match',
@@ -310,7 +323,8 @@ const en: Strings = {
   },
 };
 
-export const t: Strings = LANG === 'es' ? es : en;
+const strings: Record<Lang, Strings> = { es, en };
+export const t: Strings = strings[LANG];
 
 /** Numbers formatted for the current language. */
 export const formatNumber = (n: number) => n.toLocaleString(LANG);

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { BODY_RADIUS, Character } from './character';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { PILLAR_AREA, PILLAR_WARN, STAR_REACH, STAR_STAGGER, starTips, type Element, type Spells } from './spells';
+import { PILLAR_AREA, PILLAR_WARN, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
 import { t } from './i18n';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35.
@@ -51,15 +51,23 @@ interface Tuning {
   draw: number;
   /** Seconds kept between two rivals' strikes at the alchemist, so they do not land together. */
   stagger: number;
+  /** Chance of raising a wall (circle) against an incoming strike instead of stepping out of it. */
+  guard: number;
+  /** Chance of opening an attack turn with a wall, to strike from inside it where nobody else's strikes reach. */
+  fortress: number;
+  /** Seconds between two walls of the same rival. */
+  wallCooldown: number;
+  /** Strikes right away from inside a fresh wall, while it protects its caster. */
+  counter: boolean;
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0 },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0 },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false },
+  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false },
   // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
-  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1 },
+  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true },
   // Hard pushed further (quicker, sharper, readier to dodge) yet the warning still leaves time to step out.
-  experto: { speed: 1.5, cooldown: [2.3, 3], warn: 0.58, aimError: 0.09, lead: 0.55, dodge: 0.6, reaction: 0.1, elemental: 0.55, heal: 0.4, columns: 0.15, draw: 0.6, stagger: 0.8 },
+  experto: { speed: 1.5, cooldown: [2.3, 3], warn: 0.58, aimError: 0.09, lead: 0.55, dodge: 0.6, reaction: 0.1, elemental: 0.55, heal: 0.4, columns: 0.15, draw: 0.6, stagger: 0.8, guard: 0.5, fortress: 0.4, wallCooldown: 4.5, counter: true },
 };
 
 // Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
@@ -77,6 +85,11 @@ const projected = new THREE.Vector3();
 const HERO_SKETCH = 0.35;
 // A rival keeps its freshly drawn symbol this long before casting it, so everyone can read what is coming.
 const RIVAL_HOLD = 0.5;
+// A rival's wall goes up as soon as its circle is drawn, as the player's does, so a planned one only needs drawing.
+// One raised against a strike already on its way is drawn in a hurry and only echoed over its head, like the player's.
+const WALL_SKETCH = 0.35;
+// A rival only opens with a wall when its foe is this close: far off, the wall is not worth the turn.
+const FORTRESS_RANGE = 2.6;
 // The shapes drawn over a fighter's head when it stores a symbol, in a 40×40 box; every path starts where a hand would.
 export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus';
 const SKETCH_PATH: Record<Sketch, string> = {
@@ -241,7 +254,7 @@ class Fighter {
   }
 }
 
-type Plan = { kind: 'heal' } | { kind: 'charge'; element: Fluid } | { kind: 'strike'; element: Element };
+type Plan = { kind: 'heal' } | { kind: 'wall' } | { kind: 'charge'; element: Fluid } | { kind: 'strike'; element: Element };
 const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
   earth: 'square',
   columns: 'pentagram',
@@ -249,6 +262,8 @@ const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
   water: 'triangleDown',
   heal: 'rhombus',
 };
+const sketchFor = (plan: Plan): Sketch =>
+  plan.kind === 'wall' ? 'circle' : SKETCH_FOR[plan.kind === 'heal' ? 'heal' : plan.element];
 
 /** An opposing alchemist: picks someone to fight, circles them, strikes with warnings and steps out of incoming ones. */
 class Rival extends Fighter {
@@ -263,6 +278,9 @@ class Rival extends Fighter {
   /** The spell being drawn (then held a moment once stored), and how long until it is cast. */
   private plan: Plan | null = null;
   private planTimer = 0;
+  /** Seconds until it may raise another wall, and how long the one it stands in still protects it. */
+  private wallTimer = 0;
+  private walled = 0;
 
   constructor(
     obstacles: Obstacle[],
@@ -273,9 +291,17 @@ class Rival extends Fighter {
     this.attackTimer = THREE.MathUtils.randFloat(1.5, 2.5);
   }
 
-  /** A strike is coming down near this rival; maybe step out of it after a short reaction. */
-  threatened(at: THREE.Vector3) {
+  /** A strike is coming down near this rival; maybe raise a wall against it, or step out of it after a short reaction. */
+  threatened(at: THREE.Vector3, from: THREE.Vector3, combat: Combat) {
     if (Math.hypot(at.x - this.position.x, at.z - this.position.z) > HIT_RADIUS + 0.1) return;
+    // Fallen, or already inside its own wall where nothing reaches it.
+    if (this.down || this.walled > 0) return;
+    // Hands free (not halfway through drawing another spell): a quick circle stops it where it stands.
+    if (!this.plan && this.wallTimer <= 0 && Math.random() < this.tuning.guard) {
+      this.drawSketch('circle', WALL_SKETCH);
+      this.raiseWall(from, combat);
+      return;
+    }
     if (Math.random() >= this.tuning.dodge) return;
     this.dodgeTimer = this.tuning.reaction;
     this.dodgeFrom.copy(at);
@@ -298,7 +324,10 @@ class Rival extends Fighter {
     const foe = this.foe!;
     const target = foe.position;
 
-    if (this.dodgeTimer >= 0 && (this.dodgeTimer -= dt) < 0) {
+    this.wallTimer -= dt;
+    this.walled -= dt;
+
+    if (this.dodgeTimer >= 0 && (this.dodgeTimer -= dt) < 0 && this.walled <= 0) {
       // Step straight out of the warning, a little past its edge.
       let dx = pos.x - this.dodgeFrom.x;
       let dz = pos.z - this.dodgeFrom.z;
@@ -318,7 +347,7 @@ class Rival extends Fighter {
 
     // Wander around its foe at mid range, re-picking a spot every few seconds.
     this.moveTimer -= dt;
-    if (this.moveTimer <= 0 && !this.body.moving) {
+    if (this.moveTimer <= 0 && !this.body.moving && this.walled <= 0) {
       this.moveTimer = THREE.MathUtils.randFloat(2.5, 4);
       for (let i = 0; i < 8; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -343,10 +372,11 @@ class Rival extends Fighter {
     this.attackTimer -= dt;
     if (this.attackTimer > 0) return;
     this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
-    const plan = this.choose(combat);
+    const plan = this.choose(combat, foe);
     // Fire or water fetched earlier is already stored: no new shape to draw before casting it.
     const drawn = !(plan.kind === 'strike' && this.charged);
-    const delay = drawn ? this.tuning.draw + RIVAL_HOLD : 0;
+    // A wall goes up the moment its circle is finished; every other symbol is held a moment first.
+    const delay = drawn ? this.tuning.draw + (plan.kind === 'wall' ? 0 : RIVAL_HOLD) : 0;
     // Two rivals never bring their strikes down on the alchemist together: the later one waits a moment.
     if (plan.kind === 'strike' && !combat.book(foe, delay, plan.element === 'columns' ? STAR_STAGGER * 4 : 0, this.tuning.stagger)) {
       this.attackTimer = THREE.MathUtils.randFloat(0.4, 0.8);
@@ -358,13 +388,15 @@ class Rival extends Fighter {
     }
     this.plan = plan;
     this.planTimer = delay;
-    this.drawSketch(SKETCH_FOR[plan.kind === 'strike' ? plan.element : plan.kind === 'charge' ? plan.element : 'heal'], this.tuning.draw);
+    this.drawSketch(sketchFor(plan), this.tuning.draw);
   }
 
-  /** What to do this turn: heal when hurt, sometimes fetch fire or water first, otherwise strike. */
-  private choose(combat: Combat): Plan {
+  /** What to do this turn: heal when hurt, sometimes open with a wall or fetch fire or water first, otherwise strike. */
+  private choose(combat: Combat, foe: Fighter): Plan {
     // Hurt rivals sometimes spend the turn on a rhombus instead.
     if (this.hp <= 50 && Math.random() < this.tuning.heal) return { kind: 'heal' };
+    const near = foe.position.distanceTo(this.position) < FORTRESS_RANGE;
+    if (this.wallTimer <= 0 && this.walled <= 0 && near && Math.random() < this.tuning.fortress) return { kind: 'wall' };
     // Fire and water have to be drawn from a source on the map first, like the player does; that takes this turn.
     if (!this.charged && Math.random() < this.tuning.elemental) {
       const order: Fluid[] = Math.random() < 0.5 ? ['fire', 'water'] : ['water', 'fire'];
@@ -374,7 +406,24 @@ class Rival extends Fighter {
     return { kind: 'strike', element: this.charged ?? (Math.random() < this.tuning.columns ? 'columns' : 'earth') };
   }
 
+  /** Raises a wall facing `toward` and stands still inside it; on harder levels it strikes out of it right away. */
+  private raiseWall(toward: THREE.Vector3, combat: Combat) {
+    this.body.setTarget(this.position);
+    this.body.face(toward);
+    this.body.cast();
+    combat.wallFrom(this, toward);
+    this.dodgeTimer = -1;
+    this.walled = WALL_UP;
+    this.moveTimer = WALL_UP;
+    this.wallTimer = this.tuning.wallCooldown;
+    if (this.tuning.counter) this.attackTimer = Math.min(this.attackTimer, 0.1);
+  }
+
   private act(plan: Plan, foe: Fighter, combat: Combat, dt: number) {
+    if (plan.kind === 'wall') {
+      this.raiseWall(foe.position, combat);
+      return;
+    }
     if (plan.kind === 'heal') {
       this.charged = null; // one symbol at a time: the rhombus replaces fire or water in hand
       this.body.cast();
@@ -487,7 +536,12 @@ export class Combat {
 
   /** The alchemist raises a wall; its protected zone shows in the alchemist's ink. */
   wall(toward: THREE.Vector3) {
-    this.spells.wall(this.hero.position, toward, this.hero.ink, this.hero);
+    this.wallFrom(this.hero, toward);
+  }
+
+  /** A wall around `caster`, facing `toward`: nobody else's strikes break out inside its zone while it stands. */
+  wallFrom(caster: Fighter, toward: THREE.Vector3) {
+    this.spells.wall(caster.position, toward, caster.ink, caster);
   }
 
   /** The alchemist strikes a point. A sure strike gives rivals no chance to step out of it. */
@@ -576,7 +630,7 @@ export class Combat {
       return;
     }
     this.spells.pillars(caster.position, at, element, caster, warn, caster.ink, scale);
-    if (!sure) for (const r of this.rivals) if (r !== caster) r.threatened(at);
+    if (!sure) for (const r of this.rivals) if (r !== caster) r.threatened(at, caster.position, this);
   }
 
   /** Puts fresh rivals on screen around the alchemist, everyone at full health. */
