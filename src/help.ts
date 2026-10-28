@@ -67,30 +67,17 @@ function arrowLine(points: Pt[], dashes: number, rand: () => number) {
   return parts.map((l) => brushPath(l, 3.4, rand).ink).join('');
 }
 
-/** A slot from the top bar, dropped onto a screenshot; a charged one glows like its source. */
-function slot(kind: ShapeKind, x: number, y: number, size: number, extra = '', glow = '') {
-  const r = size / 2;
-  return (
-    `<circle class="disc ${glow}" cx="${x + r}" cy="${y + r}" r="${r * 0.96}"/>` +
-    shapeIcon(kind).replace('<svg ', `<svg class="mini ${kind}${extra}" x="${x}" y="${y}" width="${size}" height="${size}" `)
-  );
-}
-const GLOWS =
-  '<defs><radialGradient id="help-fire"><stop offset="0" stop-color="#ffcf7a"/><stop offset=".55" stop-color="#f08a3a" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity=".85"/></radialGradient>' +
-  '<radialGradient id="help-water"><stop offset="0" stop-color="#d9ecef"/><stop offset=".55" stop-color="#7fb3c2" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity=".85"/></radialGradient></defs>';
-
-/** Hands, arrows and slots drawn over each screenshot, in the screenshot's own 312×234 frame. */
+/** Hands, arrows and strokes drawn over each screenshot, in the screenshot's own 312×234 frame. */
 const OVERLAYS: Array<(rand: () => number) => string> = [
   (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4),
   (rand) => `<path class="arrow" d="${arrowLine([[206, 112], [204, 84], [186, 64]], 0, rand)}"/>` + hand(121, 200, 1.4, false),
   () => hand(132, 112, 1.4),
+  // The triangles drawn right over the campfire and the lagoon, the hand finishing each stroke.
   (rand) =>
-    slot('triangle', 70, 128, 38, '', 'fire') +
-    `<path class="arrow" d="${arrowLine([[78, 168], [62, 180]], 0, rand)}"/>` +
-    hand(46, 186, 1.2) +
-    slot('triangleDown', 196, 128, 38, '', 'water') +
-    `<path class="arrow" d="${arrowLine([[226, 128], [242, 108]], 0, rand)}"/>` +
-    hand(262, 92, 1.2),
+    stroke(poly([[47, 158], [70, 199], [24, 199], [47, 158], [52, 166]]), 3.6, 'ink fire', rand).ink +
+    hand(52, 166, 1.2, false) +
+    stroke(poly([[232, 66], [282, 66], [257, 110], [232, 66], [240, 66]]), 3.6, 'ink water', rand).ink +
+    hand(240, 66, 1.2, false),
   () => `<g class="badge"><rect x="140" y="160" width="64" height="26" rx="13"/><text x="172" y="178">+25%</text></g>`,
 ];
 const SHOTS = [moveShot, drawShot, useShot, chargeShot, runesShot];
@@ -149,7 +136,7 @@ function guide() {
       ([title, text], i) =>
         `<section class="slide" aria-label="${t.help.slideOf(i + 1, total)}">` +
         `<div class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
-        `<svg viewBox="0 0 312 234" aria-hidden="true">${i === 3 ? GLOWS : ''}${OVERLAYS[i](rand)}</svg></div>` +
+        `<svg viewBox="0 0 312 234" aria-hidden="true">${OVERLAYS[i](rand)}</svg></div>` +
         `<h3><span class="num">${i + 1}</span>${title}</h3><p>${text}</p></section>`,
     )
     .join('');

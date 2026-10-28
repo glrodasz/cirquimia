@@ -353,12 +353,11 @@ function tapAt(clientX: number, clientY: number) {
 function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   const drawnAt = new THREE.Vector3();
   if (!groundAt(cx, cy, drawnAt)) drawnAt.copy(hero.root.position);
-  // The lessons walk through the bar step by step, so while one runs every shape is just held.
-  if (!tutorial.active) {
-    if (kind === 'circle' || kind === 'rhombus') {
-      castShape(kind, combat.foe() ?? drawnAt);
-      return;
-    }
+  if (kind === 'circle' || kind === 'rhombus') {
+    if (tutorial.aim()) hero.setTarget(hero.root.position); // the lesson's wall must keep the alchemist inside
+    castShape(kind, combat.foe() ?? drawnAt);
+    tutorial.cast();
+    return;
   }
   ammo.add(kind, cx, cy);
   ammo.select(ammo.slotOf(kind));

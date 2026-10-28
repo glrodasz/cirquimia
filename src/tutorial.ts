@@ -120,11 +120,6 @@ export class Tutorial {
     return this.lesson !== null && this.step !== 'watch';
   }
 
-  /** True while a lesson is under way. */
-  get active() {
-    return this.lesson !== null;
-  }
-
   /** Whether a stroke on the map counts as drawing right now. */
   get canDraw() {
     return this.lesson === null || this.step === 'draw';
