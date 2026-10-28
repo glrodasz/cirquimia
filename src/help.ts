@@ -88,11 +88,11 @@ function drop(tipY: number, cls: string, rand: () => number) {
   return stroke(poly([[24, tipY], belly[0]]).concat(belly, poly([belly[belly.length - 1], [24, tipY]])), 3.4, cls, rand);
 }
 
-function flameIcon(rand: () => number) {
+export function flameIcon(rand: () => number) {
   return svg([drop(10, 'fire', rand), stroke(poly([[24, 23], [21.5, 30], [24, 33.5], [26.5, 30], [24, 23]]), 2.4, 'fire', rand)], rand);
 }
 
-function waterIcon(rand: () => number) {
+export function waterIcon(rand: () => number) {
   return svg([drop(12, 'water', rand), stroke(arc(24, 29, 4.5, Math.PI * 0.6, Math.PI * 0.95), 2, 'water', rand)], rand);
 }
 
