@@ -83,12 +83,7 @@ const GLOWS =
 const OVERLAYS: Array<(rand: () => number) => string> = [
   (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4),
   (rand) => `<path class="arrow" d="${arrowLine([[206, 112], [204, 84], [186, 64]], 0, rand)}"/>` + hand(121, 200, 1.4, false),
-  (rand) =>
-    `<rect class="bar" x="4" y="4" width="54" height="54" rx="27"/>` +
-    slot('square', 7, 7, 48, ' selected') +
-    `<path class="arrow" d="${arrowLine([[62, 36], [92, 52], [108, 76]], 0, rand)}"/>` +
-    hand(42, 44, 1.1) +
-    hand(132, 112, 1.4),
+  () => hand(132, 112, 1.4),
   (rand) =>
     slot('triangle', 70, 128, 38, '', 'fire') +
     `<path class="arrow" d="${arrowLine([[78, 168], [62, 180]], 0, rand)}"/>` +

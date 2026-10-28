@@ -76,7 +76,7 @@ function arrowSvg() {
 }
 
 /**
- * The first match, walked through: draw a square, find it in the bar, pick it, tap the rival (a sure hit).
+ * The first match, walked through: draw a square, which arrives in hand, then tap the rival (a sure hit).
  * The first time the alchemist is hit, the same for the circle, and the rival's next strike breaks on the wall.
  * The game holds still while a lesson waits on the player.
  */
@@ -139,7 +139,7 @@ export class Tutorial {
   drawn(kind: ShapeKind | null) {
     if (!this.lesson || this.step !== 'draw') return true;
     if (kind === this.lesson) {
-      this.go('pick');
+      this.go('aim'); // the new shape arrives in hand; 'pick' only comes back if it is put away
       return true;
     }
     this.hint(WRONG[this.lesson]);

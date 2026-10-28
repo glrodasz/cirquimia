@@ -18,7 +18,6 @@ import type { Kind } from './generator';
 import { GLADE } from './look';
 import { Bloom } from './glade';
 import { t } from './i18n';
-import { castMode } from './castMode';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -304,8 +303,7 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
 function chargeAt(at: THREE.Vector3, element: 'fire' | 'water') {
   const source = sourceAt(at, element);
   if (!source) return false;
-  // With the bar the slot lets go; with the shape in hand it stays picked, ready for the target.
-  ammo.charge(castMode === 'barra');
+  ammo.charge();
   hero.face(source);
   spells.channel(source, hero.root.position, element);
   return true;
@@ -325,7 +323,7 @@ function tapAt(clientX: number, clientY: number) {
   }
   const selected = ammo.selection();
   if (selected) {
-    if (castMode !== 'barra' && !lesson) {
+    if (!lesson) {
       const self = hero.root.position.clone().setY(hero.root.position.y + 0.3).project(camera);
       const sx = ((self.x + 1) / 2) * innerWidth;
       const sy = ((1 - self.y) / 2) * innerHeight;
@@ -349,9 +347,8 @@ function tapAt(clientX: number, clientY: number) {
 }
 
 /**
- * A recognized stroke outside the classic bar flow. Circles and rhombi need no target, so they go off at once
- * (the wall faces the nearest rival). With 'dibujo' squares and stars land where they were drawn. Everything
- * else is held in hand (the newest slot, picked) for the next tap; a triangle drawn over its source comes charged.
+ * A recognized stroke. Circles and rhombi need no target, so they go off at once (the wall faces the nearest rival).
+ * Everything else is held in hand (its new slot, picked) for the next tap; a triangle drawn over its source comes charged.
  */
 function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   const drawnAt = new THREE.Vector3();
@@ -360,10 +357,6 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   if (!tutorial.active) {
     if (kind === 'circle' || kind === 'rhombus') {
       castShape(kind, combat.foe() ?? drawnAt);
-      return;
-    }
-    if (castMode === 'dibujo' && (kind === 'square' || kind === 'pentagram')) {
-      castShape(kind, drawnAt);
       return;
     }
   }
@@ -420,8 +413,7 @@ canvas.addEventListener('pointerup', (e) => {
   }
   if (shape) {
     ink.end(shape);
-    if (castMode === 'barra') ammo.add(shape.kind, shape.cx, shape.cy);
-    else useDrawn(shape.kind, shape.cx, shape.cy);
+    useDrawn(shape.kind, shape.cx, shape.cy);
   } else {
     ink.end(null);
     // With a circle selected, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.

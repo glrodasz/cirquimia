@@ -81,9 +81,9 @@ const es = {
     title: 'Cómo jugar',
     slides: [
       ['Muévete', 'Toca el suelo y el alquimista <b>camina</b> hasta allí.'],
-      ['Dibuja un símbolo', 'Traza la forma con el dedo: se <b>guarda arriba</b>.'],
-      ['Lánzalo', 'Toca el símbolo guardado y luego al <b>rival</b>.'],
-      ['Fuego y agua', 'Toca el triángulo y luego una <b>fogata</b>, o el triángulo invertido y una <b>laguna</b>, para cargarlos.'],
+      ['Dibuja un símbolo', 'Traza la forma con el dedo: queda <b>lista en tu mano</b>. El muro y la cura salen al instante.'],
+      ['Lánzalo', 'Toca al <b>rival</b> y el ataque sale ahí. Toca al alquimista para guardarlo arriba.'],
+      ['Fuego y agua', 'Dibuja el triángulo sobre una <b>fogata</b>, o el triángulo invertido sobre una <b>laguna</b>, para cargarlos.'],
       ['Runas', 'Lanza desde un <b>círculo de runas</b> y tu poder aumenta: +25% de área, curación 33.'],
     ],
     slideOf: (n: number, total: number) => `Paso ${n} de ${total}`,
@@ -105,7 +105,7 @@ const es = {
   },
   tutorial: {
     square: {
-      draw: ['Dibuja un cuadrado', 'Un cuadrado crea una munición de ataque de tierra para usarla luego.'],
+      draw: ['Dibuja un cuadrado', 'Un cuadrado crea un ataque de tierra.'],
       pick: ['Quedó guardado aquí', 'Toca el cuadrado para prepararlo.'],
       aim: ['Toca al rival', 'El ataque de tierra sale justo donde toques.'],
       watch: '¡Golpe!',
@@ -223,9 +223,9 @@ const en: Strings = {
     title: 'How to play',
     slides: [
       ['Move', 'Tap the ground and the alchemist <b>walks</b> there.'],
-      ['Draw a symbol', 'Trace the shape with your finger: it is <b>stored at the top</b>.'],
-      ['Cast it', 'Tap the stored symbol, then the <b>rival</b>.'],
-      ['Fire and water', 'Tap the triangle, then a <b>campfire</b>, or the inverted triangle, then a <b>lagoon</b>, to charge them.'],
+      ['Draw a symbol', 'Trace the shape with your finger: it is <b>ready in your hand</b>. Walls and heals go off at once.'],
+      ['Cast it', 'Tap the <b>rival</b> and the attack lands there. Tap the alchemist to store it at the top.'],
+      ['Fire and water', 'Draw the triangle over a <b>campfire</b>, or the inverted triangle over a <b>lagoon</b>, to charge them.'],
       ['Runes', 'Cast from a <b>rune circle</b> and your power grows: +25% area, healing 33.'],
     ],
     slideOf: (n: number, total: number) => `Step ${n} of ${total}`,
@@ -247,7 +247,7 @@ const en: Strings = {
   },
   tutorial: {
     square: {
-      draw: ['Draw a square', 'A square makes an earth attack you can use later.'],
+      draw: ['Draw a square', 'A square makes an earth attack.'],
       pick: ['It was stored here', 'Tap the square to get it ready.'],
       aim: ['Tap the rival', 'The earth attack bursts out right where you tap.'],
       watch: 'Hit!',

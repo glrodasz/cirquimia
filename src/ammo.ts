@@ -164,9 +164,9 @@ export function shapeIcon(kind: ShapeKind): string {
 const LABELS: Record<ShapeKind, string> = t.shapes;
 
 /**
- * Stored shapes along the top of the screen. Tap one, then tap the map to use it.
- * Triangles take two rounds: tap the slot and a fire or water source to charge it (the slot lets go),
- * then tap the charged slot again and the target.
+ * Stored shapes along the top of the screen. A freshly drawn shape arrives picked (held in hand), so the next
+ * tap on the map uses it; older ones wait here until tapped. Triangles are charged from a fire or water source
+ * first (drawn over it, or by tapping it), then cast at the target.
  */
 export class AmmoBar {
   private readonly bar = document.createElement('div');
@@ -247,15 +247,11 @@ export class AmmoBar {
     return slot ? { kind: slot.dataset.kind as ShapeKind, charged: slot.classList.contains('charged') } : null;
   }
 
-  /**
-   * Marks the selected slot as charged and, unless kept, lets go of it, so the next tap on the ground walks.
-   * Tapping the charged slot again picks it up to cast.
-   */
-  charge(release = true) {
+  /** Marks the selected slot as charged; it stays picked, so the next tap casts it. */
+  charge() {
     const slot = this.selected;
     if (!slot) return;
     slot.classList.add('charged');
-    if (release) this.select(null);
     slot.animate([{ transform: 'translateY(8px) scale(1.3)' }, { transform: 'translateY(0) scale(1)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
   }
 
