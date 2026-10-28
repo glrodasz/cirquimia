@@ -412,6 +412,7 @@ canvas.addEventListener('pointerup', (e) => {
   }
   if (shape) {
     ink.end(shape);
+    combat.stored(shape.kind);
     useDrawn(shape.kind, shape.cx, shape.cy);
   } else {
     ink.end(null);
