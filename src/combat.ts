@@ -47,7 +47,7 @@ interface Tuning {
   heal: number;
   /** Chance of an earth attack being the pentagram's columns (10) instead of the square's pillars (20). */
   columns: number;
-  /** Seconds spent drawing the shape over its head before the spell goes off, as the player has to draw too. */
+  /** Seconds spent drawing a spell's shape over its head before storing it, as the player has to draw too. */
   draw: number;
   /** Seconds kept between two rivals' strikes at the alchemist, so they do not land together. */
   stagger: number;
@@ -73,9 +73,11 @@ const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9
 
 const projected = new THREE.Vector3();
 
-// The alchemist's own cast flashes its shape quickly, as an echo of what the player drew.
-const HERO_SKETCH = 0.3;
-// The shapes drawn over a fighter's head when it casts, in a 40×40 box; every path starts where a hand would.
+// The alchemist's stored symbol is traced quickly over its head, as an echo of what the player just drew.
+const HERO_SKETCH = 0.35;
+// A rival keeps its freshly drawn symbol this long before casting it, so everyone can read what is coming.
+const RIVAL_HOLD = 0.5;
+// The shapes drawn over a fighter's head when it stores a symbol, in a 40×40 box; every path starts where a hand would.
 export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus';
 const SKETCH_PATH: Record<Sketch, string> = {
   circle: 'M20 5 A15 15 0 1 1 19.9 5',
@@ -92,7 +94,7 @@ class Fighter {
   hp = MAX_HP;
   private readonly bar = document.createElement('div');
   private readonly fill = document.createElement('div');
-  /** The shape being drawn over its head, traced in its ink while it gets a spell ready. */
+  /** The symbol it just stored, traced over its head in its ink so others can tell what it holds. */
   private readonly sketch = document.createElementNS(SVG_NS, 'svg');
   private readonly sketchPath = document.createElementNS(SVG_NS, 'path');
   /** Position on the previous frame, to tell where it is heading. */
@@ -125,16 +127,15 @@ class Fighter {
     document.body.append(this.sketch);
   }
 
-  /** Starts tracing `shape` over the head, finishing in `seconds`; a brief one fades away by itself once traced. */
-  drawSketch(shape: Sketch, seconds: number, brief = false) {
+  /** Traces `shape` over the head in `seconds`; it lingers a moment once finished, then fades away. */
+  drawSketch(shape: Sketch, seconds: number) {
     if (this.down) return;
     this.sketchPath.setAttribute('d', SKETCH_PATH[shape]);
     this.sketch.style.setProperty('--draw', `${seconds}s`);
     this.sketch.style.display = '';
-    this.sketch.classList.remove('drawing', 'brief');
+    this.sketch.classList.remove('drawing');
     void this.sketch.getBoundingClientRect(); // restart the trace
     this.sketch.classList.add('drawing');
-    this.sketch.classList.toggle('brief', brief);
   }
 
   hideSketch() {
@@ -257,7 +258,7 @@ class Rival extends Fighter {
   /** Fire or water already drawn from a source, kept until the next attack. */
   private charged: Fluid | null = null;
   private retarget = 0;
-  /** The spell whose shape is being drawn right now, and how long until it is finished. */
+  /** The spell being drawn (then held a moment once stored), and how long until it is cast. */
   private plan: Plan | null = null;
   private planTimer = 0;
 
@@ -327,12 +328,11 @@ class Rival extends Fighter {
       }
     }
 
-    // A spell being drawn goes off once the shape is finished.
+    // A spell being drawn is stored when the shape is finished, then cast a moment later.
     if (this.plan) {
       if ((this.planTimer -= dt) > 0) return;
       const plan = this.plan;
       this.plan = null;
-      this.hideSketch();
       this.act(plan, foe, combat, dt);
       return;
     }
@@ -341,17 +341,20 @@ class Rival extends Fighter {
     if (this.attackTimer > 0) return;
     this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
     const plan = this.choose(combat);
+    // Fire or water fetched earlier is already stored: no new shape to draw before casting it.
+    const drawn = !(plan.kind === 'strike' && this.charged);
+    const delay = drawn ? this.tuning.draw + RIVAL_HOLD : 0;
     // Two rivals never bring their strikes down on the alchemist together: the later one waits a moment.
-    if (plan.kind === 'strike' && !combat.book(foe, this.tuning.draw, plan.element === 'columns' ? STAR_STAGGER * 4 : 0, this.tuning.stagger)) {
+    if (plan.kind === 'strike' && !combat.book(foe, delay, plan.element === 'columns' ? STAR_STAGGER * 4 : 0, this.tuning.stagger)) {
       this.attackTimer = THREE.MathUtils.randFloat(0.4, 0.8);
       return;
     }
-    if (this.tuning.draw <= 0) {
+    if (delay <= 0) {
       this.act(plan, foe, combat, dt);
       return;
     }
     this.plan = plan;
-    this.planTimer = this.tuning.draw;
+    this.planTimer = delay;
     this.drawSketch(SKETCH_FOR[plan.kind === 'strike' ? plan.element : plan.kind === 'charge' ? plan.element : 'heal'], this.tuning.draw);
   }
 
@@ -481,13 +484,16 @@ export class Combat {
   /** The alchemist raises a wall; its protected zone shows in the alchemist's ink. */
   wall(toward: THREE.Vector3) {
     this.spells.wall(this.hero.position, toward, this.hero.ink, this.hero);
-    this.hero.drawSketch('circle', HERO_SKETCH, true);
   }
 
   /** The alchemist strikes a point. A sure strike gives rivals no chance to step out of it. */
   cast(at: THREE.Vector3, element: Element, sure = false) {
     this.strikeFrom(this.hero, at, element, undefined, sure);
-    this.hero.drawSketch(SKETCH_FOR[element], HERO_SKETCH, true);
+  }
+
+  /** The player finished a stroke and stored `shape`: it shows over the alchemist's head for everyone to read. */
+  stored(shape: Sketch) {
+    this.hero.drawSketch(shape, HERO_SKETCH);
   }
 
   /** The first rival still standing, or null. */
@@ -514,7 +520,6 @@ export class Combat {
   /** The alchemist heals itself with a rhombus. */
   heal() {
     this.healFrom(this.hero);
-    this.hero.drawSketch('rhombus', HERO_SKETCH, true);
   }
 
   /** Heals the caster, 30% more from inside a rune circle, with rising lines of light on it. */

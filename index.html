@@ -246,8 +246,8 @@
       .sketch path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
       .sketch.drawing path { animation: sketch-trace var(--draw, .7s) linear forwards; }
       @keyframes sketch-trace { to { stroke-dashoffset: 0; } }
-      .sketch.brief { animation: sketch-fade calc(var(--draw, .3s) + .45s) ease-in forwards; }
-      @keyframes sketch-fade { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+      .sketch.drawing { animation: sketch-fade .5s ease-in calc(var(--draw, .35s) + .9s) forwards; }
+      @keyframes sketch-fade { to { opacity: 0; } }
       .hp { transition: opacity .6s .5s; }
       .hp.gone { opacity: 0; }
       .hp.hurt { animation: hp-shake .25s; }
