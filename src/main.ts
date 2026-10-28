@@ -371,6 +371,7 @@ canvas.addEventListener('pointerup', (e) => {
   if (shape) {
     ink.end(shape);
     ammo.add(shape.kind, shape.cx, shape.cy);
+    combat.stored(shape.kind);
   } else {
     ink.end(null);
     // With a circle selected, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
