@@ -18,6 +18,7 @@ import type { Kind } from './generator';
 import { GLADE } from './look';
 import { Bloom } from './glade';
 import { t } from './i18n';
+import { showMissingSource } from './missing';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -348,7 +349,8 @@ function tapAt(clientX: number, clientY: number) {
 
 /**
  * A recognized stroke. Circles and rhombi need no target, so they go off at once (the wall faces the nearest rival).
- * Everything else is held in hand (its new slot, picked) for the next tap; a triangle drawn over its source comes charged.
+ * Everything else is held in hand (its new slot, picked) for the next tap. A triangle must be drawn over its
+ * source and comes charged; drawn anywhere else it is refused (false) and the missing source is flashed there.
  */
 function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   const drawnAt = new THREE.Vector3();
@@ -357,12 +359,17 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
     if (tutorial.aim()) hero.setTarget(hero.root.position); // the lesson's wall must keep the alchemist inside
     castShape(kind, combat.foe() ?? drawnAt);
     tutorial.cast();
-    return;
+    return true;
+  }
+  const element = elementOf(kind);
+  if (element && !sourceAt(drawnAt, element)) {
+    showMissingSource(element, cx, cy);
+    return false;
   }
   ammo.add(kind, cx, cy);
   ammo.select(ammo.slotOf(kind));
-  const element = elementOf(kind);
   if (element) chargeAt(drawnAt, element);
+  return true;
 }
 
 // One finger at a time: a short press is a tap, anything that travels further is a drawing.
@@ -411,9 +418,10 @@ canvas.addEventListener('pointerup', (e) => {
     return;
   }
   if (shape) {
-    ink.end(shape);
-    combat.stored(shape.kind);
-    useDrawn(shape.kind, shape.cx, shape.cy);
+    if (useDrawn(shape.kind, shape.cx, shape.cy)) {
+      ink.end(shape);
+      combat.stored(shape.kind);
+    } else ink.end(null);
   } else {
     ink.end(null);
     // With a circle selected, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
