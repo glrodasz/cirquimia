@@ -421,6 +421,7 @@ class Rival extends Fighter {
 
   private act(plan: Plan, foe: Fighter, combat: Combat, dt: number) {
     if (plan.kind === 'wall') {
+      this.charged = null; // the circle, like any new symbol, replaces fire or water in hand
       this.raiseWall(foe.position, combat);
       return;
     }
