@@ -70,7 +70,8 @@ function arrowLine(points: Pt[], dashes: number, rand: () => number) {
 /** Hands, arrows and strokes drawn over each screenshot, in the screenshot's own 312×234 frame. */
 const OVERLAYS: Array<(rand: () => number) => string> = [
   (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4),
-  (rand) => `<path class="arrow" d="${arrowLine([[206, 112], [204, 84], [186, 64]], 0, rand)}"/>` + hand(121, 200, 1.4, false),
+  // From the stroke to the symbol now held over the alchemist's head.
+  (rand) => `<path class="arrow" d="${arrowLine([[114, 70], [150, 92], [170, 138]], 0, rand)}"/>` + hand(33, 10, 1.4, false),
   () => hand(132, 112, 1.4),
   // The triangles drawn right over the campfire and the lagoon, the hand finishing each stroke.
   (rand) =>

@@ -11,7 +11,6 @@ import { heightAt } from './noise';
 import { tiltShiftShader } from './tiltShift';
 import { recognize, type Point, type ShapeKind } from './gestures';
 import { Ink } from './ink';
-import { AmmoBar } from './ammo';
 import { Spells } from './spells';
 import { Combat, type Difficulty } from './combat';
 import type { Kind } from './generator';
@@ -71,7 +70,6 @@ const marker = new TapMarker();
 const impact = new TapMarker('#ffb35c', 3.5);
 scene.add(marker.mesh, impact.mesh);
 const ink = new Ink();
-const ammo = new AmmoBar();
 const spells = new Spells(world.obstacles);
 scene.add(spells.root);
 
@@ -100,6 +98,14 @@ const onRunes = (p: THREE.Vector3) =>
 const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource, onRunes);
 scene.add(combat.root);
 
+/** The one symbol in hand, cast by the next tap. There is no store: a new drawing replaces it. */
+let held: ShapeKind | null = null;
+function hold(kind: ShapeKind | null) {
+  held = kind;
+  document.body.classList.toggle('aiming', kind !== null);
+  if (!kind) combat.dropped();
+}
+
 // How to play: full screen on the first visit, then behind the "?" next to the gear. The match waits while it is open.
 const help = mountHelp();
 // The first match walks through the square (attack) and, after the first hit taken, the circle (wall).
@@ -110,9 +116,8 @@ const tutorial = new Tutorial({
     const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
     return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
   },
-  slot: (kind) => ammo.slotOf(kind),
-  selected: () => ammo.selection()?.kind ?? null,
-  deselect: () => ammo.select(null),
+  selected: () => held,
+  deselect: () => hold(null),
   hold: (on) => combat.hold(on),
   provoke: () => combat.provoke(),
 });
@@ -122,6 +127,7 @@ combat.onHeroHit = () => tutorial.hurt();
 const dev = mountDevTools(
   world,
   () => {
+    hold(null);
     spells.clear();
     hero.root.position.set(0, heightAt(0, 0), 0);
     hero.setTarget(hero.root.position);
@@ -146,10 +152,7 @@ const matchHud = mountMatchControls({
     spells.clear();
     combat.setDifficulty(d);
   },
-  restart: () => {
-    ammo.clear();
-    dev.newMeadow();
-  },
+  restart: () => dev.newMeadow(),
 });
 combat.onEnd = (outcome) => matchHud.showEnd(outcome);
 
@@ -300,19 +303,9 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   else impact.show(at.x, at.z);
 }
 
-/** Draws fire or water into the selected triangle from the source under a ground point. False if there is none. */
-function chargeAt(at: THREE.Vector3, element: 'fire' | 'water') {
-  const source = sourceAt(at, element);
-  if (!source) return false;
-  ammo.charge();
-  hero.face(source);
-  spells.channel(source, hero.root.position, element);
-  return true;
-}
+const HERO_TAP = 48; // px: a tap this close to the alchemist drops the shape in hand
 
-const HERO_TAP = 48; // px: a tap this close to the alchemist puts the shape in hand back in the bar
-
-/** A quick tap walks there, or uses the selected shape: triangles are first charged from a source, then cast. */
+/** A quick tap walks there, or casts the shape in hand there. */
 function tapAt(clientX: number, clientY: number) {
   if (combat.over) return;
   if (!groundAt(clientX, clientY, hit)) return;
@@ -322,24 +315,19 @@ function tapAt(clientX: number, clientY: number) {
     hit.copy(lesson);
     hero.setTarget(hero.root.position); // and the alchemist stays put inside its wall
   }
-  const selected = ammo.selection();
-  if (selected) {
+  if (held) {
     if (!lesson) {
       const self = hero.root.position.clone().setY(hero.root.position.y + 0.3).project(camera);
       const sx = ((self.x + 1) / 2) * innerWidth;
       const sy = ((1 - self.y) / 2) * innerHeight;
       if (Math.hypot(clientX - sx, clientY - sy) < HERO_TAP) {
-        ammo.select(null);
+        hold(null);
         return;
       }
     }
-    const element = elementOf(selected.kind);
-    if (element && !selected.charged) {
-      if (!chargeAt(hit, element)) ammo.reject();
-      return;
-    }
-    ammo.spend();
-    castShape(selected.kind, hit, lesson !== null);
+    const kind = held;
+    hold(null);
+    castShape(kind, hit, lesson !== null);
     tutorial.cast();
     return;
   }
@@ -348,14 +336,16 @@ function tapAt(clientX: number, clientY: number) {
 }
 
 /**
- * A recognized stroke. Circles and rhombi need no target, so they go off at once (the wall faces the nearest rival).
- * Everything else is held in hand (its new slot, picked) for the next tap. A triangle must be drawn over its
- * source and comes charged; drawn anywhere else it is refused (false) and the missing source is flashed there.
+ * A recognized stroke. Only one symbol at a time: whatever was in hand is dropped. Circles and rhombi need no
+ * target, so they go off at once (the wall faces the nearest rival). Everything else is held in hand for the next
+ * tap. A triangle must be drawn over its source and comes charged; drawn anywhere else it is refused (false), the
+ * missing source is flashed there, and the shape already in hand stays.
  */
 function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   const drawnAt = new THREE.Vector3();
   if (!groundAt(cx, cy, drawnAt)) drawnAt.copy(hero.root.position);
   if (kind === 'circle' || kind === 'rhombus') {
+    hold(null);
     if (tutorial.aim()) hero.setTarget(hero.root.position); // the lesson's wall must keep the alchemist inside
     castShape(kind, combat.foe() ?? drawnAt);
     tutorial.cast();
@@ -366,15 +356,18 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
     showMissingSource(element, cx, cy);
     return false;
   }
-  ammo.add(kind, cx, cy);
-  ammo.select(ammo.slotOf(kind));
-  if (element) chargeAt(drawnAt, element);
+  hold(kind);
+  const source = element && sourceAt(drawnAt, element);
+  if (source) {
+    hero.face(source);
+    spells.channel(source, hero.root.position, element);
+  }
   return true;
 }
 
 // One finger at a time: a short press is a tap, anything that travels further is a drawing.
 const DRAW_THRESHOLD = 12; // px
-const AIM_SLOP = 40; // px a tap may wander while a circle is selected
+const AIM_SLOP = 40; // px a tap may wander while a shape is in hand
 let activePointer: number | null = null;
 let drawing = false;
 let stroke: Point[] = [];
@@ -420,13 +413,13 @@ canvas.addEventListener('pointerup', (e) => {
   if (shape) {
     if (useDrawn(shape.kind, shape.cx, shape.cy)) {
       ink.end(shape);
-      combat.stored(shape.kind);
+      combat.stored(shape.kind, held !== null);
     } else ink.end(null);
   } else {
     ink.end(null);
-    // With a circle selected, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
+    // With a shape in hand, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
     const start = stroke[0];
-    if (ammo.aiming && stroke.every((p) => Math.hypot(p.x - start.x, p.y - start.y) < AIM_SLOP)) tapAt(start.x, start.y);
+    if (held && stroke.every((p) => Math.hypot(p.x - start.x, p.y - start.y) < AIM_SLOP)) tapAt(start.x, start.y);
   }
 });
 canvas.addEventListener('pointercancel', (e) => {

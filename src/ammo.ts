@@ -1,11 +1,8 @@
 import type { ShapeKind } from './gestures';
-import { t } from './i18n';
-
-const MAX_SLOTS = 6;
 
 export type Pt = [number, number];
 
-// Each icon is one brush stroke in a 48×48 box, redrawn with fresh jitter for every slot so no two look stamped.
+// Each icon is one brush stroke in a 48×48 box, redrawn with fresh jitter every time so no two look stamped.
 const OUTLINES: Record<Exclude<ShapeKind, 'circle'>, Pt[]> = {
   triangle: [[24, 9], [38, 35], [10, 35]],
   triangleDown: [[24, 39], [38, 13], [10, 13]],
@@ -13,7 +10,7 @@ const OUTLINES: Record<Exclude<ShapeKind, 'circle'>, Pt[]> = {
   rhombus: [[24, 7], [38, 24], [24, 41], [10, 24]],
   pentagram: [[24, 9], [32.8, 36.1], [9.7, 19.4], [38.3, 19.4], [15.2, 36.1]],
 };
-const RING_R = 22.2; // the enso around the slot
+const RING_R = 22.2; // the enso around an icon
 const STEP = 0.7; // px between brush samples
 const OVERSHOOT = 0.06; // fraction of the outline drawn past the start, like a hand closing a shape
 const DRY_FROM = 0.72; // past this fraction of the stroke the brush starts running dry
@@ -159,125 +156,4 @@ export function shapeIcon(kind: ShapeKind): string {
     `<rect width="48" height="48" fill="#fff"/><path d="${glyph.dry}${ring.dry}" fill="#000"/></mask>` +
     `<g mask="url(#${id})"><path class="ring" d="${ring.ink}"/><path class="glyph" d="${glyph.ink}"/></g></svg>`
   );
-}
-
-const LABELS: Record<ShapeKind, string> = t.shapes;
-
-/**
- * Stored shapes along the top of the screen. A freshly drawn shape arrives picked (held in hand), so the next
- * tap on the map uses it; older ones wait here until tapped. Triangles are charged from a fire or water source
- * first (drawn over it, or by tapping it), then cast at the target.
- */
-export class AmmoBar {
-  private readonly bar = document.createElement('div');
-  private selected: HTMLButtonElement | null = null;
-
-  constructor() {
-    this.bar.id = 'ammo';
-    this.bar.setAttribute('role', 'toolbar');
-    this.bar.setAttribute('aria-label', t.ammoBar);
-    document.body.append(this.bar);
-  }
-
-  get aiming() {
-    return this.selected !== null;
-  }
-
-  /** Adds a slot; the icon flies in from where the shape was drawn. When full, the oldest slot drops out. */
-  add(kind: ShapeKind, fromX: number, fromY: number) {
-    const live = [...this.bar.querySelectorAll<HTMLButtonElement>('.slot:not(:disabled)')];
-    if (live.length >= MAX_SLOTS) this.discard(live[0]);
-    const slot = document.createElement('button');
-    slot.type = 'button';
-    slot.className = `slot ${kind}`;
-    slot.dataset.kind = kind;
-    slot.setAttribute('aria-label', LABELS[kind]);
-    slot.innerHTML = shapeIcon(kind);
-    slot.addEventListener('pointerdown', (e) => e.stopPropagation());
-    slot.addEventListener('click', () => this.select(slot === this.selected ? null : slot));
-    this.bar.append(slot);
-
-    const box = slot.getBoundingClientRect();
-    const dx = fromX - (box.left + box.width / 2);
-    const dy = fromY - (box.top + box.height / 2);
-    slot.animate(
-      [
-        { transform: `translate(${dx}px, ${dy}px) scale(1.8)`, opacity: 0.2 },
-        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-      ],
-      { duration: 420, easing: 'cubic-bezier(.2,.8,.3,1)' },
-    );
-    return true;
-  }
-
-  /** Drops every stored shape, as at the start of a new match. */
-  clear() {
-    for (const slot of this.bar.querySelectorAll<HTMLButtonElement>('.slot:not(:disabled)')) this.discard(slot);
-  }
-
-  private discard(slot: HTMLButtonElement) {
-    if (slot === this.selected) this.select(null);
-    slot.disabled = true;
-    const out = slot.animate(
-      [
-        { transform: 'scale(1)', opacity: 1 },
-        { transform: 'translateY(-16px) scale(0.6)', opacity: 0 },
-      ],
-      { duration: 200, easing: 'ease-in' },
-    );
-    out.onfinish = () => slot.remove();
-  }
-
-  select(slot: HTMLButtonElement | null) {
-    this.selected?.classList.remove('selected');
-    this.selected = slot;
-    slot?.classList.add('selected');
-    document.body.classList.toggle('aiming', slot !== null);
-  }
-
-  /** The newest live slot holding this shape, or null. */
-  slotOf(kind: ShapeKind): HTMLButtonElement | null {
-    const slots = this.bar.querySelectorAll<HTMLButtonElement>(`.slot.${kind}:not(:disabled)`);
-    return slots[slots.length - 1] ?? null;
-  }
-
-  /** The selected shape and whether it already carries fire or water, or null if nothing is selected. */
-  selection(): { kind: ShapeKind; charged: boolean } | null {
-    const slot = this.selected;
-    return slot ? { kind: slot.dataset.kind as ShapeKind, charged: slot.classList.contains('charged') } : null;
-  }
-
-  /** Marks the selected slot as charged; it stays picked, so the next tap casts it. */
-  charge() {
-    const slot = this.selected;
-    if (!slot) return;
-    slot.classList.add('charged');
-    slot.animate([{ transform: 'translateY(8px) scale(1.3)' }, { transform: 'translateY(0) scale(1)' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)' });
-  }
-
-  /** Shakes the selected slot: it cannot be used where the player tapped. */
-  reject() {
-    this.selected?.animate(
-      [0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translate(${x}px, 8px) scale(1.08)` })),
-      { duration: 300, easing: 'ease-out' },
-    );
-  }
-
-  /** Uses up the selected slot. Returns its shape, or null if nothing was selected. */
-  spend(): ShapeKind | null {
-    const slot = this.selected;
-    if (!slot) return null;
-    this.select(null);
-    const kind = slot.dataset.kind as ShapeKind;
-    const out = slot.animate(
-      [
-        { transform: 'scale(1)', opacity: 1 },
-        { transform: 'translateY(24px) scale(0.4)', opacity: 0 },
-      ],
-      { duration: 220, easing: 'ease-in' },
-    );
-    out.onfinish = () => slot.remove();
-    slot.disabled = true;
-    return kind;
-  }
 }
