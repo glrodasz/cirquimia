@@ -7,6 +7,8 @@ const WALL_MIN_REACH = 0.45; // arc radius around the alchemist, world units
 const WALL_MAX_REACH = 1.0;
 const WALL_RISE = 0.35; // s, whole arc (rocks rise staggered from the middle out)
 const WALL_HOLD = 1.4; // about two seconds up in total
+/** Seconds a wall protects its zone once raised (it rises, then holds before sinking). */
+export const WALL_UP = WALL_RISE + WALL_HOLD;
 const WALL_SINK = 0.5;
 
 // Square = ranged attack: a cluster of slanted square pillars after a short warning in the ground.
