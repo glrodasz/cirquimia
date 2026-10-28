@@ -135,7 +135,8 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   const debugBox = el('input', { type: 'checkbox' }) as HTMLInputElement;
   debugRow.append(debugBox, el('span', {}, t.dev.showDebug));
   const viewRow = el('div', { class: 'dev-row' });
-  if (tilt) viewRow.append(tilt);
+  // Without ?dev the panel is never mounted, so the toggle stays in the (hidden) HUD where main.ts finds it.
+  if (DEV && tilt) viewRow.append(tilt);
   const perfBox = el('dl', { class: 'dev-stats' });
   // Visual style experiment: switching reloads with the other look.
   const lookRow = el('div', { class: 'dev-row' });
