@@ -121,8 +121,10 @@
       #match-end .again .cap::after { content: " ↻"; opacity: .7; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #match-end.victory h2 { color: #ffd27a; } :root:not([data-theme="light"]) #match-end .again { background: #9fbcb4; color: #14201c; } :root:not([data-theme="light"]) #match-end .hero { fill: #7fb2f0; } }
       :root[data-theme="dark"] #match-end.victory h2 { color: #ffd27a; } :root[data-theme="dark"] #match-end .again { background: #9fbcb4; color: #14201c; } :root[data-theme="dark"] #match-end .hero { fill: #7fb2f0; }
-      #help-btn, #book-btn { position: fixed; bottom: var(--edge-bottom); right: calc(max(12px, env(safe-area-inset-right)) + 48px); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
-      #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 96px); }
+      #help-btn, #book-btn { position: fixed; bottom: var(--edge-bottom); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
+      #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
+      .dev #help-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
+      .dev #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 96px); }
       :is(#help-btn, #book-btn):active { transform: scale(.92); }
       :is(#help-btn, #book-btn):focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
       #help-btn svg, #book-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
