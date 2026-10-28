@@ -12,7 +12,7 @@ Cirquimia is a free, open-source browser game built for phones. You play a state
   <img src="docs/screenshots/glade-look.jpg" alt="The experimental warm Glade look" width="260">
 </p>
 
-> **Status:** early prototype, under active development. The in-game text is in Spanish.
+> **Status:** early prototype, under active development. Plays in English at [cirquimia.pages.dev](https://cirquimia.pages.dev) and in Spanish at [/es](https://cirquimia.pages.dev/es); a first visit lands on your browser's language.
 
 ## Features
 
@@ -97,6 +97,9 @@ The gear button (top right) opens a developer panel: regenerate the meadow, set 
 | `src/help.ts` | "Cómo jugar" guide |
 | `src/tutorial.ts` | Interactive first-match tutorial |
 | `src/devtools.ts` | Gear button with the developer panel |
+| `src/i18n/` | UI strings in English and Spanish (`index.ts`), locale routing helpers (`locale.ts`) and per-language page metadata (`seo.ts`) |
+| `functions/_middleware.ts` | Cloudflare Pages edge redirect: first visit to `/` goes to `/es` for Spanish browsers or a saved `locale` cookie |
+| `scripts/brand.mjs` | Renders the favicon set, app icons and link preview cards (`public/og/{en,es}.jpg`) from `scripts/brand/` |
 | `src/tiltShift.ts` | Miniature (tilt-shift) post effect |
 | `src/marker.ts` | Ring shown where you tap |
 | `src/noise.ts` | Seeded random and terrain height function |

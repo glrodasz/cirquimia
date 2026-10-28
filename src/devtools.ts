@@ -1,7 +1,7 @@
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
 import { LOOK, setLook } from './look';
-import { formatNumber, LANG, setLang, t } from './i18n';
+import { formatNumber, langLink, t } from './i18n';
 
 const STORE = 'cirquimia.dev';
 
@@ -147,11 +147,7 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   }
   const langRow = el('div', { class: 'dev-row' });
   langRow.append(el('label', {}, t.dev.language));
-  for (const [lang, label] of [['es', 'Español'], ['en', 'English']] as const) {
-    const button = el('button', { type: 'button', class: 'dev-toggle', 'aria-pressed': String(LANG === lang) }, label);
-    button.addEventListener('click', () => LANG !== lang && setLang(lang));
-    langRow.append(button);
-  }
+  for (const lang of ['es', 'en'] as const) langRow.append(langLink(lang, 'dev-toggle'));
   view.append(lookRow, langRow, viewRow, fpsRow, debugRow, perfBox);
 
   panel.append(head, meadow, paramsSection, view);

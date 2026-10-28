@@ -1,7 +1,7 @@
 import { brushPath, shapeIcon, type Pt } from './ammo';
 import { arc, random, segment, svg } from './match';
 import type { ShapeKind } from './gestures';
-import { t } from './i18n';
+import { LANG, langLink, t } from './i18n';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
@@ -206,6 +206,7 @@ export function mountHelp() {
   let open = false;
   const show = (page: 'guide' | 'symbols') => {
     overlay.innerHTML = page === 'guide' ? guide() : symbols(); // fresh brush jitter each time
+    overlay.querySelector('.card')!.append(langLink(LANG === 'es' ? 'en' : 'es', 'lang'));
     overlay.querySelector('.x')!.addEventListener('click', hide);
     if (page === 'guide') wireSlides();
     else {
