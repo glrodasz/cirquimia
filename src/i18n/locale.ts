@@ -92,7 +92,12 @@ export function resolveLocaleRedirect(input: {
 export function readCookie(cookies: string | null, name: string): string | null {
   for (const part of cookies?.split(';') ?? []) {
     const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
+    if (key !== name) continue;
+    try {
+      return decodeURIComponent(rest.join('='));
+    } catch {
+      return null; // malformed encoding: treat as no saved choice
+    }
   }
   return null;
 }
