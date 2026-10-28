@@ -128,8 +128,10 @@ class Fighter {
   }
 
   /** Traces `shape` over the head in `seconds`; it lingers a moment once finished, then fades away. */
-  drawSketch(shape: Sketch, seconds: number) {
+  /** Traces `shape` over the head; a kept sketch stays up (the symbol is still in hand) instead of fading. */
+  drawSketch(shape: Sketch, seconds: number, keep = false) {
     if (this.down) return;
+    this.sketch.classList.toggle('held', keep);
     this.sketchPath.setAttribute('d', SKETCH_PATH[shape]);
     this.sketch.style.setProperty('--draw', `${seconds}s`);
     this.sketch.style.display = '';
@@ -374,6 +376,7 @@ class Rival extends Fighter {
 
   private act(plan: Plan, foe: Fighter, combat: Combat, dt: number) {
     if (plan.kind === 'heal') {
+      this.charged = null; // one symbol at a time: the rhombus replaces fire or water in hand
       this.body.cast();
       combat.healFrom(this);
       return;
@@ -492,9 +495,14 @@ export class Combat {
     this.strikeFrom(this.hero, at, element, undefined, sure);
   }
 
-  /** The player finished a stroke and stored `shape`: it shows over the alchemist's head for everyone to read. */
-  stored(shape: Sketch) {
-    this.hero.drawSketch(shape, HERO_SKETCH);
+  /** The player finished a stroke and stored `shape`: it shows over the alchemist's head for everyone to read, and stays while held. */
+  stored(shape: Sketch, held: boolean) {
+    this.hero.drawSketch(shape, HERO_SKETCH, held);
+  }
+
+  /** The symbol in the alchemist's hand was cast or dropped. */
+  dropped() {
+    this.hero.hideSketch();
   }
 
   /** The first rival still standing, or null. */

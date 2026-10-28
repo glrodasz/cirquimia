@@ -14,7 +14,7 @@ const DEMO_DRAW = 1.7; // s the demo hand takes to draw the shape
 const DEMO_HOLD = 0.8;
 
 type Lesson = 'square' | 'circle';
-type Step = 'draw' | 'pick' | 'aim' | 'watch';
+type Step = 'draw' | 'aim' | 'watch';
 
 const TEXT: Record<Lesson, Record<Exclude<Step, 'watch'>, [string, string]> & { watch: string; done: string }> = t.tutorial;
 const WRONG: Record<Lesson, string> = t.tutorial.wrong;
@@ -27,10 +27,9 @@ export interface TutorialHost {
   foe(): THREE.Vector3 | null;
   /** Screen pixels of a world point, roughly at head height. */
   toScreen(p: THREE.Vector3, lift: number): { x: number; y: number };
-  /** The bar slot holding a shape of this kind, if any. */
-  slot(kind: ShapeKind): HTMLElement | null;
-  /** The shape currently picked in the bar. */
+  /** The shape currently in hand. */
   selected(): ShapeKind | null;
+  /** Drops the shape in hand. */
   deselect(): void;
   /** Freezes or frees the rivals while a cast plays out. */
   hold(on: boolean): void;
@@ -130,11 +129,11 @@ export class Tutorial {
     return this.lesson === null || this.step === 'aim';
   }
 
-  /** A shape was recognized (or null, a scribble). False keeps it out of the bar: the lesson wants another one. */
+  /** A shape was recognized (or null, a scribble). False refuses it: the lesson wants another one. */
   drawn(kind: ShapeKind | null) {
     if (!this.lesson || this.step !== 'draw') return true;
     if (kind === this.lesson) {
-      this.go('aim'); // the new shape arrives in hand; 'pick' only comes back if it is put away
+      this.go('aim'); // the new shape arrives in hand
       return true;
     }
     this.hint(WRONG[this.lesson]);
@@ -185,13 +184,8 @@ export class Tutorial {
     this.timer += dt;
 
     if (this.step === 'draw') this.animateDemo(dt);
-    else if (this.step === 'pick') {
-      const picked = this.host.selected();
-      if (picked === this.lesson) this.go('aim');
-      else if (picked) this.host.deselect();
-      this.point(this.host.slot(this.lesson));
-    } else if (this.step === 'aim') {
-      if (this.host.selected() !== this.lesson) this.go('pick');
+    else if (this.step === 'aim') {
+      if (this.host.selected() !== this.lesson) this.go('draw'); // dropped: draw it again
       else this.pointAtFoe();
     } else if (this.step === 'watch') {
       if (this.lesson === 'circle' && !this.provoked && this.timer >= PROVOKE_AFTER) {
@@ -294,18 +288,9 @@ export class Tutorial {
     this.spot(feet.x, feet.y, 60);
   }
 
-  /** Arrow under an element (the bar runs along the top), and a pool of light on it. */
-  private point(el: HTMLElement | null) {
-    if (!el) return;
-    const box = el.getBoundingClientRect();
-    this.placeArrow(box.left + box.width / 2, box.bottom + 6, true);
-    this.spot(box.left + box.width / 2, box.top + box.height / 2, box.width * 0.75);
-  }
-
-  /** Places the arrow's tip at (x, y): pointing down from above, or up from below. */
-  private placeArrow(x: number, y: number, up = false) {
-    // The arrow box ends at its anchor; turned around its centre, its tip sits a box height higher.
-    this.arrow.style.transform = up ? `translate(${x.toFixed(1)}px, ${(y + 44).toFixed(1)}px) rotate(180deg)` : `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+  /** Places the arrow's tip at (x, y), pointing down from above. */
+  private placeArrow(x: number, y: number) {
+    this.arrow.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
   }
 
   private spot(x: number, y: number, r: number) {

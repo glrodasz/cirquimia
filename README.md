@@ -27,15 +27,17 @@ Cirquimia is a free, open-source browser game built for phones. You play a state
 ## How to play
 
 1. **Tap the ground** to walk.
-2. **Draw a symbol** anywhere with one stroke. It is stored in the bar at the bottom (up to 6).
-3. **Tap a stored symbol, then tap a target** to cast it.
+2. **Draw a symbol** anywhere with one stroke. It goes straight into your hand and shows over the alchemist's head. Walls (circle) and heals (rhombus) go off at once.
+3. **Tap a target** to cast the symbol in hand. Tap the alchemist to drop it instead.
+
+You hold **one symbol at a time**; there is no inventory. Drawing a new symbol replaces the one in hand, so a square followed by a triangle leaves you holding the triangle.
 
 | Symbol | Spell | Effect |
 | --- | --- | --- |
 | Circle | Muro (wall) | Raises an earth wall around you, facing where you tap; other fighters' strikes into its zone are blocked, yours go through |
 | Square | Tierra (earth) | Stone pillars erupt at the target: 20 damage |
-| Triangle ▲ | Fuego (fire) | 35 damage. Walk to a campfire (fogata) to charge it first |
-| Triangle ▼ | Agua (water) | 35 damage. Charge it at the lagoon (laguna) first |
+| Triangle ▲ | Fuego (fire) | 35 damage. Draw it over a campfire (fogata) to charge it |
+| Triangle ▼ | Agua (water) | 35 damage. Draw it over a lagoon (laguna) to charge it |
 | Rhombus ◆ | Cura (heal) | Restores 25 HP |
 | Pentagram ★ | Estrella (star) | Five strikes around the target, 10 damage each; good for hitting several rivals |
 
@@ -90,7 +92,7 @@ The gear button (top right) opens a developer panel: regenerate the meadow, set 
 | `src/path.ts` | Pathfinding around obstacles |
 | `src/gestures.ts` | Single-stroke shape recognizer (geometry, no templates) |
 | `src/ink.ts` | 2D overlay for the stroke, the shape snap and the flash |
-| `src/ammo.ts` | Stored symbols bar: add, select, charge, spend |
+| `src/ammo.ts` | Brush-stroke symbol icons shared by the HUD, guide and tutorial |
 | `src/spells.ts` | Spell visuals: earth wall, pillars, fire, water, heal, star |
 | `src/combat.ts` | HP, damage, rune bonus, rival AI and difficulty levels, win/lose |
 | `src/match.ts` | Match HUD (rivals, difficulty), end-of-match cards, restart on a new meadow |

@@ -45,7 +45,6 @@ export function setLang(lang: Lang) {
 type Line = [title: string, body: string];
 interface Lesson {
   draw: Line;
-  pick: Line;
   aim: Line;
   watch: string;
   done: string;
@@ -54,15 +53,6 @@ interface Lesson {
 const es = {
   title: 'Cirquimia',
   difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' },
-  shapes: {
-    circle: 'Círculo',
-    triangle: 'Triángulo',
-    triangleDown: 'Triángulo invertido',
-    square: 'Cuadrado',
-    rhombus: 'Rombo',
-    pentagram: 'Pentagrama',
-  },
-  ammoBar: 'Círculos de transmutación',
   match: {
     toolbar: 'Partida',
     rivalsCap: (n: number) => `<b>${n}</b> ${n === 1 ? 'rival' : 'rivales'}`,
@@ -81,8 +71,8 @@ const es = {
     title: 'Cómo jugar',
     slides: [
       ['Muévete', 'Toca el suelo y el alquimista <b>camina</b> hasta allí.'],
-      ['Dibuja un símbolo', 'Traza la forma con el dedo: queda <b>lista en tu mano</b>. El muro y la cura salen al instante.'],
-      ['Lánzalo', 'Toca al <b>rival</b> y el ataque sale ahí. Toca al alquimista para guardarlo arriba.'],
+      ['Dibuja un símbolo', 'Traza la forma con el dedo: queda <b>lista en tu mano</b>. Solo uno a la vez: uno nuevo reemplaza al anterior. El muro y la cura salen al instante.'],
+      ['Lánzalo', 'Toca al <b>rival</b> y el ataque sale ahí. Toca al alquimista para soltarlo.'],
       ['Fuego y agua', 'Dibuja el triángulo sobre una <b>fogata</b>, o el triángulo invertido sobre una <b>laguna</b>, para cargarlos.'],
       ['Runas', 'Lanza desde un <b>círculo de runas</b> y tu poder aumenta: +25% de área, curación 33.'],
     ],
@@ -106,14 +96,12 @@ const es = {
   tutorial: {
     square: {
       draw: ['Dibuja un cuadrado', 'Un cuadrado crea un ataque de tierra.'],
-      pick: ['Quedó guardado aquí', 'Toca el cuadrado para prepararlo.'],
       aim: ['Toca al rival', 'El ataque de tierra sale justo donde toques.'],
       watch: '¡Golpe!',
       done: 'Dibuja más formas para seguir atacando.',
     },
     circle: {
       draw: ['¡Te golpearon! Dibuja un círculo', 'Un círculo levanta al instante un muro de tierra de cara al rival.'],
-      pick: ['Quedó guardado aquí', 'Toca el círculo para prepararlo.'],
       aim: ['Toca hacia el rival', 'El muro se levanta a tu alrededor, de cara a donde toques.'],
       watch: 'Lo que cae dentro del muro no te daña.',
       done: '¡Listo! Ya sabes atacar y defenderte.',
@@ -196,15 +184,6 @@ export type Strings = typeof es;
 const en: Strings = {
   title: 'Cirquimia',
   difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard' },
-  shapes: {
-    circle: 'Circle',
-    triangle: 'Triangle',
-    triangleDown: 'Inverted triangle',
-    square: 'Square',
-    rhombus: 'Rhombus',
-    pentagram: 'Pentagram',
-  },
-  ammoBar: 'Transmutation circles',
   match: {
     toolbar: 'Match',
     rivalsCap: (n) => `<b>${n}</b> ${n === 1 ? 'rival' : 'rivals'}`,
@@ -223,8 +202,8 @@ const en: Strings = {
     title: 'How to play',
     slides: [
       ['Move', 'Tap the ground and the alchemist <b>walks</b> there.'],
-      ['Draw a symbol', 'Trace the shape with your finger: it is <b>ready in your hand</b>. Walls and heals go off at once.'],
-      ['Cast it', 'Tap the <b>rival</b> and the attack lands there. Tap the alchemist to store it at the top.'],
+      ['Draw a symbol', 'Trace the shape with your finger: it is <b>ready in your hand</b>. Only one at a time: a new one replaces the last. Walls and heals go off at once.'],
+      ['Cast it', 'Tap the <b>rival</b> and the attack lands there. Tap the alchemist to drop it.'],
       ['Fire and water', 'Draw the triangle over a <b>campfire</b>, or the inverted triangle over a <b>lagoon</b>, to charge them.'],
       ['Runes', 'Cast from a <b>rune circle</b> and your power grows: +25% area, healing 33.'],
     ],
@@ -248,14 +227,12 @@ const en: Strings = {
   tutorial: {
     square: {
       draw: ['Draw a square', 'A square makes an earth attack.'],
-      pick: ['It was stored here', 'Tap the square to get it ready.'],
       aim: ['Tap the rival', 'The earth attack bursts out right where you tap.'],
       watch: 'Hit!',
       done: 'Draw more shapes to keep attacking.',
     },
     circle: {
       draw: ['You got hit! Draw a circle', 'A circle instantly raises an earth wall facing the rival.'],
-      pick: ['It was stored here', 'Tap the circle to get it ready.'],
       aim: ['Tap towards the rival', 'The wall rises around you, facing where you tap.'],
       watch: 'Anything that lands inside the wall does not hurt you.',
       done: 'Done! Now you know how to attack and defend.',
