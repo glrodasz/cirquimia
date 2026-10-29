@@ -3,8 +3,9 @@ import { heightAt } from './noise';
 import type { Obstacle } from './meadow';
 
 // Circle = defence: a temporary arc of earth and rock that shields the alchemist.
-const WALL_MIN_REACH = 0.45; // arc radius around the alchemist, world units
-const WALL_MAX_REACH = 1.0;
+// Arc radius around the alchemist, world units: the same for every wall, wherever its circle was drawn,
+// so it shields about the ground a strike would cover around its caster (40% under the old farthest reach of 1.0).
+const WALL_REACH = 0.6;
 const WALL_RISE = 0.35; // s, whole arc (rocks rise staggered from the middle out)
 const WALL_HOLD = 1.4; // about two seconds up in total
 /** Seconds a wall protects its zone once raised (it rises, then holds before sinking). */
@@ -160,7 +161,7 @@ class EarthWall extends Effect {
     const dx = toward.x - cx;
     const dz = toward.z - cz;
     const facing = Math.atan2(dx, dz);
-    const reach = THREE.MathUtils.clamp(Math.hypot(dx, dz), WALL_MIN_REACH, WALL_MAX_REACH);
+    const reach = WALL_REACH;
     this.zone = { x: cx, z: cz, r: reach };
     // Every cast is a little different: span, peak, lean of the hump and how rocky it is.
     const span = THREE.MathUtils.degToRad(THREE.MathUtils.randFloat(130, 175));
