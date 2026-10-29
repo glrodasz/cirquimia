@@ -423,6 +423,8 @@ class Rival extends Fighter {
 
   private act(plan: Plan, foe: Fighter, combat: Combat, dt: number) {
     if (plan.kind === 'wall') {
+      // Walked into a rune circle while drawing it: refused there, as the player's would be, and the charge stays.
+      if (combat.onRunes(this.position)) return;
       this.charged = null; // the circle, like any new symbol, replaces fire or water in hand
       this.raiseWall(foe.position, combat);
       return;
