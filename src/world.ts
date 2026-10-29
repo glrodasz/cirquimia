@@ -145,6 +145,8 @@ export class World {
   /** Shared with the alchemist; refilled in place on every generation. */
   readonly obstacles: Obstacle[] = [];
   params: GenParams = { ...DEFAULT_PARAMS };
+  /** True while meadows must come without rune circles (runes or crystals): the tutorial's, so its wall lesson always works. */
+  noRunes: () => boolean = () => false;
   layout!: Layout;
   stats!: WorldStats;
   private root = new THREE.Group();
@@ -163,7 +165,7 @@ export class World {
     dispose(this.root);
     this.obstacles.length = 0;
 
-    const layout = generateLayout(seed, this.params);
+    const layout = generateLayout(seed, this.noRunes() ? { ...this.params, magia: 0 } : this.params);
     const drops: string[] = [];
     let built: { features: ReturnType<typeof buildFeatures>; solids: THREE.Group; walk: Walkability };
     // Build what blocks the walk, check it, and drop the most blocking piece until enough is walkable.

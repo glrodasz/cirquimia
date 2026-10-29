@@ -122,6 +122,8 @@ const tutorial = new Tutorial({
   provoke: () => combat.provoke(),
 });
 combat.onHeroHit = () => tutorial.hurt();
+// The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
+world.noRunes = () => !tutorial.done;
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(
