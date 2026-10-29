@@ -8,7 +8,10 @@
   html, body { margin: 0; }
   body { width: 1200px; height: 630px; overflow: hidden; position: relative; font-family: Inter, system-ui, sans-serif; color: #1f2d27;
     background: radial-gradient(ellipse at 78% 55%, #b9c9c4 0%, #d5dedb 45%, #e6ecea 100%); }
-  .rings { position: absolute; left: 928px; top: 300px; width: 620px; height: 620px; transform: translate(-50%, -50%); opacity: .22; }
+  /* The meadow seen through a transmutation circle centred past the right edge (1250, 315). */
+  .rings { position: absolute; left: 0; top: 0; width: 1200px; height: 630px; }
+  .terrain { position: absolute; inset: 0; filter: drop-shadow(-10px 0 24px rgba(31,45,39,.35)); }
+  .terrain img { position: absolute; left: 548px; top: -15px; width: 810px; height: 810px; clip-path: circle(540px at 702px 330px); }
   .copy { position: absolute; left: 72px; top: 64px; width: 600px; display: flex; flex-direction: column; height: 502px; }
   .brand { display: flex; align-items: center; gap: 18px; }
   .brand img { width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 6px 16px rgba(31,45,39,.25); }
@@ -20,19 +23,10 @@
   .shapes { display: flex; gap: 12px; }
   .shapes svg { width: 40px; height: 40px; fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
   .cta { display: flex; align-items: center; height: 52px; padding: 0 22px; border-radius: 999px; background: #2c403d; color: #f1f5f2; font: 700 21px/1 Inter, sans-serif; white-space: nowrap; }
-  .url { position: absolute; right: 40px; bottom: 26px; font: 600 18px/1 Inter, sans-serif; color: #3a4a43; opacity: .75; }
-  .phone { position: absolute; left: 760px; top: 38px; width: 336px; height: 504px; border-radius: 38px; padding: 10px; background: #f6f8f7;
-    box-shadow: 0 30px 60px rgba(31,45,39,.35), 0 0 0 1px rgba(31,45,39,.08); transform: rotate(4deg); }
-  .phone img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 29px; }
+  .url { position: absolute; right: 40px; bottom: 26px; font: 600 18px/1 Inter, sans-serif; color: #f1f5f2; text-shadow: 0 1px 6px rgba(31,45,39,.7); }
 </style>
 </head>
 <body>
-  <svg class="rings" viewBox="0 0 200 200" fill="none" stroke="#2c403d" stroke-linecap="round">
-    <circle cx="100" cy="100" r="96" stroke-width=".6" stroke-dasharray="6 4" />
-    <circle cx="100" cy="100" r="84" stroke-width="1.2" />
-    <path d="M100 26 L164 137 L36 137 Z" stroke-width="1" />
-    <circle cx="100" cy="100" r="40" stroke-width=".6" />
-  </svg>
   <div class="copy">
     <div class="brand"><img src="../../public/icon-512.png" alt="" /><span>Cirquimia</span></div>
     <h1 id="title"></h1>
@@ -48,7 +42,12 @@
       </div>
     </div>
   </div>
-  <div class="phone"><img src="game.jpg" alt="" /></div>
+  <div class="terrain"><img src="terrain.jpg" alt="" /></div>
+  <svg class="rings" viewBox="0 0 1200 630" fill="none" stroke-linecap="round">
+    <circle cx="1250" cy="315" r="540" stroke="#f6f8f7" stroke-width="6" />
+    <circle cx="1250" cy="315" r="566" stroke="#2c403d" stroke-opacity=".45" stroke-width="2" />
+    <circle cx="1250" cy="315" r="586" stroke="#2c403d" stroke-opacity=".3" stroke-width="1.5" stroke-dasharray="10 8" />
+  </svg>
   <div class="url">cirquimia.pages.dev</div>
   <script>
     const copy = {
