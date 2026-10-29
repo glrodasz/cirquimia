@@ -297,7 +297,7 @@ class Rival extends Fighter {
     // Fallen, or already inside its own wall where nothing reaches it.
     if (this.down || this.walled > 0) return;
     // Hands free (not halfway through drawing another spell): a quick circle stops it where it stands.
-    if (!this.plan && this.wallTimer <= 0 && Math.random() < this.tuning.guard) {
+    if (!this.plan && this.wallTimer <= 0 && !combat.onRunes(this.position) && Math.random() < this.tuning.guard) {
       this.drawSketch('circle', WALL_SKETCH);
       this.raiseWall(from, combat);
       return;
@@ -396,7 +396,9 @@ class Rival extends Fighter {
     // Hurt rivals sometimes spend the turn on a rhombus instead.
     if (this.hp <= 50 && Math.random() < this.tuning.heal) return { kind: 'heal' };
     const near = foe.position.distanceTo(this.position) < FORTRESS_RANGE;
-    if (this.wallTimer <= 0 && this.walled <= 0 && near && Math.random() < this.tuning.fortress) return { kind: 'wall' };
+    // Walls are never raised inside a rune circle, for rivals as for the player.
+    const canWall = this.wallTimer <= 0 && this.walled <= 0 && !combat.onRunes(this.position);
+    if (canWall && near && Math.random() < this.tuning.fortress) return { kind: 'wall' };
     // Fire and water have to be drawn from a source on the map first, like the player does; that takes this turn.
     if (!this.charged && Math.random() < this.tuning.elemental) {
       const order: Fluid[] = Math.random() < 0.5 ? ['fire', 'water'] : ['water', 'fire'];
@@ -506,7 +508,7 @@ export class Combat {
     private readonly camera: THREE.Camera,
     private readonly onScreen: (p: THREE.Vector3) => boolean,
     readonly findSource: SourceFinder,
-    private readonly onRunes: (p: THREE.Vector3) => boolean,
+    readonly onRunes: (p: THREE.Vector3) => boolean,
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
     spells.onStrike = (x, z, element, caster, area) => this.strike(x, z, element, caster, area);

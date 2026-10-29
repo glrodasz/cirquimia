@@ -41,7 +41,7 @@ You hold **one symbol at a time**; there is no inventory. Drawing a new symbol r
 | Rhombus ◆ | Cura (heal) | Restores 25 HP |
 | Pentagram ★ | Estrella (star) | Five strikes around the target, 10 damage each; good for hitting several rivals |
 
-**Runes.** Cast from inside a rune circle on the ground and your power grows: +25% strike area, and heals restore 33 instead of 25.
+**Runes.** Cast from inside a rune circle on the ground and your power grows: +25% strike area, and heals restore 33 instead of 25. Walls cannot be raised inside one, so nobody can turtle up there.
 
 A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the top left change the number of rivals and the difficulty; the **?** reopens the guide.
 
