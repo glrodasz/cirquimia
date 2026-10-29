@@ -113,24 +113,50 @@
       #help-btn svg, #book-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
       :is(#help-btn, #book-btn, #help) .ring { fill: var(--hud-fg); opacity: .32; }
       :is(#help-btn, #book-btn) .glyph { fill: #b5761f; }
-      /* Sized to the visible viewport (--seen, set from visualViewport) so mobile toolbars never cover the buttons. */
-      #help { position: fixed; top: 0; left: 0; right: 0; height: 100%; height: min(100dvh, var(--seen, 100dvh)); box-sizing: border-box; z-index: 6; display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.4), rgba(35,50,42,.6)); backdrop-filter: blur(3px) saturate(.8); -webkit-backdrop-filter: blur(3px) saturate(.8); opacity: 0; transition: opacity .3s; touch-action: pan-x pan-y; }
+      /* The help is an alchemist's book: leather cover, gold-stamped title, parchment pages that flip over from the spine.
+         It stays parchment in dark mode too, like a real book. Sized to the visible viewport (--seen, set from
+         visualViewport) so mobile toolbars never cover the page-turn buttons. */
+      #help { --leather: #2c4541; --leather-hi: #3d5c57; --brass: #d9b45f; --paper: #f3e8cc; --paper-edge: #dccaa0; --ink: #3a2b1d; --ink-soft: #5e4a35; --seal: #9a2f24; position: fixed; top: 0; left: 0; right: 0; height: 100%; height: min(100dvh, var(--seen, 100dvh)); box-sizing: border-box; z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: max(14px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 45%, rgba(40,52,44,.35), rgba(14,20,16,.72)); backdrop-filter: blur(3px) saturate(.7); -webkit-backdrop-filter: blur(3px) saturate(.7); opacity: 0; transition: opacity .3s; touch-action: pan-x pan-y; font-family: 'Alegreya Variable', Georgia, 'Times New Roman', serif; }
       #help[hidden] { display: none; }
       #help.show { opacity: 1; }
-      #help .card { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(380px, 100%); max-height: 100%; box-sizing: border-box; padding: 14px 0; border-radius: 22px; overflow: hidden; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(20,28,24,.3); font: 600 13px/1.15 system-ui, -apple-system, sans-serif; text-align: center; transform: translateY(10px) scale(.96); transition: transform .4s cubic-bezier(.2,1.4,.4,1); }
-      #help.show .card { transform: none; }
-      #help h2 { flex: none; margin: 0; padding: 0 48px; font: 800 20px/1.2 system-ui, -apple-system, sans-serif; }
-      #help .x { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--hud-fg); opacity: .55; font: 400 26px/1 system-ui, sans-serif; cursor: pointer; touch-action: manipulation; }
+      #help .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      #help .book { position: relative; flex: 0 1 auto; display: flex; flex-direction: column; width: min(400px, 100%); max-height: 100%; box-sizing: border-box; padding: 0 12px; border-radius: 8px 16px 16px 8px; background: radial-gradient(120% 80% at 30% 20%, var(--leather-hi), var(--leather) 60%, #1e302d); box-shadow: inset 0 0 0 4px rgba(0,0,0,.12), inset 0 0 0 5px rgba(217,180,95,.35), inset 10px 0 18px -8px rgba(0,0,0,.5), 0 18px 40px rgba(0,0,0,.45); transform: translateY(14px) scale(.96); transition: transform .45s cubic-bezier(.2,1.4,.4,1); }
+      #help.show .book { transform: none; }
+      /* Brass corners riveted onto the cover. */
+      #help .book::before, #help .book::after { content: ''; position: absolute; width: 26px; height: 26px; pointer-events: none; background: linear-gradient(135deg, #f1d58e, #a87d2c); clip-path: polygon(0 0, 100% 0, 100% 30%, 30% 30%, 30% 100%, 0 100%); filter: drop-shadow(0 1px 1px rgba(0,0,0,.5)); }
+      #help .book::before { left: 3px; top: 3px; }
+      #help .book::after { right: 3px; bottom: 3px; transform: rotate(180deg); }
+      #help h2 { flex: none; margin: 0; padding: 14px 44px 10px; color: var(--brass); white-space: nowrap; font: 700 clamp(18px, 5.6vw, 23px)/1.1 'Alegreya Variable', Georgia, serif; letter-spacing: .03em; text-align: center; text-shadow: 0 -1px 0 rgba(0,0,0,.55), 0 1px 0 rgba(255,236,180,.18); }
+      #help h2::before, #help h2::after { content: '✦'; margin: 0 8px; font-size: 12px; vertical-align: 4px; opacity: .8; }
+      #help .x { position: absolute; top: 4px; right: 4px; z-index: 5; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--brass); font: 400 30px/1 Georgia, serif; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      #help .x:active { transform: scale(.9); }
+      #help .book:focus { outline: none; }
+      #help :is(.x, .turn button, .lang):focus-visible { outline: 3px solid #ffd27a; outline-offset: -3px; border-radius: 10px; }
+      #help .pages { position: relative; flex: 0 1 auto; min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); perspective: 1800px; border-radius: 3px 8px 8px 3px; background: var(--paper-edge); box-shadow: 2px 2px 0 -1px #e9dbb8, 4px 4px 0 -2px #cdb98c, 6px 6px 0 -3px #b9a476, 0 4px 10px rgba(0,0,0,.35); touch-action: pan-y; }
+      /* Each page is parchment: a warm wash, a darker edge, fibres from a noise filter and the shadow of the spine on the left. */
+      #help .page { position: relative; grid-area: 1 / 1; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; box-sizing: border-box; padding: 16px 18px 14px 24px; border-radius: 3px 8px 8px 3px; color: var(--ink); background: linear-gradient(90deg, rgba(90,60,25,.32), rgba(90,60,25,.08) 14px, transparent 34px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"), radial-gradient(130% 100% at 55% 40%, #fbf3de, var(--paper) 55%, #e2cfa3); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; visibility: hidden; transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden; text-align: center; }
+      #help .page::-webkit-scrollbar { display: none; }
+      #help .page.on, #help .page.under { visibility: visible; }
+      #help .page.on { z-index: 2; }
+      #help .page.leaf-in { z-index: 3; animation: leaf-in .5s cubic-bezier(.3,.1,.3,1) both; }
+      #help .page.leaf-out { animation: leaf-out .5s cubic-bezier(.5,0,.7,.9) both; }
+      #help .page.under { animation: leaf-reveal .5s ease-out both; }
+      @keyframes leaf-out { from { transform: rotateY(0); box-shadow: 0 0 0 rgba(0,0,0,0); filter: brightness(1); } to { transform: rotateY(-105deg); box-shadow: 30px 0 40px rgba(40,25,10,.35); filter: brightness(.75); } }
+      @keyframes leaf-in { from { transform: rotateY(-105deg); filter: brightness(.75); } to { transform: rotateY(0); filter: brightness(1); } }
+      @keyframes leaf-reveal { from { filter: brightness(.82); } to { filter: brightness(1); } }
+      /* A folded corner hints that there is another page to turn to. */
+      #help .page.more::after { content: ''; position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; border-radius: 0 0 8px 0; background: linear-gradient(315deg, var(--paper-edge) 0 45%, rgba(60,40,15,.28) 50%, #f7edd5 52%, #e8d7ae 100%); box-shadow: -2px -2px 4px rgba(60,40,15,.15); pointer-events: none; }
       #help ol, #help ul { list-style: none; margin: 0; padding: 0; }
-      #help small { font-weight: 500; opacity: .65; }
       #help b { font-weight: 800; }
-      #help .track { flex: 1 1 auto; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x; overscroll-behavior: contain; }
-      #help .track::-webkit-scrollbar { display: none; }
-      #help .slide { flex: 0 0 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 16px; scroll-snap-align: start; scroll-snap-stop: always; overflow-y: auto; }
-      /* The screenshot shrinks on short screens so the text and buttons always fit. */
-      #help .shot { position: relative; flex: none; width: min(100%, calc((var(--seen, 100dvh) - 320px) * 4 / 3)); min-width: 160px; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--hud-border), 0 2px 10px rgba(20,28,24,.18); }
+      #help .shot { position: relative; flex: none; width: min(100%, calc((var(--seen, 100dvh) - 360px) * 4 / 3)); min-width: 160px; aspect-ratio: 4 / 3; margin: 4px 0 2px; box-sizing: border-box; padding: 5px; background: #fdf8ea; box-shadow: 0 1px 0 rgba(60,40,15,.2), 0 4px 10px rgba(60,40,15,.28); transform: rotate(-1.2deg); }
+      #help .page:nth-child(even) .shot { transform: rotate(1deg); }
+      /* Photo corners holding the plate onto the page. */
+      #help .shot::before, #help .shot::after { content: ''; position: absolute; z-index: 1; width: 22px; height: 22px; background: linear-gradient(135deg, #6b4a2b 50%, transparent 50%); filter: drop-shadow(0 1px 1px rgba(0,0,0,.3)); }
+      #help .shot::before { left: -4px; top: -4px; }
+      #help .shot::after { right: -4px; bottom: -4px; transform: rotate(180deg); }
       #help .shot img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
-      #help .shot svg { position: absolute; inset: 0; }
+      #help .shot svg { position: absolute; inset: 5px; width: calc(100% - 10px); height: calc(100% - 10px); }
+      #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
       #help .shot .arrow { fill: #fff6e0; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
       #help .shot .tap { fill: none; stroke: #fff6e0; stroke-width: 2.4; stroke-linecap: round; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
       #help .shot .hand path { fill: #fffaf0; stroke: #23322a; stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; }
@@ -138,45 +164,55 @@
       #help .shot .hand .knuckles { fill: none; stroke-width: 1.1; }
       #help .shot .ink { filter: drop-shadow(0 0 3px rgba(255,250,235,.9)) drop-shadow(0 1px 1.5px rgba(20,28,24,.5)); } #help .shot .ink.fire { fill: #b0482c; } #help .shot .ink.water { fill: #8a3f5c; }
       #help .shot .badge rect { fill: #e0a23c; } #help .shot .badge text { fill: #23322a; font: 800 15px system-ui, -apple-system, sans-serif; text-anchor: middle; }
-      #help .slide h3 { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; font: 800 17px/1.2 system-ui, -apple-system, sans-serif; }
-      #help .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #e0a23c; color: #23322a; font-size: 13px; }
-      #help .slide p { margin: 0; max-width: 300px; font-weight: 500; font-size: 15px; line-height: 1.3; }
-      #help .dots { flex: none; display: flex; justify-content: center; gap: 2px; }
-      #help .dot { width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
-      #help .dot::after { content: ''; display: block; width: 8px; height: 8px; margin: auto; border-radius: 50%; background: var(--hud-fg); opacity: .25; transition: opacity .2s, transform .2s; }
-      #help .dot.on::after { opacity: .85; transform: scale(1.25); }
-      #help .nav { flex: none; display: flex; justify-content: center; gap: 10px; padding: 0 16px; }
-      #help .nav .match-btn { height: 44px; padding: 0 22px; font-size: 15px; }
-      #help .nav .match-btn .cap::after { content: none; }
-      /* The language switch: a plain link under the buttons, labelled in the language it leads to. */
-      #help .lang { flex: none; align-self: center; display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; margin-top: -2px; border-radius: 999px; color: var(--hud-fg); opacity: .7; font: 600 13px/1 system-ui, -apple-system, sans-serif; text-decoration: none; touch-action: manipulation; }
+      #help .page h3 { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 0; font: 800 23px/1.15 'Alegreya Variable', Georgia, serif; }
+      #help .num { display: inline-grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f4d48a, #b98a33); color: #3a2b1d; box-shadow: inset 0 0 0 1.5px rgba(90,60,20,.45), 0 1px 2px rgba(60,40,15,.35); font-size: 17px; }
+      #help .page p { margin: 0; max-width: 310px; font-size: 18px; font-weight: 450; line-height: 1.32; color: var(--ink); }
+      #help .page p::before { content: ''; display: block; width: 90px; height: 8px; margin: 0 auto 8px; background: radial-gradient(circle, var(--ink-soft) 0 2px, transparent 2.5px) center / 8px 8px no-repeat, linear-gradient(var(--ink-soft), var(--ink-soft)) center / 100% 1px no-repeat; opacity: .55; }
+      /* The page-turn strip along the bottom of the cover: each half of it is one big button. */
+      #help .turn { flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 66px; margin: 0 -12px; }
+      #help .turn button { display: flex; align-items: center; gap: 4px; height: 100%; min-height: 60px; padding: 0 14px; border: 0; background: transparent; color: #f3e6c4; font: 700 19px/1 'Alegreya Variable', Georgia, serif; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
+      #help .turn .back { justify-content: flex-start; }
+      #help .turn .go { justify-content: flex-end; color: var(--brass); }
+      #help .turn button.hide { visibility: hidden; }
+      #help .turn .arrow { flex: none; width: 40px; height: 20px; fill: currentColor; transition: transform .2s; }
+      #help .turn .back .arrow { transform: scaleX(-1); }
+      #help .turn .go:active .arrow { transform: translateX(4px); }
+      #help .turn .back:active .arrow { transform: scaleX(-1) translateX(4px); }
+      @media (hover: hover) { #help .turn .go:hover .arrow { transform: translateX(4px); } #help .turn .back:hover .arrow { transform: scaleX(-1) translateX(4px); } }
+      /* On the last page the button becomes a red wax seal: the one that closes the book. */
+      #help .turn .go.seal .arrow { display: none; }
+      #help .turn .go.seal .cap { display: grid; place-items: center; min-height: 46px; padding: 0 20px; border-radius: 23px 20px 24px 19px; background: radial-gradient(circle at 35% 30%, #c4483a, var(--seal) 60%, #6e1e17); color: #fbefd6; box-shadow: inset 0 0 0 3px rgba(0,0,0,.14), inset 0 2px 2px rgba(255,200,180,.3), 0 2px 4px rgba(0,0,0,.4); text-shadow: 0 -1px 0 rgba(0,0,0,.45); }
+      #help .turn .go.seal:active .cap { transform: scale(.95); }
+      #help .folio { color: var(--brass); opacity: .85; font: 600 15px/1 'Alegreya Variable', Georgia, serif; font-variant-numeric: lining-nums tabular-nums; letter-spacing: .08em; }
+      #help .lang { flex: none; display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px; color: #f3ead2; opacity: .85; font: 600 14px/1 system-ui, -apple-system, sans-serif; text-decoration: none; touch-action: manipulation; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
       #help .lang::before { content: ''; width: 15px; height: 15px; background: currentColor; -webkit-mask: var(--globe) center / contain no-repeat; mask: var(--globe) center / contain no-repeat; --globe: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M2.5 12h19M12 2.5c2.6 2.6 3.9 5.8 3.9 9.5s-1.3 6.9-3.9 9.5c-2.6-2.6-3.9-5.8-3.9-9.5S9.4 5.1 12 2.5z'/%3E%3C/svg%3E"); }
       #help .lang:hover { opacity: 1; }
-      #help .lang:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; opacity: 1; }
-      #help .back { background: transparent; box-shadow: inset 0 0 0 1.5px var(--hud-border); }
-      #help .back.hide { visibility: hidden; }
-      #help .go { background: #3f5a57; color: #f1f5f2; }
-      #help .scroll { min-height: 0; overflow-y: auto; padding: 4px 16px; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-      #help .fig { display: inline-block; flex: none; width: 52px; height: 52px; margin-bottom: 2px; border-radius: 50%; background: rgba(255,255,255,.35); color: #b5761f; }
+      /* The symbols manual. */
+      #help .manual .page { justify-content: center; min-height: 340px; }
+      #help .fig { display: inline-block; flex: none; width: 58px; height: 58px; margin-bottom: 2px; border-radius: 50%; background: radial-gradient(circle, rgba(255,250,235,.85) 55%, rgba(255,250,235,0) 72%); color: #9a6418; }
       #help .fig svg { fill: currentColor; }
       #help .fig .glyph { fill: currentColor; opacity: .92; }
-      #help .fire { fill: #e0712c; } #help .water { fill: #3f8fb0; }
+      #help .ring { fill: var(--ink); opacity: .3; }
+      #help .fire { fill: #c25a22; } #help .water { fill: #2f7896; }
+      #help .shapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 4px; width: 100%; }
+      #help .shapes li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      #help .shapes b { font-size: 19px; }
+      #help .shapes .val { font: 800 18px/1.1 'Alegreya Variable', Georgia, serif; font-variant-numeric: lining-nums tabular-nums; color: var(--ink); }
+      #help .shapes .val small { font-size: 14px; font-weight: 600; }
+      #help .val-dmg { color: #9f2f24 !important; } #help .val-heal { color: #2c6a36 !important; }
+      #help .shapes .src { position: absolute; top: -4px; left: calc(50% + 16px); width: 26px; height: 26px; border-radius: 50%; background: #fbf3de; box-shadow: 0 1px 2px rgba(60,40,15,.3); }
+      #help .src .ring { opacity: 0; }
+      #help .notes { display: flex; flex-direction: column; gap: 16px; width: 100%; margin-top: 10px; text-align: left; font-size: 18px; line-height: 1.3; }
+      #help .notes li { display: flex; align-items: center; gap: 12px; }
+      #help .notes .src { flex: none; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,250,235,.7); box-shadow: inset 0 0 0 1.5px rgba(90,60,20,.25); }
+      #help .notes .rune { display: grid; place-items: center; color: #9a6418; font-size: 24px; }
+      @media (max-height: 700px) { #help h2 { padding: 10px 44px 6px; font-size: 20px; } #help .page { gap: 6px; padding: 12px 14px 10px 20px; } #help .page h3 { font-size: 20px; margin-top: 2px; } #help .page p { font-size: 16px; } #help .page p::before { margin-bottom: 5px; } #help .shot { width: min(100%, calc((var(--seen, 100dvh) - 320px) * 4 / 3)); } #help .turn { min-height: 58px; } #help .fig { width: 48px; height: 48px; } #help .shapes { gap: 10px 4px; } #help .notes { font-size: 16px; gap: 12px; } }
+      @media (min-width: 600px) and (min-height: 800px) { #help .book { width: min(520px, 100%); } #help .page p { font-size: 20px; max-width: 400px; } #help .page h3 { font-size: 26px; } }
+      @media (prefers-reduced-motion: reduce) { #help .book { transition: none; } #help .page.on { animation: leaf-fade .2s ease-out both; } @keyframes leaf-fade { from { opacity: 0; } to { opacity: 1; } } }
       .nosource { position: fixed; z-index: 3; width: 64px; height: 64px; pointer-events: none; border-radius: 50%; background: var(--hud-bg); box-shadow: 0 2px 10px rgba(20,28,24,.25); }
       .nosource svg { position: absolute; inset: 0; width: 100%; height: 100%; } .nosource .ring { fill: #23322a; opacity: .3; } .nosource .fire { fill: #e0712c; } .nosource .water { fill: #3f8fb0; } .nosource .cross { fill: #c8372d; } .nosource.wall .ring { fill: #23322a; opacity: .3; } .nosource.wall .glyph { fill: #b5761f; }
-      #help .shapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 6px; }
-      #help .shapes li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-      #help .shapes .val { font: 800 15px/1 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
-      #help .shapes .val small { font-size: 12px; }
-      #help .val-dmg { color: #c4473a; } #help .val-heal { color: #3f8a4a; }
-      #help .shapes .src { position: absolute; top: -2px; left: calc(50% + 14px); width: 24px; height: 24px; border-radius: 50%; background: var(--hud-bg); }
-      #help .src .ring { opacity: 0; }
-      #help .notes { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hud-border); text-align: left; font-weight: 500; font-size: 13.5px; }
-      #help .notes li { display: flex; align-items: center; gap: 8px; }
-      #help .notes .src { flex: none; width: 26px; height: 26px; }
-      #help .notes .rune { display: grid; place-items: center; color: #b5761f; font-size: 17px; }
-      @media (max-height: 640px) { #help .card { gap: 6px; padding: 10px 0; } #help h2 { font-size: 18px; } #help .slide p { font-size: 14px; } #help .slide h3 { font-size: 16px; } #help .fig { width: 44px; height: 44px; } #help .shapes { gap: 8px 6px; } #help .nav .match-btn { height: 40px; } }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root:not([data-theme="light"]) #help .fire { fill: #ff9a5c; } :root:not([data-theme="light"]) #help .water { fill: #8cc4dc; } :root:not([data-theme="light"]) #help .val-dmg { color: #ff8a7a; } :root:not([data-theme="light"]) #help .val-heal { color: #8fd69a; } :root:not([data-theme="light"]) #help .notes .rune { color: #ffd27a; } :root:not([data-theme="light"]) #help .go { background: #9fbcb4; color: #14201c; } }
-      :root[data-theme="dark"] :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; } :root[data-theme="dark"] #help .fig { color: #ffd27a; background: rgba(255,255,255,.06); } :root[data-theme="dark"] #help .fire { fill: #ff9a5c; } :root[data-theme="dark"] #help .water { fill: #8cc4dc; } :root[data-theme="dark"] #help .val-dmg { color: #ff8a7a; } :root[data-theme="dark"] #help .val-heal { color: #8fd69a; } :root[data-theme="dark"] #help .notes .rune { color: #ffd27a; } :root[data-theme="dark"] #help .go { background: #9fbcb4; color: #14201c; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; } }
+      :root[data-theme="dark"] :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; }
       #tutorial { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .3s; }
       #tutorial[hidden] { display: none; }
       #tutorial.show { opacity: 1; }
@@ -214,8 +250,6 @@
       :is(#help .fig, #help .mini).pentagram { color: #6a4f8a; }
       :is(#help .fig, #help .mini).charged.triangle { background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, var(--hud-bg) 75%); }
       :is(#help .fig, #help .mini).charged.triangleDown { background: radial-gradient(circle, #d9ecef 0%, #7fb3c299 45%, var(--hud-bg) 75%); }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#help .fig).triangle { color: #ff9a76; } :root:not([data-theme="light"]) :is(#help .fig).square { color: #8cc4dc; } :root:not([data-theme="light"]) :is(#help .fig).triangleDown { color: #e899b6; } :root:not([data-theme="light"]) :is(#help .fig).rhombus { color: #9fd0a2; } :root:not([data-theme="light"]) :is(#help .fig).pentagram { color: #c3a8e8; } }
-      :root[data-theme="dark"] :is(#help .fig).triangle { color: #ff9a76; } :root[data-theme="dark"] :is(#help .fig).square { color: #8cc4dc; } :root[data-theme="dark"] :is(#help .fig).triangleDown { color: #e899b6; } :root[data-theme="dark"] :is(#help .fig).rhombus { color: #9fd0a2; } :root[data-theme="dark"] :is(#help .fig).pentagram { color: #c3a8e8; }
       body.aiming canvas { cursor: crosshair; }
       .hp { position: fixed; left: 0; top: 0; width: 38px; height: 4px; margin: -16px 0 0 -19px; border-radius: 3px; background: rgba(20,28,24,.55); box-shadow: 0 0 0 1px rgba(255,255,255,.55); overflow: hidden; pointer-events: none; z-index: 1; will-change: transform; }
       .hp[hidden] { display: none; }

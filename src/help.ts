@@ -2,6 +2,7 @@ import { brushPath, shapeIcon, type Pt } from './ammo';
 import { arc, random, segment, svg } from './match';
 import type { ShapeKind } from './gestures';
 import { LANG, langLink, t } from './i18n';
+import '@fontsource-variable/alegreya/wght.css';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
@@ -126,32 +127,41 @@ const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; s
 const EFFECT = { dmg: t.help.damage, heal: t.help.healing };
 
 const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</span>`;
-const closeButton = `<button type="button" class="x" aria-label="${t.help.close}">×</button>`;
 
-/** How to play: one screenshot per step, swiped sideways. */
-function guide() {
+/** A brush arrow pointing right, for the page-turn buttons; the back button mirrors it. */
+function turnArrow(rand: () => number) {
+  return `<svg class="arrow" viewBox="0 0 48 24" aria-hidden="true"><path d="${arrowLine([[6, 13], [24, 11], [41, 12]], 0, rand)}"/></svg>`;
+}
+
+/**
+ * An alchemist's book: a gold title stamped on the leather, parchment pages stacked on top of each
+ * other and two big page-turn buttons along the bottom edge, with the page number between them.
+ */
+function bookCard(cls: string, title: string, pages: string[], label: (n: number, total: number) => string) {
   const rand = random();
-  const total = t.help.slides.length;
-  const slides = t.help.slides
-    .map(
-      ([title, text], i) =>
-        `<section class="slide" aria-label="${t.help.slideOf(i + 1, total)}">` +
-        `<div class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
-        `<svg viewBox="0 0 312 234" aria-hidden="true">${OVERLAYS[i](rand)}</svg></div>` +
-        `<h3><span class="num">${i + 1}</span>${title}</h3><p>${text}</p></section>`,
-    )
-    .join('');
-  const dots = t.help.slides.map((_, i) => `<button type="button" class="dot" aria-label="${t.help.slideOf(i + 1, total)}" data-i="${i}"></button>`).join('');
   return (
-    `<div class="card guide">${closeButton}<h2 id="help-title">${t.help.title}</h2>` +
-    `<div class="track">${slides}</div>` +
-    `<div class="dots">${dots}</div>` +
-    `<div class="nav"><button type="button" class="match-btn back"><span class="cap">${t.help.back}</span></button>` +
-    `<button type="button" class="match-btn go"><span class="cap">${t.help.next}</span></button></div></div>`
+    `<div class="book ${cls}" tabindex="-1"><button type="button" class="x" aria-label="${t.help.close}">×</button>` +
+    `<h2 id="help-title">${title}</h2>` +
+    `<div class="pages">${pages.map((page, i) => `<section class="page" aria-label="${label(i + 1, pages.length)}">${page}</section>`).join('')}</div>` +
+    `<div class="turn"><button type="button" class="back">${turnArrow(rand)}<span class="cap"></span></button>` +
+    `<span class="folio" aria-live="polite"><span aria-hidden="true"></span><span class="sr"></span></span>` +
+    `<button type="button" class="go"><span class="cap"></span>${turnArrow(rand)}</button></div></div>`
   );
 }
 
-/** The symbols manual: every shape, what it does, and where fire and water get charged. */
+/** How to play: one illustrated page per step. */
+function guide() {
+  const rand = random();
+  const pages = t.help.slides.map(
+    ([title, text], i) =>
+      `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
+      `<svg viewBox="0 0 312 234" aria-hidden="true">${OVERLAYS[i](rand)}</svg></figure>` +
+      `<h3><span class="num">${i + 1}</span>${title}</h3><p>${text}</p>`,
+  );
+  return bookCard('guide', t.help.title, pages, t.help.slideOf);
+}
+
+/** The symbols manual: every shape and what it does, then where fire and water get charged. */
 function symbols() {
   const rand = random();
   const shapes = SHAPES.map(
@@ -160,15 +170,12 @@ function symbols() {
       (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon(rand) : waterIcon(rand)}</span>` : '') +
       '</li>',
   ).join('');
-  return (
-    `<div class="card manual">${closeButton}<h2 id="help-title">${t.help.shapesTitle}</h2>` +
-    `<div class="scroll"><ul class="shapes">${shapes}</ul>` +
-    `<ul class="notes"><li><span class="src">${flameIcon(rand)}</span>${t.help.fireNote}</li>` +
-    `<li><span class="src">${waterIcon(rand)}</span>${t.help.waterNote}</li>` +
-    `<li><span class="src rune">✦</span>${t.help.runesNote}</li></ul></div>` +
-    `<div class="nav"><button type="button" class="match-btn back how"><span class="cap">${t.help.howTo}</span></button>` +
-    `<button type="button" class="match-btn go"><span class="cap">${t.help.ok}</span></button></div></div>`
-  );
+  const notes =
+    `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
+    `<li><span class="src">${flameIcon(rand)}</span><span>${t.help.fireNote}</span></li>` +
+    `<li><span class="src">${waterIcon(rand)}</span><span>${t.help.waterNote}</span></li>` +
+    `<li><span class="src rune">✦</span><span>${t.help.runesNote}</span></li></ul>`;
+  return bookCard('manual', t.help.shapesTitle, [`<ul class="shapes">${shapes}</ul>`, notes], t.help.pageOf);
 }
 
 /**
@@ -205,41 +212,105 @@ export function mountHelp() {
   fit();
 
   let open = false;
+  let opener: HTMLElement | null = null;
+  let turn: ((dir: number) => void) | null = null;
   const show = (page: 'guide' | 'symbols') => {
+    if (!open) opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     overlay.innerHTML = page === 'guide' ? guide() : symbols(); // fresh brush jitter each time
-    overlay.querySelector('.card')!.append(langLink(LANG === 'es' ? 'en' : 'es', 'lang'));
+    overlay.append(langLink(LANG === 'es' ? 'en' : 'es', 'lang'));
     overlay.querySelector('.x')!.addEventListener('click', hide);
-    if (page === 'guide') wireSlides();
-    else {
-      overlay.querySelector('.go')!.addEventListener('click', hide);
-      overlay.querySelector('.how')!.addEventListener('click', () => show('guide'));
-    }
+    turn = page === 'guide' ? wireBook(t.help.go) : wireBook(t.help.ok, t.help.howTo, () => show('guide'));
     overlay.hidden = false;
     open = true;
     void overlay.offsetWidth; // let the fade-in start from hidden
     overlay.classList.add('show');
-    overlay.querySelector<HTMLButtonElement>('.go')!.focus({ preventScroll: true });
+    // Focus the book itself so screen readers start at its title, without a focus ring on a button nobody chose yet.
+    overlay.querySelector<HTMLElement>('.book')!.focus({ preventScroll: true });
   };
 
-  function wireSlides() {
-    const track = overlay.querySelector<HTMLElement>('.track')!;
-    const dots = [...overlay.querySelectorAll<HTMLButtonElement>('.dot')];
+  /**
+   * Turns the pages: the next/back buttons, a sideways swipe across the page, or a tap near its outer
+   * edges. The page being left lifts off the spine and flips away; going back flips the previous page
+   * back down on top. The last page's button closes the book, and the first page's back button can
+   * lead somewhere else.
+   */
+  function wireBook(done: string, before?: string, onBefore?: () => void) {
+    const leaves = [...overlay.querySelectorAll<HTMLElement>('.page')];
+    const shelf = overlay.querySelector<HTMLElement>('.pages')!;
     const back = overlay.querySelector<HTMLButtonElement>('.back')!;
     const next = overlay.querySelector<HTMLButtonElement>('.go')!;
-    const last = dots.length - 1;
+    const [folio, spoken] = overlay.querySelectorAll<HTMLElement>('.folio span');
+    const label = leaves.map((l) => l.getAttribute('aria-label')!);
+    const last = leaves.length - 1;
     let at = 0;
-    const go = (i: number) => track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+    let busy = 0;
+
     const mark = () => {
-      at = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
-      dots.forEach((d, i) => d.classList.toggle('on', i === at));
-      back.classList.toggle('hide', at === 0);
-      next.querySelector('.cap')!.textContent = at === last ? t.help.go : t.help.next;
+      leaves.forEach((l, i) => {
+        l.inert = i !== at;
+        l.classList.toggle('more', i < last);
+      });
+      folio.textContent = `${at + 1} / ${leaves.length}`;
+      spoken.textContent = label[at];
+      const ahead = at < last;
+      next.classList.toggle('seal', !ahead);
+      next.querySelector('.cap')!.textContent = ahead ? t.help.next : done;
+      back.querySelector('.cap')!.textContent = at === 0 && before ? before : t.help.back;
+      back.classList.toggle('hide', at === 0 && !before);
     };
-    track.addEventListener('scroll', mark, { passive: true });
-    dots.forEach((d, i) => d.addEventListener('click', () => go(i)));
-    back.addEventListener('click', () => go(at - 1));
+
+    const go = (to: number) => {
+      if (busy || to < 0 || to > last || to === at) return;
+      const from = leaves[at];
+      const into = leaves[to];
+      const forward = to > at;
+      at = to;
+      mark();
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        from.classList.remove('on');
+        into.classList.add('on');
+        return;
+      }
+      // Forward: the open page flips away, revealing the next one already lying underneath.
+      // Back: the previous page flips down over the open one.
+      if (forward) {
+        into.classList.add('under');
+        from.classList.add('leaf-out');
+      } else {
+        from.classList.add('under');
+        from.classList.remove('on');
+        into.classList.add('on', 'leaf-in');
+      }
+      busy = window.setTimeout(() => {
+        from.classList.remove('on', 'under', 'leaf-out');
+        into.classList.remove('under', 'leaf-in');
+        into.classList.add('on');
+        busy = 0;
+      }, 520);
+    };
+
+    let press: { x: number; y: number } | null = null;
+    shelf.addEventListener('pointerdown', (e) => (press = { x: e.clientX, y: e.clientY }));
+    shelf.addEventListener('pointercancel', () => (press = null));
+    shelf.addEventListener('pointerup', (e) => {
+      if (!press) return;
+      const dx = e.clientX - press.x;
+      const dy = e.clientY - press.y;
+      press = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) go(at + (dx < 0 ? 1 : -1));
+      else if (Math.hypot(dx, dy) < 10) {
+        const box = shelf.getBoundingClientRect();
+        const along = (e.clientX - box.left) / box.width;
+        if (along > 0.72) go(at + 1);
+        else if (along < 0.28) go(at - 1);
+      }
+    });
+    back.addEventListener('click', () => (at === 0 ? onBefore?.() : go(at - 1)));
     next.addEventListener('click', () => (at === last ? hide() : go(at + 1)));
+
+    leaves[0].classList.add('on');
     mark();
+    return (dir: number) => go(at + dir);
   }
 
   function hide() {
@@ -250,7 +321,9 @@ export function mountHelp() {
     setTimeout(() => {
       if (!open) overlay.hidden = true;
     }, 300);
-    (document.activeElement as HTMLElement | null)?.blur();
+    // Hand keyboard focus back to the button that opened the book; otherwise leave the game unfocused.
+    if (opener?.isConnected) opener.focus({ preventScroll: true });
+    else (document.activeElement as HTMLElement | null)?.blur();
   }
 
   button.addEventListener('click', () => show('guide'));
@@ -261,8 +334,16 @@ export function mountHelp() {
   addEventListener('keydown', (e) => {
     if (!open) return;
     if (e.key === 'Escape') hide();
-    const track = overlay.querySelector<HTMLElement>('.track');
-    if (track && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) track.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * track.clientWidth, behavior: 'smooth' });
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') turn?.(e.key === 'ArrowRight' ? 1 : -1);
+    else if (e.key === 'Tab') {
+      // Keep focus inside the book while it is open.
+      const stops = [...overlay.querySelectorAll<HTMLElement>('button:not(.hide), a')].filter((el) => !el.closest('[inert]'));
+      const i = stops.indexOf(document.activeElement as HTMLElement);
+      if (e.shiftKey ? i <= 0 : i === stops.length - 1) {
+        e.preventDefault();
+        stops[e.shiftKey ? stops.length - 1 : 0]?.focus();
+      }
+    }
   });
   if (!seen()) show('guide');
 
