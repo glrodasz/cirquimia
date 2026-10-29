@@ -114,6 +114,11 @@ export class Tutorial {
     document.body.append(this.root);
   }
 
+  /** Both lessons are behind the player. */
+  get done() {
+    return this.stage === 'done';
+  }
+
   /** True while a lesson waits on the player: the match holds still. */
   get paused() {
     return this.lesson !== null && this.step !== 'watch';

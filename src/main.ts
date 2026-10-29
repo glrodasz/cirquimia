@@ -122,6 +122,8 @@ const tutorial = new Tutorial({
   provoke: () => combat.provoke(),
 });
 combat.onHeroHit = () => tutorial.hurt();
+// The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
+world.noRunes = () => !tutorial.done;
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(
@@ -339,11 +341,17 @@ function tapAt(clientX: number, clientY: number) {
  * A recognized stroke. Only one symbol at a time: whatever was in hand is dropped. Circles and rhombi need no
  * target, so they go off at once (the wall faces the nearest rival). Everything else is held in hand for the next
  * tap. A triangle must be drawn over its source and comes charged; drawn anywhere else it is refused (false), the
- * missing source is flashed there, and the shape already in hand stays.
+ * missing source is flashed there, and the shape already in hand stays. A circle drawn inside a rune circle is refused
+ * the same way.
  */
 function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   const drawnAt = new THREE.Vector3();
   if (!groundAt(cx, cy, drawnAt)) drawnAt.copy(hero.root.position);
+  // No walls inside a rune circle: hiding behind one there while casting boosted strikes would be too strong.
+  if (kind === 'circle' && !tutorial.aim() && onRunes(hero.root.position)) {
+    showMissingSource('wall', cx, cy);
+    return false;
+  }
   if (kind === 'circle' || kind === 'rhombus') {
     hold(null);
     if (tutorial.aim()) hero.setTarget(hero.root.position); // the lesson's wall must keep the alchemist inside
