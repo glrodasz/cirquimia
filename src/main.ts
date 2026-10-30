@@ -18,6 +18,7 @@ import { GLADE } from './look';
 import { Bloom } from './glade';
 import { t } from './i18n';
 import { showMissingSource } from './missing';
+import { mountDeviceHint } from './deviceHint';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -108,6 +109,8 @@ function hold(kind: ShapeKind | null) {
 
 // How to play: full screen on the first visit, then behind the "?" next to the gear. The match waits while it is open.
 const help = mountHelp();
+// Mouse-only screens and sideways phones get a quiet note on where the game plays best.
+mountDeviceHint();
 // The first match walks through the square (attack) and, after the first hit taken, the circle (wall).
 const tutorial = new Tutorial({
   covered: () => help.open || dev.open || combat.over,

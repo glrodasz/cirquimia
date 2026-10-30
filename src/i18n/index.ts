@@ -125,6 +125,10 @@ const es = {
       circle: 'Eso no fue un círculo. Sigue la guía e inténtalo otra vez.',
     },
   } as { square: Lesson; circle: Lesson; wrong: Record<'square' | 'circle', string> },
+  device: {
+    touch: 'Cirquimia se disfruta mucho más en un móvil o tableta táctil',
+    portrait: 'Cirquimia se juega mejor en vertical',
+  },
   tilt: (on: boolean) => `Miniatura: ${on ? 'on' : 'off'}`,
   dev: {
     title: 'Herramientas de desarrollo',
@@ -258,6 +262,10 @@ const en: Strings = {
       square: "That wasn't a square. Follow the guide and try again.",
       circle: "That wasn't a circle. Follow the guide and try again.",
     },
+  },
+  device: {
+    touch: 'Cirquimia plays much better on a touch phone or tablet',
+    portrait: 'Cirquimia plays best in portrait mode',
   },
   tilt: (on) => `Miniature: ${on ? 'on' : 'off'}`,
   dev: {

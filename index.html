@@ -234,6 +234,12 @@
       #tutorial .tip.wrong span { color: #c0562f; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tutorial .demo .stroke { fill: #7fb2f0; } :root:not([data-theme="light"]) #tutorial .tip.wrong span { color: #ff9a76; } }
       :root[data-theme="dark"] #tutorial .demo .stroke { fill: #7fb2f0; } :root[data-theme="dark"] #tutorial .tip.wrong span { color: #ff9a76; }
+      /* A watermark, never a control: clear at first, then it fades back and stays out of the way. */
+      #device-hint { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none; display: flex; align-items: center; gap: 7px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 6px 12px; border-radius: 999px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 12px/1.25 system-ui, -apple-system, sans-serif; text-align: center; animation: device-hint 6s ease-in-out both; }
+      #device-hint[hidden] { display: none; }
+      #device-hint svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+      @keyframes device-hint { 0%, 55% { opacity: 1; } 100% { opacity: .35; } }
+      @media (prefers-reduced-motion: reduce) { #device-hint { animation-duration: .01s; animation-delay: 3.5s; } }
       #fps { position: fixed; bottom: calc(var(--edge-bottom) + 50px); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
       #fps[hidden] { display: none; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; } }
