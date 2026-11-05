@@ -24,14 +24,24 @@ const COLUMN_SCALE = 0.6; // pillar height against the square's: each one only h
 export const STAR_REACH = 0.5; // from the target to each tip, world units: the target itself sits between them
 export const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
 
-/** The five tips of a star around a point, one pointing straight up the screen, in drawing order. */
-export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
+/** Strikes cast from inside a rune circle are this much bigger: area, and the star's spread. */
+export const RUNE_BOOST = 1.25;
+
+/** Where the star's five tips sit from its centre on the ground (x, z), one pointing straight up the screen, in drawing order. */
+export function starOffsets(reach = STAR_REACH) {
   // Straight up the screen is away from the camera, which sits 24° around from +z.
   const up = Math.PI + CAMERA_YAW;
-  return [0, 2, 4, 1, 3].map((k, i) => {
+  return [0, 2, 4, 1, 3].map((k) => {
     const a = up + (k / 5) * Math.PI * 2;
-    const x = at.x + Math.sin(a) * reach;
-    const z = at.z + Math.cos(a) * reach;
+    return { x: Math.sin(a) * reach, z: Math.cos(a) * reach };
+  });
+}
+
+/** The five tips of a star around a point, one pointing straight up the screen, in drawing order. */
+export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
+  return starOffsets(reach).map((o, i) => {
+    const x = at.x + o.x;
+    const z = at.z + o.z;
     return { at: new THREE.Vector3(x, heightAt(x, z), z), delay: i * STAR_STAGGER };
   });
 }
