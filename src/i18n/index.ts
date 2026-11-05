@@ -129,6 +129,30 @@ const es = {
     touch: 'Cirquimia se disfruta mucho más en un móvil o tableta táctil',
     portrait: 'Cirquimia se juega mejor en vertical',
   },
+  gpu: {
+    none: {
+      title: 'Activa la aceleración por hardware',
+      body: 'Cirquimia necesita la tarjeta gráfica (WebGL 2) para dibujar la pradera, y tu navegador no la está usando.',
+    },
+    software: {
+      title: 'Tu navegador no usa la tarjeta gráfica',
+      body: 'El juego puede abrir, pero irá muy lento sin aceleración por hardware.',
+    },
+    how: (browser: string) => `Cómo activarla en ${browser}`,
+    names: { chrome: 'Chrome', edge: 'Edge', brave: 'Brave', opera: 'Opera', firefox: 'Firefox', safari: 'Safari', other: 'tu navegador' },
+    steps: {
+      chrome: ['Abre `chrome://settings/system` en una pestaña nueva.', 'Activa «Usar la aceleración de gráficos cuando esté disponible».', 'Pulsa «Reiniciar» y vuelve a esta página.'],
+      edge: ['Abre `edge://settings/system` en una pestaña nueva.', 'Activa «Usar la aceleración de gráficos cuando esté disponible».', 'Pulsa «Reiniciar» y vuelve a esta página.'],
+      brave: ['Abre `brave://settings/system` en una pestaña nueva.', 'Activa «Usar la aceleración de gráficos cuando esté disponible».', 'Pulsa «Reiniciar» y vuelve a esta página.'],
+      opera: ['Abre `opera://settings/system` en una pestaña nueva.', 'Activa «Usar aceleración por hardware cuando esté disponible».', 'Reinicia Opera y vuelve a esta página.'],
+      firefox: ['Abre Ajustes → General → Rendimiento.', 'Desmarca «Usar la configuración de rendimiento recomendada».', 'Marca «Usar aceleración por hardware cuando esté disponible» y reinicia Firefox.'],
+      safari: ['Actualiza el sistema (iOS, iPadOS o macOS) a la última versión.', 'Cierra otras pestañas o apps pesadas y vuelve a abrir Safari.', 'Si sigue sin cargar, prueba en Chrome o Firefox.'],
+      other: ['Busca en los ajustes del navegador «aceleración por hardware» o «aceleración de gráficos» y actívala.', 'Reinicia el navegador y vuelve a esta página.', 'Si no aparece, prueba en Chrome, Edge, Firefox o Safari.'],
+    } as Record<'chrome' | 'edge' | 'brave' | 'opera' | 'firefox' | 'safari' | 'other', string[]>,
+    note: 'Si ya está activada, actualiza los controladores de la tarjeta gráfica o prueba con otro navegador.',
+    retry: 'Reintentar',
+    playAnyway: 'Jugar de todos modos',
+  },
   tilt: (on: boolean) => `Miniatura: ${on ? 'on' : 'off'}`,
   dev: {
     title: 'Herramientas de desarrollo',
@@ -266,6 +290,30 @@ const en: Strings = {
   device: {
     touch: 'Cirquimia plays much better on a touch phone or tablet',
     portrait: 'Cirquimia plays best in portrait mode',
+  },
+  gpu: {
+    none: {
+      title: 'Turn on hardware acceleration',
+      body: 'Cirquimia needs your graphics card (WebGL 2) to draw the meadow, and your browser isn’t using it.',
+    },
+    software: {
+      title: 'Your browser isn’t using the graphics card',
+      body: 'The game can open, but it will run very slowly without hardware acceleration.',
+    },
+    how: (browser) => `How to turn it on in ${browser}`,
+    names: { chrome: 'Chrome', edge: 'Edge', brave: 'Brave', opera: 'Opera', firefox: 'Firefox', safari: 'Safari', other: 'your browser' },
+    steps: {
+      chrome: ['Open `chrome://settings/system` in a new tab.', 'Turn on “Use graphics acceleration when available”.', 'Click “Relaunch” and come back to this page.'],
+      edge: ['Open `edge://settings/system` in a new tab.', 'Turn on “Use graphics acceleration when available”.', 'Click “Restart” and come back to this page.'],
+      brave: ['Open `brave://settings/system` in a new tab.', 'Turn on “Use graphics acceleration when available”.', 'Click “Relaunch” and come back to this page.'],
+      opera: ['Open `opera://settings/system` in a new tab.', 'Turn on “Use hardware acceleration when available”.', 'Restart Opera and come back to this page.'],
+      firefox: ['Open Settings → General → Performance.', 'Untick “Use recommended performance settings”.', 'Tick “Use hardware acceleration when available” and restart Firefox.'],
+      safari: ['Update your system (iOS, iPadOS or macOS) to the latest version.', 'Close other heavy tabs or apps and reopen Safari.', 'If it still won’t load, try Chrome or Firefox.'],
+      other: ['Look for “hardware acceleration” or “graphics acceleration” in your browser settings and turn it on.', 'Restart the browser and come back to this page.', 'If you can’t find it, try Chrome, Edge, Firefox or Safari.'],
+    },
+    note: 'If it’s already on, update your graphics drivers or try another browser.',
+    retry: 'Try again',
+    playAnyway: 'Play anyway',
   },
   tilt: (on) => `Miniature: ${on ? 'on' : 'off'}`,
   dev: {
