@@ -40,6 +40,7 @@ function localizedPages(): Plugin {
 
 export default defineConfig({
   base: './',
-  build: { target: 'es2022', chunkSizeWarningLimit: 900 },
+  // One bundle: boot.ts imports the game lazily (only once the GPU check passes) but it ships in the same file.
+  build: { target: 'es2022', chunkSizeWarningLimit: 900, rollupOptions: { output: { inlineDynamicImports: true } } },
   plugins: [localizedPages()],
 });
