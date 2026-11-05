@@ -286,6 +286,21 @@
       @keyframes hp-shake { 25% { margin-left: -22px; } 75% { margin-left: -16px; } }
       .dmg { position: fixed; z-index: 2; pointer-events: none; font: 800 18px/1 system-ui, -apple-system, sans-serif; text-shadow: 0 1px 0 #1e2622, 0 0 6px rgba(0,0,0,.45); transform: translate(-50%, -100%); animation: dmg-pop .9s ease-out forwards; }
       @keyframes dmg-pop { 0% { opacity: 0; transform: translate(-50%, -60%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -110%) scale(1.25); } 100% { opacity: 0; transform: translate(-50%, -260%) scale(1); } }
+      /* Shown instead of the game when WebGL 2 has no graphics card behind it. */
+      #gpu-notice { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; overflow-y: auto; box-sizing: border-box; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 40%, #3d5c57, #1d2b28); touch-action: pan-y; }
+      #gpu-notice .gpu-card { width: min(420px, 100%); margin: auto; box-sizing: border-box; padding: 24px 22px 20px; border-radius: 18px; background: #f3e8cc; color: #3a2b1d; box-shadow: 0 14px 40px rgba(0,0,0,.4), inset 0 0 0 1px #dccaa0; font: 400 15px/1.45 system-ui, -apple-system, sans-serif; -webkit-user-select: text; user-select: text; }
+      #gpu-notice .gpu-icon { display: block; width: 52px; height: 52px; margin: 0 auto 10px; fill: none; stroke: #9a2f24; stroke-width: 2; stroke-linejoin: round; }
+      #gpu-notice h2 { margin: 0 0 8px; text-align: center; font: 700 22px/1.2 'Alegreya Variable', Georgia, 'Times New Roman', serif; }
+      #gpu-notice h3 { margin: 16px 0 6px; font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #5e4a35; }
+      #gpu-notice p { margin: 0; }
+      #gpu-notice .gpu-lead { text-align: center; }
+      #gpu-notice ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+      #gpu-notice code { padding: 1px 5px; border-radius: 5px; background: rgba(58,43,29,.1); font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+      #gpu-notice .gpu-note { margin-top: 12px; font-size: 13px; color: #5e4a35; }
+      #gpu-notice .gpu-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+      #gpu-notice button { flex: 1 1 140px; min-height: 44px; padding: 10px 14px; border-radius: 999px; border: 1px solid #3f5a57; background: #3f5a57; color: #f1f5f2; font: 600 15px/1.15 system-ui, -apple-system, sans-serif; cursor: pointer; touch-action: manipulation; }
+      #gpu-notice button.gpu-play { background: transparent; color: #3f5a57; }
+      #gpu-notice button:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
     </style>
   </head>
   <body>
@@ -296,6 +311,6 @@
       <button id="tilt" type="button">Miniatura: on</button>
       <span id="fps">-- fps</span>
     </div>
-    <script type="module" src="./src/main.ts"></script>
+    <script type="module" src="./src/boot.ts"></script>
   </body>
 </html>
