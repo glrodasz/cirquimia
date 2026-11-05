@@ -8,6 +8,24 @@ const LEVELS = Object.keys(DIFFICULTY_LABEL) as Difficulty[];
 const STEP = 0.7;
 /** A first-time player gets one easy rival to learn against; returning players keep their own choice. */
 const FIRST_MATCH: Saved = { rivals: 1, difficulty: 'facil' };
+/** Set once the first victory has pointed out the rivals and difficulty pills. */
+const SPOT_STORE = 'cirquimia.hudspot';
+
+function spotSeen() {
+  try {
+    return localStorage.getItem(SPOT_STORE) === '1';
+  } catch {
+    return true; // blocked storage: never nag on every win
+  }
+}
+
+function markSpotSeen() {
+  try {
+    localStorage.setItem(SPOT_STORE, '1');
+  } catch {
+    // Blocked storage: nothing to remember it in.
+  }
+}
 
 /** What the HUD needs from the game: the current match and a way to restart it. */
 export interface MatchControls {
@@ -170,12 +188,31 @@ export function mountMatchControls(match: MatchControls) {
     toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1600);
   };
 
+  // The first victory lifts the pills over the end card's scrim, with a note that they change the next match.
+  const spotTip = document.createElement('div');
+  spotTip.id = 'match-spot';
+  spotTip.setAttribute('role', 'note');
+  spotTip.hidden = true;
+  spotTip.innerHTML = `<b>${t.match.spotTitle}</b><span>${t.match.spotBody}</span>`;
+  document.body.append(spotTip);
+  const unspot = () => {
+    box.classList.remove('spot');
+    spotTip.hidden = true;
+  };
+  const closeEnd = () => {
+    end.hidden = true;
+    end.classList.remove('show');
+    unspot();
+  };
+
   rivalsBtn.addEventListener('click', () => {
+    closeEnd();
     match.setRivals((match.rivals + 1) % (MAX_RIVALS + 1));
     match.restart();
     restarted(rivalsBtn);
   });
   levelBtn.addEventListener('click', () => {
+    closeEnd();
     match.setDifficulty(LEVELS[(LEVELS.indexOf(match.difficulty) + 1) % LEVELS.length]);
     match.restart();
     restarted(levelBtn);
@@ -196,8 +233,7 @@ export function mountMatchControls(match: MatchControls) {
   document.body.append(end);
   const again = end.querySelector<HTMLButtonElement>('.again')!;
   again.addEventListener('click', () => {
-    end.hidden = true;
-    end.classList.remove('show');
+    closeEnd();
     match.restart();
     restarted(again);
   });
@@ -221,6 +257,11 @@ export function mountMatchControls(match: MatchControls) {
       void end.offsetWidth; // let the fade-in start from hidden
       end.classList.add('show');
       again.focus({ preventScroll: true });
+      if (won && !spotSeen()) {
+        markSpotSeen();
+        box.classList.add('spot');
+        spotTip.hidden = false;
+      }
     },
   };
 }

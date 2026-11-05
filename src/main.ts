@@ -127,6 +127,7 @@ const tutorial = new Tutorial({
   deselect: () => hold(null),
   hold: (on) => combat.hold(on),
   provoke: () => combat.provoke(),
+  ambush: () => combat.ambush(),
 });
 combat.onHeroHit = () => tutorial.hurt();
 // The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
