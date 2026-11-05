@@ -26,12 +26,6 @@ It is built for phones in portrait and plays with a mouse and keyboard too. It r
 | The terrain matters | Fire is charged at a campfire, water at a lagoon, and rune circles boost your spells. |
 | Fast on mid-range phones | Instanced meshes (about 15 draw calls for the whole meadow), one shadow light, a two-pass post effect. |
 
-<p align="center">
-  <img src="docs/screenshots/gameplay.jpg" alt="The alchemist fighting two rivals in the Bruma meadow" width="260">
-  <img src="docs/screenshots/how-to-play.jpg" alt="The in-game 'Cómo jugar' guide listing every symbol" width="260">
-  <img src="docs/screenshots/glade-look.jpg" alt="The experimental warm Glade look" width="260">
-</p>
-
 ## Quick start
 
 Requirements: Node.js 20.19+ or 22.12+ (what Vite 8 needs) and npm.
@@ -145,7 +139,7 @@ public/         favicon set, app icons, web manifests, link preview cards (og/)
 scripts/        brand renderer (icons, OG cards) and the single-file build
 estilos/        earlier visual style experiments (diorama, pixel art, engraving, palettes)
 play/           an early single-file build of the meadow prototype
-docs/           screenshots and diagrams
+docs/           diagrams
 ```
 
 <details>
