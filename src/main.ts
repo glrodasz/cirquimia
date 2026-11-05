@@ -10,15 +10,19 @@ import { TapMarker } from './marker';
 import { heightAt } from './noise';
 import { tiltShiftShader } from './tiltShift';
 import { recognize, type Point, type ShapeKind } from './gestures';
+import { PointerRouter, type GestureEvent } from './pointer';
 import { Ink } from './ink';
 import { Spells } from './spells';
-import { Combat, type Difficulty } from './combat';
+import { Combat, HERO_INK, type Difficulty } from './combat';
+import { Reticle } from './aim';
 import type { Kind } from './generator';
 import { GLADE } from './look';
 import { Bloom } from './glade';
 import { t } from './i18n';
 import { showMissingSource } from './missing';
 import { mountDeviceHint } from './deviceHint';
+import { KeyboardMove, groundDir } from './keys';
+import { mountKeysHint } from './keysHint';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -311,6 +315,13 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
 
 const HERO_TAP = 48; // px: a tap this close to the alchemist drops the shape in hand
 
+/** Walks there and nothing else, whatever is in hand (a tap made with a second finger while drawing). */
+function walkTo(clientX: number, clientY: number) {
+  if (combat.over || tutorial.aim() || !groundAt(clientX, clientY, hit)) return;
+  hero.setTarget(hit);
+  marker.show(hero.target.x, hero.target.z);
+}
+
 /** A quick tap walks there, or casts the shape in hand there. */
 function tapAt(clientX: number, clientY: number) {
   if (combat.over) return;
@@ -377,46 +388,24 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   return true;
 }
 
-// One finger at a time: a short press is a tap, anything that travels further is a drawing.
-const DRAW_THRESHOLD = 12; // px
-const AIM_SLOP = 40; // px a tap may wander while a shape is in hand
-let activePointer: number | null = null;
-let drawing = false;
-let stroke: Point[] = [];
+// A short press is a tap, anything that travels further is a drawing; a second finger can tap to walk while the
+// first one draws (src/pointer.ts).
 const canvas = renderer.domElement;
+const router = new PointerRouter(() => tutorial.canDraw);
+const sample = (e: PointerEvent) => ({ id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, primary: e.isPrimary });
 
-canvas.addEventListener('pointerdown', (e) => {
-  // Once the match is decided (or the alchemist lies fallen) there is nothing left to draw or walk to.
-  if (activePointer !== null || combat.over) return;
-  activePointer = e.pointerId;
-  // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
-  e.preventDefault();
-  canvas.setPointerCapture(e.pointerId);
-  drawing = false;
-  stroke = [{ x: e.clientX, y: e.clientY }];
-});
-canvas.addEventListener('pointermove', (e) => {
-  if (e.pointerId !== activePointer) return;
-  // Coalesced events keep the line smooth when the browser batches touch input per frame.
-  const events = e.getCoalescedEvents?.() ?? [e];
-  for (const ev of events.length ? events : [e]) {
-    const p = { x: ev.clientX, y: ev.clientY };
-    stroke.push(p);
-    if (drawing) ink.add(p);
-  }
-  if (!drawing && tutorial.canDraw && Math.hypot(e.clientX - stroke[0].x, e.clientY - stroke[0].y) > DRAW_THRESHOLD) {
-    drawing = true;
-    ink.begin(stroke);
-  }
-});
-canvas.addEventListener('pointerup', (e) => {
-  if (e.pointerId !== activePointer) return;
-  activePointer = null;
-  if (!drawing) {
-    if (tutorial.canTap) tapAt(e.clientX, e.clientY);
-    return;
-  }
-  drawing = false;
+function onGesture(g: GestureEvent) {
+  if (g.type === 'tap') {
+    if (!tutorial.canTap) return;
+    if (g.second) walkTo(g.x, g.y);
+    else tapAt(g.x, g.y);
+  } else if (g.type === 'drawStart') ink.begin(g.points);
+  else if (g.type === 'drawPoint') ink.add(g.point);
+  else if (g.type === 'drawCancel') ink.end(null);
+  else finishStroke(g.stroke, g.tapLike);
+}
+
+function finishStroke(stroke: Point[], tapLike: boolean) {
   const shape = recognize(stroke);
   if (!tutorial.drawn(shape?.kind ?? null)) {
     ink.end(null);
@@ -427,19 +416,55 @@ canvas.addEventListener('pointerup', (e) => {
       ink.end(shape);
       combat.stored(shape.kind, held !== null);
     } else ink.end(null);
-  } else {
-    ink.end(null);
-    // With a shape in hand, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
-    const start = stroke[0];
-    if (held && stroke.every((p) => Math.hypot(p.x - start.x, p.y - start.y) < AIM_SLOP)) tapAt(start.x, start.y);
+    return;
   }
+  ink.end(null);
+  // A fingertip that rolled a little past the draw threshold made no shape: it was a tap, so walk (or cast) there.
+  if (tapLike && tutorial.canTap) tapAt(stroke[0].x, stroke[0].y);
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  // Once the match is decided (or the alchemist lies fallen) there is nothing left to draw or walk to.
+  if (combat.over) return;
+  // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
+  e.preventDefault();
+  if (router.down(sample(e), onGesture)) canvas.setPointerCapture(e.pointerId);
 });
-canvas.addEventListener('pointercancel', (e) => {
-  if (e.pointerId !== activePointer) return;
-  activePointer = null;
-  if (drawing) ink.end(null);
-  drawing = false;
+canvas.addEventListener('pointermove', (e) => {
+  // Coalesced events keep the line smooth when the browser batches touch input per frame.
+  const events = e.getCoalescedEvents?.() ?? [];
+  router.move((events.length ? events : [e]).map(sample), onGesture);
 });
+canvas.addEventListener('pointerup', (e) => router.up(sample(e), onGesture));
+
+// Desktop aim: while a strike is in hand, a faint circle under the mouse shows the ground it would hit there.
+const reticle = new Reticle(HERO_INK);
+scene.add(reticle.root);
+const mouse = { x: 0, y: 0, over: false };
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  mouse.over = true;
+});
+canvas.addEventListener('pointerleave', (e) => {
+  if (e.pointerType === 'mouse') mouse.over = false;
+});
+const aimAt = new THREE.Vector3();
+
+/** Each frame: the reticle follows the mouse (or the tutorial's rival, where the tap snaps) and the alchemist's runes. */
+function aimReticle(dt: number) {
+  const free = held && mouse.over && !combat.over && !router.isDrawing && !help.open && !dev.open;
+  const lesson = free ? tutorial.aim() : null;
+  if (!free || !(lesson ? aimAt.copy(lesson) : groundAt(mouse.x, mouse.y, aimAt))) {
+    reticle.hide();
+    return;
+  }
+  reticle.show(held, aimAt, onRunes(hero.root.position), dt);
+}
+canvas.addEventListener('pointercancel', (e) => router.cancel(e.pointerId, onGesture));
+// iOS can drop a touch without pointerup or pointercancel; losing the capture still tells us it ended.
+canvas.addEventListener('lostpointercapture', (e) => router.cancel(e.pointerId, onGesture));
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // Native gestures (selection, long-press menu, image drag, iOS pinch) are never wanted outside text fields.
@@ -465,6 +490,42 @@ const canScroll = (t: EventTarget | null) => {
 };
 document.addEventListener('touchmove', (e) => !canScroll(e.target) && claimTouch(e), { passive: false });
 
+// Desktop: WASD or the arrows walk the alchemist relative to the screen; the mouse stays free to draw and aim.
+// Clicking the ground still walks too, so both work and a held key simply takes over from a click.
+const keys = new KeyboardMove();
+const keysHint = mountKeysHint();
+keys.onChange = (key, down) => keysHint.press(key, down);
+keys.listen(window, () => help.open || dev.open);
+const lookAlong = new THREE.Vector3();
+const ahead = new THREE.Vector3();
+let steering = false;
+
+/** Each frame: walk along the held keys, sliding along the screen's edge instead of leaving it. */
+function steerHero() {
+  const a = keys.axes();
+  const free = !combat.over && tutorial.canTap && !tutorial.aim();
+  if ((!a.x && !a.y) || !free) {
+    if (steering) hero.halt();
+    steering = false;
+    return;
+  }
+  camera.getWorldDirection(lookAlong);
+  const pos = hero.root.position;
+  const inside = onScreen(pos);
+  // Try the full direction, then each of its screen axes alone, so a diagonal into an edge slides along it.
+  for (const c of [a, { x: a.x, y: 0 }, { x: 0, y: a.y }]) {
+    if (!c.x && !c.y) continue;
+    const d = groundDir(c, lookAlong.x, lookAlong.z);
+    ahead.set(pos.x + d.x * 0.15, 0, pos.z + d.z * 0.15);
+    if (inside && !onScreen(ahead)) continue;
+    hero.steer(d.x, d.z);
+    steering = true;
+    return;
+  }
+  if (steering) hero.halt();
+  steering = false;
+}
+
 addEventListener('resize', fitCamera);
 fitCamera();
 // Rivals need the real framing to land on screen.
@@ -482,12 +543,14 @@ renderer.setAnimationLoop((time) => {
   if (!dev.open) world.update(dt);
   tutorial.update(dt);
   if (!help.open && !dev.open && !tutorial.paused) {
+    steerHero();
     hero.update(dt);
     marker.update(dt);
     impact.update(dt);
     spells.update(dt);
     combat.update(dt);
   }
+  aimReticle(dt);
   ink.update(dt);
 
   renderer.setRenderTarget(sceneTarget);

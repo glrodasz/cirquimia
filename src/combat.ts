@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { BODY_RADIUS, Character } from './character';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { PILLAR_AREA, PILLAR_WARN, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
+import { PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
 import { t } from './i18n';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35.
@@ -18,7 +18,6 @@ const END_DELAY = 1.3;
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 2;
-const RUNE_BOOST = 1.25;
 // The tutorial's sparring rival lands its first strike as soon as it can, played at the top level, so the defence
 // lesson comes early: this long after the attack lesson, then drawn, held and warned at 'experto' pace and aimed true.
 const AMBUSH_DELAY = 0.6;
@@ -74,7 +73,7 @@ const TUNING: Record<Difficulty, Tuning> = {
 };
 
 // Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
-const HERO_INK = '#3d7fd6';
+export const HERO_INK = '#3d7fd6';
 // Rivals wear red and green coats so they read apart from the slate-blue alchemist.
 const RIVAL_LOOKS = [
   { coat: '#6b3a3a', coatDark: '#4f2a2b', ink: '#d9483b' },
