@@ -19,6 +19,8 @@ import { Bloom } from './glade';
 import { t } from './i18n';
 import { showMissingSource } from './missing';
 import { mountDeviceHint } from './deviceHint';
+import { KeyboardMove, groundDir } from './keys';
+import { mountKeysHint } from './keysHint';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -464,6 +466,42 @@ const canScroll = (t: EventTarget | null) => {
 };
 document.addEventListener('touchmove', (e) => !canScroll(e.target) && claimTouch(e), { passive: false });
 
+// Desktop: WASD or the arrows walk the alchemist relative to the screen; the mouse stays free to draw and aim.
+// Clicking the ground still walks too, so both work and a held key simply takes over from a click.
+const keys = new KeyboardMove();
+const keysHint = mountKeysHint();
+keys.onChange = (key, down) => keysHint.press(key, down);
+keys.listen(window, () => help.open || dev.open);
+const lookAlong = new THREE.Vector3();
+const ahead = new THREE.Vector3();
+let steering = false;
+
+/** Each frame: walk along the held keys, sliding along the screen's edge instead of leaving it. */
+function steerHero() {
+  const a = keys.axes();
+  const free = !combat.over && tutorial.canTap && !tutorial.aim();
+  if ((!a.x && !a.y) || !free) {
+    if (steering) hero.halt();
+    steering = false;
+    return;
+  }
+  camera.getWorldDirection(lookAlong);
+  const pos = hero.root.position;
+  const inside = onScreen(pos);
+  // Try the full direction, then each of its screen axes alone, so a diagonal into an edge slides along it.
+  for (const c of [a, { x: a.x, y: 0 }, { x: 0, y: a.y }]) {
+    if (!c.x && !c.y) continue;
+    const d = groundDir(c, lookAlong.x, lookAlong.z);
+    ahead.set(pos.x + d.x * 0.15, 0, pos.z + d.z * 0.15);
+    if (inside && !onScreen(ahead)) continue;
+    hero.steer(d.x, d.z);
+    steering = true;
+    return;
+  }
+  if (steering) hero.halt();
+  steering = false;
+}
+
 addEventListener('resize', fitCamera);
 fitCamera();
 // Rivals need the real framing to land on screen.
@@ -481,6 +519,7 @@ renderer.setAnimationLoop((time) => {
   if (!dev.open) world.update(dt);
   tutorial.update(dt);
   if (!help.open && !dev.open && !tutorial.paused) {
+    steerHero();
     hero.update(dt);
     marker.update(dt);
     impact.update(dt);

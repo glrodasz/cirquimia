@@ -11,6 +11,8 @@ const ARRIVE_RADIUS = 0.03;
 const TURN_RATE = 12;
 export const BODY_RADIUS = 0.12;
 const WAYPOINT_RADIUS = 0.06;
+/** How far ahead a held key aims each frame: more than one frame's walk, so the stride never stutters. */
+const STEER_AHEAD = 0.3;
 // If the alchemist covers less than this share of its expected distance over STUCK_TIME, it re-plans
 // (something new, like an earth wall, may have risen in the way).
 const STUCK_TIME = 0.3;
@@ -266,6 +268,25 @@ export class Character {
       }
     }
     this.plan();
+  }
+
+  /**
+   * Walks straight along a ground direction (keyboard), sliding along whatever it bumps into; no route planning.
+   * Call it every frame while the keys are held, then halt().
+   */
+  steer(dx: number, dz: number) {
+    if (this.down) return;
+    const pos = this.root.position;
+    this.target.set(pos.x + dx * STEER_AHEAD, 0, pos.z + dz * STEER_AHEAD);
+    this.path = [{ x: this.target.x, z: this.target.z }];
+    this.stuckCount = 0;
+    this.stuckTimer = 0;
+    this.stuckFrom.copy(pos);
+  }
+
+  /** Stops where it stands. */
+  halt() {
+    if (!this.down) this.stop();
   }
 
   private stop() {

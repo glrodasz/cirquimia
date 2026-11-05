@@ -129,6 +129,10 @@ const es = {
     touch: 'Cirquimia se disfruta mucho más en un móvil o tableta táctil',
     portrait: 'Cirquimia se juega mejor en vertical',
   },
+  keys: {
+    hint: 'o flechas para moverte',
+    move: 'Usa <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas para <b>caminar</b>. También puedes hacer clic en el suelo.',
+  },
   tilt: (on: boolean) => `Miniatura: ${on ? 'on' : 'off'}`,
   dev: {
     title: 'Herramientas de desarrollo',
@@ -266,6 +270,10 @@ const en: Strings = {
   device: {
     touch: 'Cirquimia plays much better on a touch phone or tablet',
     portrait: 'Cirquimia plays best in portrait mode',
+  },
+  keys: {
+    hint: 'or arrows to move',
+    move: 'Use <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys to <b>walk</b>. You can also click the ground.',
   },
   tilt: (on) => `Miniature: ${on ? 'on' : 'off'}`,
   dev: {
