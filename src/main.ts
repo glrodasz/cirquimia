@@ -13,7 +13,8 @@ import { recognize, type Point, type ShapeKind } from './gestures';
 import { PointerRouter, type GestureEvent } from './pointer';
 import { Ink } from './ink';
 import { Spells } from './spells';
-import { Combat, type Difficulty } from './combat';
+import { Combat, HERO_INK, type Difficulty } from './combat';
+import { Reticle } from './aim';
 import type { Kind } from './generator';
 import { GLADE } from './look';
 import { Bloom } from './glade';
@@ -434,6 +435,32 @@ canvas.addEventListener('pointermove', (e) => {
   router.move((events.length ? events : [e]).map(sample), onGesture);
 });
 canvas.addEventListener('pointerup', (e) => router.up(sample(e), onGesture));
+
+// Desktop aim: while a strike is in hand, a faint circle under the mouse shows the ground it would hit there.
+const reticle = new Reticle(HERO_INK);
+scene.add(reticle.root);
+const mouse = { x: 0, y: 0, over: false };
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  mouse.over = true;
+});
+canvas.addEventListener('pointerleave', (e) => {
+  if (e.pointerType === 'mouse') mouse.over = false;
+});
+const aimAt = new THREE.Vector3();
+
+/** Each frame: the reticle follows the mouse (or the tutorial's rival, where the tap snaps) and the alchemist's runes. */
+function aimReticle(dt: number) {
+  const free = held && mouse.over && !combat.over && !router.isDrawing && !help.open && !dev.open;
+  const lesson = free ? tutorial.aim() : null;
+  if (!free || !(lesson ? aimAt.copy(lesson) : groundAt(mouse.x, mouse.y, aimAt))) {
+    reticle.hide();
+    return;
+  }
+  reticle.show(held, aimAt, onRunes(hero.root.position), dt);
+}
 canvas.addEventListener('pointercancel', (e) => router.cancel(e.pointerId, onGesture));
 // iOS can drop a touch without pointerup or pointercancel; losing the capture still tells us it ended.
 canvas.addEventListener('lostpointercapture', (e) => router.cancel(e.pointerId, onGesture));
@@ -522,6 +549,7 @@ renderer.setAnimationLoop((time) => {
     spells.update(dt);
     combat.update(dt);
   }
+  aimReticle(dt);
   ink.update(dt);
 
   renderer.setRenderTarget(sceneTarget);
