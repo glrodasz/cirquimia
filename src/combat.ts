@@ -406,7 +406,10 @@ class Rival extends Fighter {
   /** Strikes the alchemist as soon as possible, at the top level and without missing, until a strike lands. */
   startAmbush() {
     this.ambush = true;
-    this.attackTimer = Math.min(this.attackTimer, AMBUSH_DELAY);
+    this.cancel(); // a star or anything else half drawn is dropped: the ambush is always a square
+    this.charged = null;
+    this.dodgeTimer = -1;
+    this.attackTimer = AMBUSH_DELAY;
   }
 
   /** What to do this turn: heal when hurt, sometimes open with a wall or fetch fire or water first, otherwise strike. */
@@ -474,7 +477,15 @@ class Rival extends Fighter {
       aim.z += (target.z - foe.prev.z) * k * tuning.lead;
     }
     const a = Math.random() * Math.PI * 2;
-    const e = this.ambush ? 0 : Math.random() * tuning.aimError;
+    const e = Math.random() * tuning.aimError;
+    // The tutorial's ambush is a square right on the alchemist, and it lands wherever the alchemist has stepped.
+    if (this.ambush && foe === combat.heroFighter && plan.element === 'earth') {
+      aim.copy(target);
+      this.body.face(aim);
+      this.body.cast();
+      combat.strikeFrom(this, aim, 'earth', tuning.warn, false, true);
+      return;
+    }
     aim.x += Math.sin(a) * e;
     aim.z += Math.cos(a) * e;
     aim.y = heightAt(aim.x, aim.z);
@@ -521,6 +532,8 @@ export class Combat {
   private clock = 0;
   private heroStrikeFrom = -Infinity;
   private heroStrikeTo = -Infinity;
+  /** The rival whose pending tutorial strike lands on the alchemist wherever it stands. */
+  private homing: Fighter | null = null;
 
   constructor(
     heroBody: Character,
@@ -646,7 +659,9 @@ export class Combat {
   }
 
   /** A strike in the caster's ink; rivals near the warning may try to step out of it. */
-  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false) {
+  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false, homing = false) {
+    // The tutorial's ambush: this caster's next earth strike hurts the alchemist even if it stepped out.
+    if (homing) this.homing = caster;
     // Cast from inside a rune circle, the strike is 25% bigger.
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
     if (element === 'columns') {
@@ -675,6 +690,7 @@ export class Combat {
     }
     this.rivals = [];
     this.held = false;
+    this.homing = null;
     this.hero.reset();
     this.outcome = null;
     this.endTimer = 0;
@@ -704,9 +720,11 @@ export class Combat {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
-      if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+      const sure = f === this.hero && caster === this.homing && element === 'earth';
+      if (!sure && Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
       f.hit(DAMAGE[element], element, this.camera);
       if (f === this.hero) {
+        this.homing = null;
         for (const r of this.rivals) r.ambush = false;
         this.onHeroHit();
       }
