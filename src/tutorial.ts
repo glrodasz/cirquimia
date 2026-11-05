@@ -35,6 +35,8 @@ export interface TutorialHost {
   hold(on: boolean): void;
   /** The rival strikes the alchemist right away. */
   provoke(): void;
+  /** The rival goes for the alchemist as soon as it can, quick and true, until a strike lands. */
+  ambush(): void;
 }
 
 function load(): '' | Lesson | 'done' {
@@ -89,6 +91,8 @@ export class Tutorial {
   /** The wall lesson, put off because no rival was left to show it on. */
   private pending: Lesson | null = null;
   private provoked = false;
+  /** Whether this match's rival has been sent at the alchemist to open the wall lesson. */
+  private ambushed = false;
   private demoTime = 0;
 
   private readonly root = document.createElement('div');
@@ -167,6 +171,7 @@ export class Tutorial {
   reset() {
     this.host.hold(false);
     this.hitWait = -1;
+    this.ambushed = false;
     if (this.lesson) this.begin(this.lesson);
   }
 
@@ -177,6 +182,11 @@ export class Tutorial {
 
     if (!this.lesson) {
       if (this.stage === '' && this.host.foe() && (this.wait -= dt) <= 0) this.begin('square');
+      // Between the lessons: the rival comes straight at the alchemist so the first hit, and the wall lesson, come early.
+      if (this.stage === 'square' && !this.ambushed && this.hitWait < 0 && !this.pending && this.host.foe()) {
+        this.ambushed = true;
+        this.host.ambush();
+      }
       if (this.hitWait >= 0 && (this.hitWait -= dt) < 0) this.pending = 'circle';
       if (this.pending === 'circle' && this.host.foe()) this.begin('circle');
       return;

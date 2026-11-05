@@ -77,6 +77,8 @@ const es = {
     defeat: 'Game Over',
     won: (n: number, level: string) => `Venciste a ${n === 1 ? 'tu rival' : `tus ${n} rivales`} · ${level}`,
     lost: (level: string) => `Has caído en combate · ${level}`,
+    spotTitle: '¿Quieres más reto?',
+    spotBody: 'Toca aquí para cambiar el número de rivales y la dificultad.',
   },
   help: {
     button: 'Cómo jugar',
@@ -215,6 +217,8 @@ const en: Strings = {
     defeat: 'Game Over',
     won: (n, level) => `You beat ${n === 1 ? 'your rival' : `all ${n} rivals`} · ${level}`,
     lost: (level) => `You fell in battle · ${level}`,
+    spotTitle: 'Want more of a challenge?',
+    spotBody: 'Tap here to change the number of rivals and the difficulty.',
   },
   help: {
     button: 'How to play',

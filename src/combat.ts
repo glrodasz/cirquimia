@@ -19,6 +19,9 @@ const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 2;
 const RUNE_BOOST = 1.25;
+// The tutorial's sparring rival lands its first strike as soon as it can, played at the top level, so the defence
+// lesson comes early: this long after the attack lesson, then drawn, held and warned at 'experto' pace and aimed true.
+const AMBUSH_DELAY = 0.6;
 const auraGeo = new THREE.RingGeometry(0.18, 0.24, 32).rotateX(-Math.PI / 2);
 
 export type Fluid = 'fire' | 'water';
@@ -281,6 +284,8 @@ class Rival extends Fighter {
   /** Seconds until it may raise another wall, and how long the one it stands in still protects it. */
   private wallTimer = 0;
   private walled = 0;
+  /** Set by the tutorial: the next strikes go at the alchemist, quick and true, until one of them lands. */
+  ambush = false;
 
   constructor(
     obstacles: Obstacle[],
@@ -320,7 +325,8 @@ class Rival extends Fighter {
     const pos = this.position;
     this.retarget -= dt;
     // A spell already booked against a foe keeps that foe until it is cast.
-    if (!this.foe || !others.includes(this.foe) || (this.retarget <= 0 && !this.plan)) this.chooseFoe(others);
+    if (this.ambush && others.includes(combat.heroFighter)) this.foe = combat.heroFighter;
+    else if (!this.foe || !others.includes(this.foe) || (this.retarget <= 0 && !this.plan)) this.chooseFoe(others);
     const foe = this.foe!;
     const target = foe.position;
 
@@ -371,12 +377,13 @@ class Rival extends Fighter {
 
     this.attackTimer -= dt;
     if (this.attackTimer > 0) return;
-    this.attackTimer = THREE.MathUtils.randFloat(...this.tuning.cooldown);
-    const plan = this.choose(combat, foe);
+    const tuning = this.pace;
+    this.attackTimer = THREE.MathUtils.randFloat(...tuning.cooldown);
+    const plan: Plan = this.ambush && foe === combat.heroFighter ? { kind: 'strike', element: 'earth' } : this.choose(combat, foe);
     // Fire or water fetched earlier is already stored: no new shape to draw before casting it.
     const drawn = !(plan.kind === 'strike' && this.charged);
     // A wall goes up the moment its circle is finished; every other symbol is held a moment first.
-    const delay = drawn ? this.tuning.draw + (plan.kind === 'wall' ? 0 : RIVAL_HOLD) : 0;
+    const delay = drawn ? tuning.draw + (plan.kind === 'wall' ? 0 : RIVAL_HOLD) : 0;
     // Two rivals never bring their strikes down on the alchemist together: the later one waits a moment.
     if (plan.kind === 'strike' && !combat.book(foe, delay, plan.element === 'columns' ? STAR_STAGGER * 4 : 0, this.tuning.stagger)) {
       this.attackTimer = THREE.MathUtils.randFloat(0.4, 0.8);
@@ -388,7 +395,18 @@ class Rival extends Fighter {
     }
     this.plan = plan;
     this.planTimer = delay;
-    this.drawSketch(sketchFor(plan), this.tuning.draw);
+    this.drawSketch(sketchFor(plan), tuning.draw);
+  }
+
+  /** How it plays right now: its level's tuning, or the top level's during the tutorial's ambush. */
+  private get pace(): Tuning {
+    return this.ambush ? TUNING.experto : this.tuning;
+  }
+
+  /** Strikes the alchemist as soon as possible, at the top level and without missing, until a strike lands. */
+  startAmbush() {
+    this.ambush = true;
+    this.attackTimer = Math.min(this.attackTimer, AMBUSH_DELAY);
   }
 
   /** What to do this turn: heal when hurt, sometimes open with a wall or fetch fire or water first, otherwise strike. */
@@ -446,23 +464,24 @@ class Rival extends Fighter {
       return;
     }
     // Aimed now, when the shape is done, at where the foe is (and, on harder levels, a little where it is going).
+    const tuning = this.pace;
     const target = foe.position;
     const aim = target.clone();
-    if (this.tuning.lead > 0 && dt > 0) {
+    if (tuning.lead > 0 && dt > 0) {
       // Where the foe will be when the warning ends, if it keeps walking.
-      const k = this.tuning.warn / dt;
-      aim.x += (target.x - foe.prev.x) * k * this.tuning.lead;
-      aim.z += (target.z - foe.prev.z) * k * this.tuning.lead;
+      const k = tuning.warn / dt;
+      aim.x += (target.x - foe.prev.x) * k * tuning.lead;
+      aim.z += (target.z - foe.prev.z) * k * tuning.lead;
     }
     const a = Math.random() * Math.PI * 2;
-    const e = Math.random() * this.tuning.aimError;
+    const e = this.ambush ? 0 : Math.random() * tuning.aimError;
     aim.x += Math.sin(a) * e;
     aim.z += Math.cos(a) * e;
     aim.y = heightAt(aim.x, aim.z);
     this.charged = null;
     this.body.face(aim);
     this.body.cast();
-    combat.strikeFrom(this, aim, plan.element, this.tuning.warn);
+    combat.strikeFrom(this, aim, plan.element, tuning.warn);
   }
 
   /** Drops a spell half drawn, as when the match ends or the tutorial freezes everyone. */
@@ -514,6 +533,16 @@ export class Combat {
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
     spells.onStrike = (x, z, element, caster, area) => this.strike(x, z, element, caster, area);
+  }
+
+  /** The alchemist, as a fighter the rivals can pick. */
+  get heroFighter(): Fighter {
+    return this.hero;
+  }
+
+  /** The first standing rival goes for the alchemist at once, at the top level, until one of its strikes lands. */
+  ambush() {
+    this.rivals.find((r) => !r.down)?.startAmbush();
   }
 
   get rivalCount() {
@@ -677,7 +706,10 @@ export class Combat {
       if (f === caster || f.down || this.over) continue;
       if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
       f.hit(DAMAGE[element], element, this.camera);
-      if (f === this.hero) this.onHeroHit();
+      if (f === this.hero) {
+        for (const r of this.rivals) r.ambush = false;
+        this.onHeroHit();
+      }
     }
   }
 
