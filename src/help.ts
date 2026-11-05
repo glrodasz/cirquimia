@@ -1,6 +1,7 @@
 import { brushPath, shapeIcon, type Pt } from './ammo';
 import { arc, random, segment, svg } from './match';
 import type { ShapeKind } from './gestures';
+import { hasKeyboard } from './keys';
 import { LANG, langLink, t } from './i18n';
 import '@fontsource-variable/alegreya/wght.css';
 import moveShot from './assets/help/move.webp';
@@ -156,7 +157,7 @@ function guide() {
     ([title, text], i) =>
       `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
       `<svg viewBox="0 0 312 234" aria-hidden="true">${OVERLAYS[i](rand)}</svg></figure>` +
-      `<h3><span class="num">${i + 1}</span>${title}</h3><p>${text}</p>`,
+      `<h3><span class="num">${i + 1}</span>${title}</h3><p>${i === 0 && hasKeyboard() ? t.keys.move : text}</p>`,
   );
   return bookCard('guide', t.help.title, pages, t.help.slideOf);
 }

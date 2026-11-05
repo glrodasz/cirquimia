@@ -240,6 +240,17 @@
       #device-hint svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
       @keyframes device-hint { 0%, 55% { opacity: 1; } 100% { opacity: .35; } }
       @media (prefers-reduced-motion: reduce) { #device-hint { animation-duration: .01s; animation-delay: 3.5s; } }
+      /* Desktop: WASD keycaps at the bottom centre, clear until the player has walked with them, then a faint watermark. */
+      #keys-hint { position: fixed; bottom: var(--edge-bottom); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 10px; border-radius: 16px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 12px/1.25 system-ui, -apple-system, sans-serif; white-space: nowrap; transition: opacity .8s; }
+      #keys-hint.used { opacity: .35; }
+      #keys-hint .caps { display: grid; gap: 3px; justify-items: center; }
+      #keys-hint .row { display: flex; gap: 3px; }
+      :is(#keys-hint, #help) kbd { display: inline-grid; place-items: center; min-width: 1.7em; height: 1.7em; box-sizing: border-box; padding: 0 .3em; border: 1px solid currentColor; border-bottom-width: 2px; border-radius: 5px; font: 700 11px/1 system-ui, -apple-system, sans-serif; opacity: .85; }
+      #keys-hint kbd { width: 22px; height: 22px; transition: background .1s, color .1s, transform .1s; }
+      #keys-hint kbd.on { background: var(--hud-fg); color: var(--hud-bg); transform: translateY(1px); opacity: 1; }
+      #help kbd { margin: 0 1px; vertical-align: .1em; font-size: .7em; }
+      @media (max-width: 820px) { #keys-hint { padding: 6px 8px; } #keys-hint .label { display: none; } }
+      @media (max-width: 620px) { #keys-hint { display: none; } }
       #fps { position: fixed; bottom: calc(var(--edge-bottom) + 50px); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
       #fps[hidden] { display: none; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; } }
