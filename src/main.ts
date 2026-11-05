@@ -10,6 +10,7 @@ import { TapMarker } from './marker';
 import { heightAt } from './noise';
 import { tiltShiftShader } from './tiltShift';
 import { recognize, type Point, type ShapeKind } from './gestures';
+import { PointerRouter, type GestureEvent } from './pointer';
 import { Ink } from './ink';
 import { Spells } from './spells';
 import { Combat, type Difficulty } from './combat';
@@ -310,6 +311,13 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
 
 const HERO_TAP = 48; // px: a tap this close to the alchemist drops the shape in hand
 
+/** Walks there and nothing else, whatever is in hand (a tap made with a second finger while drawing). */
+function walkTo(clientX: number, clientY: number) {
+  if (combat.over || tutorial.aim() || !groundAt(clientX, clientY, hit)) return;
+  hero.setTarget(hit);
+  marker.show(hero.target.x, hero.target.z);
+}
+
 /** A quick tap walks there, or casts the shape in hand there. */
 function tapAt(clientX: number, clientY: number) {
   if (combat.over) return;
@@ -376,46 +384,24 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   return true;
 }
 
-// One finger at a time: a short press is a tap, anything that travels further is a drawing.
-const DRAW_THRESHOLD = 12; // px
-const AIM_SLOP = 40; // px a tap may wander while a shape is in hand
-let activePointer: number | null = null;
-let drawing = false;
-let stroke: Point[] = [];
+// A short press is a tap, anything that travels further is a drawing; a second finger can tap to walk while the
+// first one draws (src/pointer.ts).
 const canvas = renderer.domElement;
+const router = new PointerRouter(() => tutorial.canDraw);
+const sample = (e: PointerEvent) => ({ id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, primary: e.isPrimary });
 
-canvas.addEventListener('pointerdown', (e) => {
-  // Once the match is decided (or the alchemist lies fallen) there is nothing left to draw or walk to.
-  if (activePointer !== null || combat.over) return;
-  activePointer = e.pointerId;
-  // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
-  e.preventDefault();
-  canvas.setPointerCapture(e.pointerId);
-  drawing = false;
-  stroke = [{ x: e.clientX, y: e.clientY }];
-});
-canvas.addEventListener('pointermove', (e) => {
-  if (e.pointerId !== activePointer) return;
-  // Coalesced events keep the line smooth when the browser batches touch input per frame.
-  const events = e.getCoalescedEvents?.() ?? [e];
-  for (const ev of events.length ? events : [e]) {
-    const p = { x: ev.clientX, y: ev.clientY };
-    stroke.push(p);
-    if (drawing) ink.add(p);
-  }
-  if (!drawing && tutorial.canDraw && Math.hypot(e.clientX - stroke[0].x, e.clientY - stroke[0].y) > DRAW_THRESHOLD) {
-    drawing = true;
-    ink.begin(stroke);
-  }
-});
-canvas.addEventListener('pointerup', (e) => {
-  if (e.pointerId !== activePointer) return;
-  activePointer = null;
-  if (!drawing) {
-    if (tutorial.canTap) tapAt(e.clientX, e.clientY);
-    return;
-  }
-  drawing = false;
+function onGesture(g: GestureEvent) {
+  if (g.type === 'tap') {
+    if (!tutorial.canTap) return;
+    if (g.second) walkTo(g.x, g.y);
+    else tapAt(g.x, g.y);
+  } else if (g.type === 'drawStart') ink.begin(g.points);
+  else if (g.type === 'drawPoint') ink.add(g.point);
+  else if (g.type === 'drawCancel') ink.end(null);
+  else finishStroke(g.stroke, g.tapLike);
+}
+
+function finishStroke(stroke: Point[], tapLike: boolean) {
   const shape = recognize(stroke);
   if (!tutorial.drawn(shape?.kind ?? null)) {
     ink.end(null);
@@ -426,19 +412,29 @@ canvas.addEventListener('pointerup', (e) => {
       ink.end(shape);
       combat.stored(shape.kind, held !== null);
     } else ink.end(null);
-  } else {
-    ink.end(null);
-    // With a shape in hand, a shaky tap that slid past the threshold is still meant as a tap, not a drawing.
-    const start = stroke[0];
-    if (held && stroke.every((p) => Math.hypot(p.x - start.x, p.y - start.y) < AIM_SLOP)) tapAt(start.x, start.y);
+    return;
   }
+  ink.end(null);
+  // A fingertip that rolled a little past the draw threshold made no shape: it was a tap, so walk (or cast) there.
+  if (tapLike && tutorial.canTap) tapAt(stroke[0].x, stroke[0].y);
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  // Once the match is decided (or the alchemist lies fallen) there is nothing left to draw or walk to.
+  if (combat.over) return;
+  // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
+  e.preventDefault();
+  if (router.down(sample(e), onGesture)) canvas.setPointerCapture(e.pointerId);
 });
-canvas.addEventListener('pointercancel', (e) => {
-  if (e.pointerId !== activePointer) return;
-  activePointer = null;
-  if (drawing) ink.end(null);
-  drawing = false;
+canvas.addEventListener('pointermove', (e) => {
+  // Coalesced events keep the line smooth when the browser batches touch input per frame.
+  const events = e.getCoalescedEvents?.() ?? [];
+  router.move((events.length ? events : [e]).map(sample), onGesture);
 });
+canvas.addEventListener('pointerup', (e) => router.up(sample(e), onGesture));
+canvas.addEventListener('pointercancel', (e) => router.cancel(e.pointerId, onGesture));
+// iOS can drop a touch without pointerup or pointercancel; losing the capture still tells us it ended.
+canvas.addEventListener('lostpointercapture', (e) => router.cancel(e.pointerId, onGesture));
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // Native gestures (selection, long-press menu, image drag, iOS pinch) are never wanted outside text fields.

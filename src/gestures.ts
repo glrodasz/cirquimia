@@ -58,6 +58,20 @@ function resample(points: Point[], n: number): Point[] {
   return out;
 }
 
+/** Evens out finger jitter on a closed outline (a [1 2 1] filter, wrapping round), so wobbles do not read as corners. */
+function smoothLoop(points: Point[], passes: number): Point[] {
+  let out = points;
+  for (let k = 0; k < passes; k++) {
+    const n = out.length;
+    out = out.map((p, i) => {
+      const a = out[(i - 1 + n) % n];
+      const b = out[(i + 1) % n];
+      return { x: (a.x + 2 * p.x + b.x) / 4, y: (a.y + 2 * p.y + b.y) / 4 };
+    });
+  }
+  return out;
+}
+
 function dist(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
@@ -167,10 +181,23 @@ export function recognize(raw: Point[]): Recognized | null {
   for (let i = 1; i < raw.length; i++) along.push(along[i - 1] + dist(raw[i - 1], raw[i]));
   const total = along[along.length - 1];
   for (const end of lapEnds(raw, along)) {
-    const shape = recognizeLap(raw.slice(0, end + 1));
+    const shape = recognizeOutline(raw.slice(0, end + 1));
     if (shape) return { ...shape, laps: total / along[end] };
   }
-  return recognizeLap(raw);
+  return recognizeOutline(raw);
+}
+
+/**
+ * Reads the stroke as drawn first. A shaky finger (small shapes on a phone, drawn in a hurry) can add enough wobble
+ * to turn a square's sides into extra corners, and the shape then falls through to the circle check, which casts a
+ * wall nobody asked for. So when the plain reading finds nothing or a circle, the wobble is smoothed out and the
+ * stroke is read again; only a cornered shape found that way replaces the plain answer.
+ */
+function recognizeOutline(raw: Point[]): Recognized | null {
+  const plain = recognizeLap(raw, 0);
+  if (plain && plain.kind !== 'circle') return plain;
+  const steady = recognizeLap(raw, 2);
+  return steady && steady.kind !== 'circle' ? steady : plain;
 }
 
 /** Indices where the stroke closes a lap: back near its start after travelling a full outline. */
@@ -202,7 +229,7 @@ function lapEnds(raw: Point[], along: number[]): number[] {
   return ends;
 }
 
-function recognizeLap(raw: Point[]): Recognized | null {
+function recognizeLap(raw: Point[], smooth: number): Recognized | null {
   if (raw.length < 8) return null;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of raw) {
@@ -218,7 +245,7 @@ function recognizeLap(raw: Point[]): Recognized | null {
   raw = trimOvershoot(trimOvershoot(raw).reverse()).reverse();
   if (dist(raw[0], raw[raw.length - 1]) > diag * MAX_CLOSE_GAP) return null;
 
-  const pts = resample(raw, 64);
+  const pts = smoothLoop(resample(raw, 64), smooth);
   let cx = 0, cy = 0;
   for (const p of pts) {
     cx += p.x;
