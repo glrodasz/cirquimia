@@ -109,10 +109,18 @@ export function svg(parts: Array<{ ink: string; dry: string }>, rand: () => numb
   );
 }
 
-/** One figure per rival in its coat's ink; a faint one when nobody is sparring. */
+/** The training scarecrow in three strokes: head loop, stake and crossbar. */
+function scarecrow(rand: () => number) {
+  const head = brushPath(arc(24, 15, 4.6, -2 + rand(), -2 + rand() + Math.PI * 2.1), 3.2, rand);
+  const stake = brushPath(segment([24, 21], [24.4 + (rand() - 0.5), 37]), 4.2, rand);
+  const bar = brushPath(segment([13, 24.5 + (rand() - 0.5)], [35, 24]), 3.8, rand);
+  return { ink: `<path class="glyph" d="${head.ink}${stake.ink}${bar.ink}"/>`, dry: head.dry + stake.dry + bar.dry };
+}
+
+/** One figure per rival in its coat's ink; the training scarecrow when nobody is sparring. */
 function rivalsIcon(count: number) {
   const rand = random();
-  if (count === 0) return svg([person(24, 1, 'faint', rand)], rand);
+  if (count === 0) return svg([scarecrow(rand)], rand);
   if (count === 1) return svg([person(24, 1, 'red', rand)], rand);
   return svg([person(18, 0.8, 'red', rand), person(30.5, 0.8, 'green', rand)], rand);
 }
@@ -173,6 +181,8 @@ export function mountMatchControls(match: MatchControls) {
     levelBtn.querySelector('.disc')!.innerHTML = levelIcon(level);
     levelBtn.querySelector('.cap')!.textContent = DIFFICULTY_LABEL[level];
     levelBtn.setAttribute('aria-label', t.match.levelAria(DIFFICULTY_LABEL[level]));
+    // Training has no difficulty: the scarecrow never strikes back.
+    levelBtn.hidden = n === 0;
     save({ rivals: n, difficulty: level });
   };
 
