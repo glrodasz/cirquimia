@@ -127,6 +127,16 @@ const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; s
 ];
 const EFFECT = { dmg: t.help.damage, heal: t.help.healing };
 
+/** What training asks the player to try on the scarecrow: each attack, and any of them from a rune circle. */
+export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rune';
+export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'rune'];
+/** The drills tried in this training session, shown ticked in the symbols book; null outside training. */
+let practice: ReadonlySet<Drill> | null = null;
+export function showPractice(done: ReadonlySet<Drill> | null) {
+  practice = done;
+}
+const drillClass = (id: Drill) => (practice ? ` class="${practice.has(id) ? 'tried' : 'todo'}"` : '');
+
 const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</span>`;
 
 /** A brush arrow pointing right, for the page-turn buttons; the back button mirrors it. */
@@ -167,7 +177,7 @@ function symbols() {
   const rand = random();
   const shapes = SHAPES.map(
     (s) =>
-      `<li>${fig(s.kind, shapeIcon(s.kind))}<b>${t.help.names[s.kind]}</b><span class="val${s.effect ? ` val-${s.effect}` : ''}">${s.effect ? `<small>${EFFECT[s.effect]}</small> ` : ''}${s.value}</span>` +
+      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}>${fig(s.kind, shapeIcon(s.kind))}<b>${t.help.names[s.kind]}</b><span class="val${s.effect ? ` val-${s.effect}` : ''}">${s.effect ? `<small>${EFFECT[s.effect]}</small> ` : ''}${s.value}</span>` +
       (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon(rand) : waterIcon(rand)}</span>` : '') +
       '</li>',
   ).join('');
@@ -175,8 +185,12 @@ function symbols() {
     `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
     `<li><span class="src">${flameIcon(rand)}</span><span>${t.help.fireNote}</span></li>` +
     `<li><span class="src">${waterIcon(rand)}</span><span>${t.help.waterNote}</span></li>` +
-    `<li><span class="src rune">✦</span><span>${t.help.runesNote}</span></li></ul>`;
-  return bookCard('manual', t.help.shapesTitle, [`<ul class="shapes">${shapes}</ul>`, notes], t.help.pageOf);
+    `<li${drillClass('rune')}><span class="src rune">✦</span><span>${t.help.runesNote}</span></li></ul>`;
+  const tried = practice ? DRILLS.filter((d) => practice!.has(d)).length : 0;
+  const progress = practice
+    ? `<p class="training">${tried === DRILLS.length ? t.practice.allDone : t.practice.progress(tried, DRILLS.length)}</p>`
+    : '';
+  return bookCard('manual', t.help.shapesTitle, [`${progress}<ul class="shapes">${shapes}</ul>`, notes], t.help.pageOf);
 }
 
 /**
