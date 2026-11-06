@@ -70,7 +70,10 @@ export class Practice {
     note.innerHTML = `<span>✓ ${all ? t.practice.allDone : t.practice.got(name)}</span>${downArrow()}`;
     // Kept on screen: right-aligned buttons would push a long note past the edge.
     note.style.left = `${Math.min(r.left + r.width / 2, innerWidth - 90)}px`;
-    note.style.top = `${r.top - 4}px`;
+    // Above the book when it sits at the bottom; below it, arrow up, when the HUD is at the top (touch stick).
+    const below = r.top < innerHeight / 2;
+    note.classList.toggle('below', below);
+    note.style.top = `${below ? r.bottom + 4 : r.top - 4}px`;
     note.addEventListener('animationend', () => note.remove());
     document.body.append(note);
   }
