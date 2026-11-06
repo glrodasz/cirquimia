@@ -549,6 +549,7 @@ class Dummy extends Fighter<Scarecrow> {
     if (this.down) return;
     this.body.flash(from);
     this.hit(amount, element, camera, boosted);
+    this.label.dim();
   }
 
   tick(dt: number, camera: THREE.Camera) {

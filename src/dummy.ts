@@ -207,6 +207,13 @@ export class HitMeLabel {
     document.body.append(this.el);
   }
 
+  /** Steps aside for a moment while the damage number pops where the arrow points. */
+  dim() {
+    this.el.classList.remove('dim');
+    void this.el.offsetWidth;
+    this.el.classList.add('dim');
+  }
+
   /** Puts the arrow's tip at (x, y) on screen, or hides it. */
   place(x: number, y: number, visible: boolean) {
     this.el.hidden = !visible;
