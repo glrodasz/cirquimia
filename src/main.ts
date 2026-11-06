@@ -393,6 +393,9 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
 // first one draws (src/pointer.ts).
 const canvas = renderer.domElement;
 const router = new PointerRouter(() => tutorial.canDraw);
+// Phones and tablets: a faint stick at the bottom left. A finger resting there walks; quick taps and strokes on it
+// still go to the router, so it never blocks casting or drawing (src/pad.ts).
+const pad = mountPad();
 const sample = (e: PointerEvent) => ({ id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, primary: e.isPrimary });
 
 function onGesture(g: GestureEvent) {
@@ -429,14 +432,18 @@ canvas.addEventListener('pointerdown', (e) => {
   if (combat.over) return;
   // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
   e.preventDefault();
-  if (router.down(sample(e), onGesture)) canvas.setPointerCapture(e.pointerId);
+  const onPad = e.pointerType !== 'mouse' && pad.down(e.pointerId, e.clientX, e.clientY, performance.now());
+  if (router.down(sample(e), onGesture) || onPad) canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (pad.move(e.pointerId, e.clientX, e.clientY)) return;
   // Coalesced events keep the line smooth when the browser batches touch input per frame.
   const events = e.getCoalescedEvents?.() ?? [];
   router.move((events.length ? events : [e]).map(sample), onGesture);
 });
-canvas.addEventListener('pointerup', (e) => router.up(sample(e), onGesture));
+canvas.addEventListener('pointerup', (e) => {
+  if (!pad.up(e.pointerId)) router.up(sample(e), onGesture);
+});
 
 // Desktop aim: while a strike is in hand, a faint circle under the mouse shows the ground it would hit there.
 const reticle = new Reticle(HERO_INK);
@@ -463,9 +470,13 @@ function aimReticle(dt: number) {
   }
   reticle.show(held, aimAt, onRunes(hero.root.position), dt);
 }
-canvas.addEventListener('pointercancel', (e) => router.cancel(e.pointerId, onGesture));
+const dropPointer = (e: PointerEvent) => {
+  pad.up(e.pointerId);
+  router.cancel(e.pointerId, onGesture);
+};
+canvas.addEventListener('pointercancel', dropPointer);
 // iOS can drop a touch without pointerup or pointercancel; losing the capture still tells us it ended.
-canvas.addEventListener('lostpointercapture', (e) => router.cancel(e.pointerId, onGesture));
+canvas.addEventListener('lostpointercapture', dropPointer);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // Native gestures (selection, long-press menu, image drag, iOS pinch) are never wanted outside text fields.
@@ -497,14 +508,14 @@ const keys = new KeyboardMove();
 const keysHint = mountKeysHint();
 keys.onChange = (key, down) => keysHint.press(key, down);
 keys.listen(window, () => help.open || dev.open);
-// Phones and tablets: a faint stick at the bottom left walks the same way while held; tapping the ground still works.
-const pad = mountPad();
 const lookAlong = new THREE.Vector3();
 const ahead = new THREE.Vector3();
 let steering = false;
 
 /** Each frame: walk along the held keys, sliding along the screen's edge instead of leaving it. */
 function steerHero() {
+  // A finger resting on the stick stops being a possible tap, so lifting it later neither walks nor casts.
+  pad.update(performance.now(), (id) => router.draws(id), (id) => router.cancel(id, onGesture));
   const k = keys.axes();
   const a = k.x || k.y ? k : pad.axes();
   const free = !combat.over && tutorial.canTap && !tutorial.aim();
