@@ -2,6 +2,7 @@ import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, ty
 import type { World } from './world';
 import { LOOK, setLook } from './look';
 import { formatNumber, langLink, t } from './i18n';
+import { TIERS, parseTier, type Reason, type Tier } from './quality';
 
 const STORE = 'cirquimia.dev';
 
@@ -10,6 +11,8 @@ interface Saved {
   seed?: string;
   debug?: boolean;
   fps?: boolean;
+  /** Graphics tier forced from the panel; absent = automatic. */
+  quality?: Tier;
 }
 
 function load(): Saved {
@@ -39,6 +42,16 @@ export function initialSeed(): string {
   return load().seed ?? randomSeed();
 }
 
+/** The graphics tier forced from the panel in an earlier dev session, if any. */
+export function savedQuality(): Tier | null {
+  return DEV ? parseTier(load().quality) : null;
+}
+
+export interface QualityControl {
+  readonly state: { tier: Tier; reason: Reason; auto: boolean; renderer: string; detected: Tier };
+  set(tier: Tier | null): void;
+}
+
 /** The gear is for developers only: it appears with ?dev or ?dev=true in the URL. */
 export const DEV = (() => {
   try {
@@ -63,7 +76,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
  * tweak the generator, see what it produced and what it costs.
  * The miniature toggle (#tilt) moves into the panel; the fps counter (#fps) floats bottom left, above the match controls, when its toggle is on.
  */
-export function mountDevTools(world: World, onGenerated: () => void) {
+export function mountDevTools(world: World, onGenerated: () => void, quality: QualityControl) {
   // Without ?dev the tweaks saved by an earlier dev session are ignored, since nothing could turn them off.
   const saved: Saved = DEV ? load() : {};
   world.params = { ...DEFAULT_PARAMS, ...saved.params };
@@ -149,7 +162,28 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   const langRow = el('div', { class: 'dev-row' });
   langRow.append(el('label', {}, t.dev.language));
   for (const lang of ['es', 'en'] as const) langRow.append(langLink(lang, 'dev-toggle'));
-  view.append(lookRow, langRow, viewRow, fpsRow, debugRow, perfBox);
+  // Graphics quality: automatic (hardware + frame rate) or forced to a tier.
+  const qualityRow = el('div', { class: 'dev-row' });
+  qualityRow.append(el('label', {}, t.dev.quality));
+  const qualityButtons = new Map<Tier | 'auto', HTMLButtonElement>();
+  for (const choice of ['auto', ...TIERS] as const) {
+    const button = el('button', { type: 'button', class: 'dev-toggle' }, choice === 'auto' ? t.dev.qualityAuto : t.dev.tiers[choice]);
+    button.addEventListener('click', () => {
+      const tier = choice === 'auto' ? null : choice;
+      save({ quality: tier ?? undefined });
+      quality.set(tier);
+    });
+    qualityButtons.set(choice, button);
+    qualityRow.append(button);
+  }
+  const qualityNote = el('p', { class: 'dev-note' });
+  const showQuality = () => {
+    const q = quality.state;
+    for (const [choice, button] of qualityButtons) button.setAttribute('aria-pressed', String(q.auto ? choice === 'auto' : choice === q.tier));
+    qualityNote.textContent = `${t.dev.qualityNow(t.dev.tiers[q.tier], t.dev.qualityReasons[q.reason])} · GPU: ${q.renderer || '?'}`;
+  };
+  showQuality();
+  view.append(lookRow, langRow, qualityRow, qualityNote, viewRow, fpsRow, debugRow, perfBox);
 
   panel.append(head, meadow, paramsSection, view);
   modal.append(panel);
@@ -291,6 +325,8 @@ export function mountDevTools(world: World, onGenerated: () => void) {
   run(initialSeed());
   return {
     newMeadow: () => run(randomSeed()),
+    /** The tier changed (picked here, or stepped down for a low frame rate). */
+    qualityChanged: showQuality,
     /** The game holds still while the panel is open. */
     get open() {
       return open;

@@ -1,10 +1,9 @@
 import { t } from './i18n';
+import { SOFTWARE } from './quality';
 
 export type GpuStatus = 'ok' | 'software' | 'none';
 type Browser = 'chrome' | 'edge' | 'brave' | 'opera' | 'firefox' | 'safari' | 'other';
 
-// Renderers a browser falls back to when it cannot (or may not) use the graphics card.
-const SOFTWARE = /swiftshader|llvmpipe|softpipe|software|basic render|microsoft basic|mesa offscreen/i;
 const STORE = 'cirquimia.gpu';
 
 /**

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
-import { mountDevTools } from './devtools';
+import { mountDevTools, savedQuality } from './devtools';
 import { mountMatchControls } from './match';
 import { mountHelp } from './help';
 import { Tutorial } from './tutorial';
@@ -23,6 +23,7 @@ import { showMissingSource } from './missing';
 import { mountDeviceHint } from './deviceHint';
 import { KeyboardMove, groundDir } from './keys';
 import { mountKeysHint } from './keysHint';
+import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -40,8 +41,21 @@ const isTouch = matchMedia('(pointer: coarse)').matches;
 
 // No canvas MSAA: the scene is drawn into a multisampled target and only a fullscreen quad reaches the canvas.
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
+// Graphics quality follows the hardware (src/quality.ts): ?quality= or the dev panel can force a tier, otherwise the
+// device's GPU, cores and memory pick one and a slow frame rate steps it down while playing.
+const signals = readSignals(renderer.getContext());
+const detected = classify(signals);
+const forcedTier = parseTier(new URLSearchParams(location.search).get('quality')) ?? savedQuality();
+const quality: { tier: Tier; reason: Reason; auto: boolean; renderer: string; detected: Tier } = {
+  tier: forcedTier ?? detected.tier,
+  reason: forcedTier ? 'forced' : detected.reason,
+  auto: !forcedTier,
+  renderer: signals.renderer,
+  detected: detected.tier,
+};
+const initial = SETTINGS[quality.tier];
+renderer.setPixelRatio(Math.min(devicePixelRatio, initial.pixelRatio));
+renderer.shadowMap.enabled = initial.shadows;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = GLADE ? THREE.ACESFilmicToneMapping : THREE.NeutralToneMapping;
 renderer.toneMappingExposure = GLADE ? 0.95 : 1.05;
@@ -56,10 +70,11 @@ scene.add(GLADE ? new THREE.HemisphereLight('#d9e4f2', '#5a4a2a', 0.85) : new TH
 const sun = new THREE.DirectionalLight(GLADE ? '#ffdaa8' : '#f2f4f0', GLADE ? 3.2 : 1.9);
 if (GLADE) sun.position.set(11, 9, 3);
 else sun.position.set(8, 15, 6);
-sun.castShadow = true;
+sun.castShadow = initial.shadows;
 // Shadow sharpness is set as world units per shadow texel; fitCamera() sizes the shadow box to what
 // the screen shows and the map to match, so a smaller screen footprint means a smaller map, same look.
 const SHADOW_TEXEL = 48 / (isTouch ? 1024 : 2048);
+let shadowTexel = SHADOW_TEXEL * initial.shadowTexel;
 sun.shadow.camera.near = 1;
 sun.shadow.camera.far = 60;
 sun.shadow.bias = -0.0005;
@@ -69,6 +84,7 @@ if (GLADE) sun.shadow.radius = 3.5;
 scene.add(sun, sun.target);
 
 const world = new World(scene);
+world.cover = initial.cover;
 const hero = new Character(world.obstacles);
 scene.add(hero.root);
 const marker = new TapMarker();
@@ -144,6 +160,16 @@ const dev = mountDevTools(
     combat.respawn();
     tutorial.reset();
   },
+  {
+    get state() {
+      return quality;
+    },
+    // null = back to automatic: the detected tier, with the frame-rate step-down on again.
+    set: (tier: Tier | null) => {
+      quality.auto = tier === null;
+      setQuality(tier ?? quality.detected, tier ? 'forced' : detected.reason);
+    },
+  },
 );
 
 // Rivals and difficulty live in the HUD, bottom left; any change restarts the match, and every new match is a new meadow.
@@ -168,7 +194,7 @@ combat.onEnd = (outcome) => matchHud.showEnd(outcome);
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
-const sceneTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType });
+const sceneTarget = new THREE.WebGLRenderTarget(1, 1, { samples: initial.samples, type: THREE.HalfFloatType });
 const blurTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
 const hBlur = new THREE.ShaderMaterial(tiltShiftShader('horizontal'));
 const vBlur = new THREE.ShaderMaterial(tiltShiftShader('vertical'));
@@ -182,14 +208,17 @@ if (bloom) {
 const hQuad = new FullScreenQuad(hBlur);
 const vQuad = new FullScreenQuad(vBlur);
 const BLUR_STRENGTH = vBlur.uniforms.strength.value;
-let tiltShift = true;
+// The toggle says what the player wants; the low tier turns the blur off regardless.
+let tiltWanted = true;
+let tiltShift = initial.tiltShift;
 let focusY = 0.5;
 
 const tiltButton = document.getElementById('tilt') as HTMLButtonElement;
 tiltButton.textContent = t.tilt(tiltShift);
 tiltButton.addEventListener('click', (e) => {
   e.stopPropagation();
-  tiltShift = !tiltShift;
+  tiltWanted = !tiltShift;
+  tiltShift = tiltWanted;
   tiltButton.textContent = t.tilt(tiltShift);
 });
 tiltButton.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -242,7 +271,7 @@ function fitShadow() {
   shadowCam.left = shadowCam.bottom = -half;
   shadowCam.right = shadowCam.top = half;
   shadowCam.updateProjectionMatrix();
-  const size = Math.ceil((2 * half) / SHADOW_TEXEL);
+  const size = Math.ceil((2 * half) / shadowTexel);
   if (size !== sun.shadow.mapSize.x) {
     sun.shadow.mapSize.setScalar(size);
     sun.shadow.map?.dispose();
@@ -526,6 +555,32 @@ function steerHero() {
   steering = false;
 }
 
+/** Switches the graphics tier mid-game: resolution, antialiasing, shadows, miniature blur and grass density. */
+function setQuality(tier: Tier, reason: Reason) {
+  const s = SETTINGS[tier];
+  quality.tier = tier;
+  quality.reason = reason;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, s.pixelRatio));
+  if (sceneTarget.samples !== s.samples) {
+    sceneTarget.samples = s.samples;
+    sceneTarget.dispose(); // rebuilt with the new sample count on the next render
+  }
+  // Toggling the light's shadow recompiles the materials once; the disabled map stops the shadow pass entirely.
+  renderer.shadowMap.enabled = sun.castShadow = s.shadows;
+  if (!s.shadows) {
+    sun.shadow.map?.dispose();
+    sun.shadow.map = null;
+  }
+  shadowTexel = SHADOW_TEXEL * s.shadowTexel;
+  tiltShift = s.tiltShift && tiltWanted;
+  tiltButton.textContent = t.tilt(tiltShift);
+  world.setCover(s.cover);
+  fitCamera();
+  fpsGuard.reset();
+  dev.qualityChanged();
+}
+const fpsGuard = new FpsGuard();
+
 addEventListener('resize', fitCamera);
 fitCamera();
 // Rivals need the real framing to land on screen.
@@ -537,8 +592,15 @@ let fpsTime = 0;
 const clock = new THREE.Timer();
 const projected = new THREE.Vector3();
 
+let lastFrame = 0;
+
 renderer.setAnimationLoop((time) => {
   clock.update(time);
+  // Too slow for this tier on this device: one step down, then a few seconds to settle before judging again.
+  const real = lastFrame ? (time - lastFrame) / 1000 : 0;
+  lastFrame = time;
+  const idx = TIERS.indexOf(quality.tier);
+  if (quality.auto && !document.hidden && idx < TIERS.length - 1 && fpsGuard.tick(real)) setQuality(TIERS[idx + 1], 'fps');
   const dt = Math.min(clock.getDelta(), 1 / 20);
   if (!dev.open) world.update(dt);
   tutorial.update(dt);

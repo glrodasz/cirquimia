@@ -286,6 +286,7 @@ export function buildCover(layout: Layout, params: GenParams, paint: GroundPaint
     ...scatter(rand, Math.round(2600 * params.hierba), 0).map(([x, z]): [number, number] => [x * 0.3, z * 0.3]),
   ].filter(([x, z]) => rand() > bare(x, z));
   const blades = instanced(new THREE.ConeGeometry(0.04, 0.2, 3).translate(0, 0.1, 0), lambert(), bladeSpots.length);
+  blades.userData.thinnable = true; // each blade stands alone, so World.setCover() can thin them in place
   bladeSpots.forEach(([x, z], i) => {
     dummy.position.set(x, heightAt(x, z) - 0.02, z);
     dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5);
@@ -351,6 +352,7 @@ function buildGladeCover(
   const bladeGeo = shadeByHeight(new THREE.ConeGeometry(0.026, 0.2, 3, 1, true).translate(0, 0.1, 0), 0, 0.2, 0.35, 1.2);
   const bladeMat = stylize(soft({ vertexColors: true }), { paint: { scale: 0.9, amount: 0.25 } });
   const blades = instanced(bladeGeo, bladeMat, tuftSpots.length * PER_TUFT);
+  blades.userData.thinnable = true;
   const root = new THREE.Color('#386a2e');
   const tip = new THREE.Color('#8fb655');
   let n = 0;
