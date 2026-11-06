@@ -1,8 +1,10 @@
 /**
  * Touch stick for phones and tablets: a faint ring at the bottom left. It is no blind spot: the ring only shows where
  * the stick is, and every touch there first goes to the usual tap/draw logic. A quick tap still walks or casts, and a
- * stroke that starts moving right away is a drawing. Only a finger that stays put for HOLD_MS becomes the stick, and
- * from then on the alchemist walks toward it, relative to the screen like WASD, until it lifts.
+ * stroke that keeps moving is a drawing. A press becomes the stick when the finger stays put for HOLD_MS, or when it
+ * flicks a short line and then rests on the ring for STILL_MS (people press and push toward where they want to go;
+ * drawings are longer and keep moving). The flick's ink is dropped and the alchemist walks toward the finger, relative
+ * to the screen like WASD, until it lifts.
  */
 
 import { DRAW_THRESHOLD } from './pointer';
@@ -17,9 +19,32 @@ export function padAxes(dx: number, dy: number, radius: number, deadZone = 0.22)
   return { x: dx / len, y: -dy / len };
 }
 
-/** Whether a press on the ring has become the stick: held long enough, without starting a drawing. */
-export const padClaims = (heldMs: number, travelled: number, drawing: boolean) =>
-  !drawing && heldMs >= HOLD_MS && travelled <= DRAW_THRESHOLD;
+/** ms a short flick must then rest before it reads as pushing the stick. */
+export const STILL_MS = 110;
+/** px a finger may jitter and still count as resting. */
+export const STILL_PX = 5;
+/** px of stroke beyond which a press is a drawing for good: no shape is this small. */
+export const FLICK_MAX = 110;
+
+export interface PressState {
+  /** ms since the finger landed. */
+  held: number;
+  /** px from where it landed. */
+  travelled: number;
+  /** px of path drawn so far. */
+  path: number;
+  /** ms since it last moved more than STILL_PX. */
+  still: number;
+  /** Still on (or just around) the ring. */
+  inside: boolean;
+}
+
+/** Whether a press on the ring has become the stick: a resting finger, or a short flick that then rests there. */
+export function padClaims(p: PressState) {
+  if (!p.inside || p.path > FLICK_MAX) return false;
+  if (p.travelled <= DRAW_THRESHOLD) return p.held >= HOLD_MS;
+  return p.still >= STILL_MS;
+}
 
 /** The screens that most likely have no keyboard: a finger drives them. */
 export const isTouch = () => matchMedia('(pointer: coarse)').matches;
@@ -29,9 +54,11 @@ interface Press {
   x: number;
   y: number;
   t: number;
-  /** Last known finger position. */
+  /** Last known finger position, path length and when it last really moved. */
   lx: number;
   ly: number;
+  path: number;
+  movedAt: number;
 }
 
 export interface Pad {
@@ -44,7 +71,7 @@ export interface Pad {
   /** Ends the press. Returns true when it was the stick, so it was neither a tap nor a drawing. */
   up(id: number): boolean;
   /** Checks a resting press each frame; calls `claim` once with its id when it becomes the stick. */
-  update(now: number, drawing: (id: number) => boolean, claim: (id: number) => void): void;
+  update(now: number, claim: (id: number) => void): void;
   owns(id: number): boolean;
 }
 
@@ -107,7 +134,7 @@ export function mountPad(): Pad {
       if (press || stick !== null) return false;
       const { cx, cy, radius } = ring();
       if (Math.hypot(x - cx, y - cy) > radius) return false;
-      press = { id, x, y, t, lx: x, ly: y };
+      press = { id, x, y, t, lx: x, ly: y, path: 0, movedAt: t };
       return true;
     },
     move(id, x, y) {
@@ -115,9 +142,16 @@ export function mountPad(): Pad {
         follow(x, y);
         return true;
       }
-      if (press?.id === id) {
-        press.lx = x;
-        press.ly = y;
+      const p = press;
+      if (p?.id === id) {
+        const step = Math.hypot(x - p.lx, y - p.ly);
+        if (step > STILL_PX) {
+          p.path += step;
+          p.lx = x;
+          p.ly = y;
+          p.movedAt = performance.now();
+        }
+        if (p.path > FLICK_MAX) press = null;
       }
       return false;
     },
@@ -129,17 +163,18 @@ export function mountPad(): Pad {
       if (press?.id === id) press = null;
       return false;
     },
-    update(now, drawing, claim) {
+    update(now, claim) {
       if (!press) return;
       const p = press;
-      if (drawing(p.id)) {
-        press = null;
-        return;
-      }
-      if (!padClaims(now - p.t, Math.hypot(p.lx - p.x, p.ly - p.y), false)) {
-        if (Math.hypot(p.lx - p.x, p.ly - p.y) > DRAW_THRESHOLD) press = null;
-        return;
-      }
+      const { cx, cy, radius } = ring();
+      const state = {
+        held: now - p.t,
+        travelled: Math.hypot(p.lx - p.x, p.ly - p.y),
+        path: p.path,
+        still: now - p.movedAt,
+        inside: Math.hypot(p.lx - cx, p.ly - cy) <= radius * 1.25,
+      };
+      if (!padClaims(state)) return;
       press = null;
       stick = p.id;
       el.classList.add('on');

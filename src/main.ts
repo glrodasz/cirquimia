@@ -514,8 +514,8 @@ let steering = false;
 
 /** Each frame: walk along the held keys, sliding along the screen's edge instead of leaving it. */
 function steerHero() {
-  // A finger resting on the stick stops being a possible tap, so lifting it later neither walks nor casts.
-  pad.update(performance.now(), (id) => router.draws(id), (id) => router.cancel(id, onGesture));
+  // A press that turns into the stick stops being a tap or a drawing: its ink (a short flick) is dropped.
+  pad.update(performance.now(), (id) => router.cancel(id, onGesture));
   const k = keys.axes();
   const a = k.x || k.y ? k : pad.axes();
   const free = !combat.over && tutorial.canTap && !tutorial.aim();

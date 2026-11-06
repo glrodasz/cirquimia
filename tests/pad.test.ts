@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HOLD_MS, padAxes, padClaims } from '../src/pad';
+import { FLICK_MAX, HOLD_MS, padAxes, padClaims, STILL_MS } from '../src/pad';
 import { DRAW_THRESHOLD } from '../src/pointer';
 
 describe('padAxes', () => {
@@ -21,14 +21,23 @@ describe('padAxes', () => {
 });
 
 describe('padClaims', () => {
+  const rest = { held: 0, travelled: 0, path: 0, still: 0, inside: true };
   it('leaves a quick tap alone so it can walk or cast', () => {
-    expect(padClaims(HOLD_MS - 40, 2, false)).toBe(false);
+    expect(padClaims({ ...rest, held: HOLD_MS - 40, travelled: 2, still: HOLD_MS - 40 })).toBe(false);
   });
   it('takes a finger that rests on the ring', () => {
-    expect(padClaims(HOLD_MS, 3, false)).toBe(true);
+    expect(padClaims({ ...rest, held: HOLD_MS, travelled: 3, still: HOLD_MS })).toBe(true);
   });
-  it('never takes a drawing, or a finger that already slid away', () => {
-    expect(padClaims(HOLD_MS * 3, 0, true)).toBe(false);
-    expect(padClaims(HOLD_MS * 3, DRAW_THRESHOLD + 1, false)).toBe(false);
+  it('takes a short flick that then rests on the ring', () => {
+    const flick = { ...rest, held: 300, travelled: 40, path: 45 };
+    expect(padClaims({ ...flick, still: 20 })).toBe(false);
+    expect(padClaims({ ...flick, still: STILL_MS })).toBe(true);
+  });
+  it('never takes a drawing: a long stroke, or one that left the ring', () => {
+    expect(padClaims({ ...rest, held: 900, travelled: 60, path: FLICK_MAX + 1, still: 500 })).toBe(false);
+    expect(padClaims({ ...rest, held: 900, travelled: 60, path: 60, still: 500, inside: false })).toBe(false);
+  });
+  it('waits while a short stroke keeps moving', () => {
+    expect(padClaims({ ...rest, held: 400, travelled: DRAW_THRESHOLD + 10, path: 60, still: 16 })).toBe(false);
   });
 });

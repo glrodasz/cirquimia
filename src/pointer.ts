@@ -72,11 +72,6 @@ export class PointerRouter {
     return this.drawer !== null;
   }
 
-  /** Whether this finger is the one drawing. */
-  draws(id: number) {
-    return this.drawer === id;
-  }
-
   /** Returns true when the pointer was taken, so the caller can capture it. */
   down(p: PointerInput, emit: (e: GestureEvent) => void): boolean {
     // A primary pointer means nothing else is touching: whatever we still track lost its pointerup (iOS can swallow
