@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
-import { mountDevTools, savedQuality } from './devtools';
+import { DEV, mountDevTools, savedQuality } from './devtools';
 import { mountMatchControls, savedRivals } from './match';
 import { mountHelp } from './help';
 import { Tutorial } from './tutorial';
@@ -26,6 +26,8 @@ import { mountKeysHint } from './keysHint';
 import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 import { mountPad } from './pad';
 import { Practice } from './practice';
+import { mountLeaderboard } from './leaderboard/ui';
+import { Runs } from './leaderboard/client';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -198,7 +200,16 @@ const matchHud = mountMatchControls({
   restart: () => dev.newMeadow(),
 });
 hudReady = true;
-combat.onEnd = (outcome) => matchHud.showEnd(outcome);
+// Global ranking: a won match against rivals counts, once the tutorial is behind and outside dev mode.
+const board = mountLeaderboard();
+const runs = new Runs();
+combat.onStart = () => runs.start(combat.rivalCount, combat.difficulty, combat.rivalCount > 0 && tutorial.done && !DEV);
+combat.onEnd = (outcome) => {
+  const ranked = outcome === 'victory' && combat.rivalCount > 0;
+  const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs };
+  matchHud.showEnd(outcome);
+  if (ranked && tutorial.done && !DEV) board.fillEnd(matchHud.scoreSlot, runs, match);
+};
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
 const practice = new Practice();
 combat.onDummyHit = (element, boosted) => practice.hit(element, boosted);
@@ -629,7 +640,7 @@ renderer.setAnimationLoop((time) => {
   const dt = Math.min(clock.getDelta(), 1 / 20);
   if (!dev.open) world.update(dt);
   tutorial.update(dt);
-  if (!help.open && !dev.open && !tutorial.paused) {
+  if (!help.open && !dev.open && !board.open && !tutorial.paused) {
     steerHero();
     hero.update(dt);
     marker.update(dt);

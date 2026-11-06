@@ -242,11 +242,12 @@ export function mountMatchControls(match: MatchControls) {
   end.setAttribute('role', 'dialog');
   end.setAttribute('aria-modal', 'true');
   end.innerHTML =
-    '<div class="card"><div class="disc"></div><h2></h2><p></p>' +
+    '<div class="card"><div class="disc"></div><h2></h2><p></p><div class="scored" hidden></div>' +
     `<button type="button" class="match-btn again"><span class="cap">${t.match.again}</span></button></div>`;
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) end.addEventListener(type, (e) => e.stopPropagation());
   document.body.append(end);
   const again = end.querySelector<HTMLButtonElement>('.again')!;
+  const scored = end.querySelector<HTMLElement>('.scored')!;
   again.addEventListener('click', () => {
     closeEnd();
     match.restart();
@@ -254,7 +255,11 @@ export function mountMatchControls(match: MatchControls) {
   });
 
   return {
+    /** The victory card's score block, filled by the ranking for a match that counts. */
+    scoreSlot: scored,
     showEnd(outcome: Outcome) {
+      scored.hidden = true;
+      scored.innerHTML = '';
       const n = match.rivals;
       const level = DIFFICULTY_LABEL[match.difficulty];
       const rand = random();

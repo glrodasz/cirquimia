@@ -134,15 +134,66 @@
       #match-end .again .cap::after { content: " ↻"; opacity: .7; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #match-end.victory h2 { color: #ffd27a; } :root:not([data-theme="light"]) #match-end .again { background: #9fbcb4; color: #14201c; } :root:not([data-theme="light"]) #match-end .hero { fill: #7fb2f0; } }
       :root[data-theme="dark"] #match-end.victory h2 { color: #ffd27a; } :root[data-theme="dark"] #match-end .again { background: #9fbcb4; color: #14201c; } :root[data-theme="dark"] #match-end .hero { fill: #7fb2f0; }
+      #match-end .card { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+      #match-end .scored { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; margin: -2px 0 12px; }
+      #match-end .scored[hidden] { display: none; }
+      #match-end .scored .pts { font: 600 14px/1 system-ui, -apple-system, sans-serif; }
+      #match-end .scored .pts b { display: block; margin-bottom: 2px; font: 800 44px/1 'Alegreya Variable', Georgia, serif; color: #b5761f; opacity: 1; font-variant-numeric: tabular-nums; }
+      #match-end .scored .meta { font-size: 13px; opacity: .7; }
+      #match-end .sign { display: flex; align-items: flex-end; gap: 8px; margin-top: 4px; }
+      #match-end .sign[hidden] { display: none; }
+      #match-end .sign label { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; font-size: 11.5px; opacity: .85; }
+      #match-end .sign input { width: 104px; height: 40px; box-sizing: border-box; padding: 0 8px; border: 1.5px solid var(--hud-border); border-radius: 12px; background: var(--hud-solid); color: var(--hud-fg); font: 800 22px/1 ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: .22em; text-align: center; text-transform: uppercase; }
+      #match-end .sign input::placeholder { opacity: .3; }
+      #match-end .sign input:focus { outline: 2px solid #e0a23c; outline-offset: 1px; }
+      #match-end .sign input.shake { animation: rank-shake .35s; }
+      @keyframes rank-shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+      #match-end .scored .match-btn { height: 40px; padding: 0 14px; font-size: 14px; }
+      #match-end .scored .cap::after { content: none; }
+      #match-end .save { background: #e0a23c; color: #2a1d08; }
+      #match-end .save:disabled { opacity: .7; }
+      #match-end .note { margin: 0; min-height: 0; font-size: 13.5px; opacity: .9; }
+      #match-end .note:empty { display: none; }
+      #match-end .note b { color: #b5761f; }
+      #match-end .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+      #match-end .share .cap::before { content: "↗ "; opacity: .7; }
+      #rank { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.35), rgba(35,50,42,.6)); backdrop-filter: blur(2px) saturate(.8); -webkit-backdrop-filter: blur(2px) saturate(.8); opacity: 0; transition: opacity .3s; }
+      #rank[hidden] { display: none; }
+      #rank.show { opacity: 1; }
+      #rank .card { position: relative; display: flex; flex-direction: column; width: min(400px, 100%); max-height: min(640px, 100%); box-sizing: border-box; padding: 16px 14px 12px; border-radius: 22px; background: var(--hud-solid); color: var(--hud-fg); box-shadow: 0 10px 30px rgba(20,28,24,.3), 0 0 0 2px rgba(224,162,60,.6); font: 400 14px/1.35 system-ui, -apple-system, sans-serif; outline: none; }
+      #rank h2 { margin: 2px 40px 10px; font: 800 24px/1.1 'Alegreya Variable', Georgia, serif; text-align: center; color: #b5761f; }
+      #rank .x { position: absolute; top: 6px; right: 6px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--hud-fg); font: 400 28px/1 Georgia, serif; cursor: pointer; opacity: .7; }
+      #rank .tabs { display: flex; gap: 4px; padding: 3px; margin: 0 auto 10px; border-radius: 999px; background: var(--hud-border); }
+      #rank .tabs button { height: 34px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: var(--hud-fg); font: 700 13.5px/1 system-ui, -apple-system, sans-serif; cursor: pointer; }
+      #rank .tabs [aria-selected="true"] { background: var(--hud-solid); box-shadow: 0 1px 4px rgba(20,28,24,.18); }
+      #rank .list { flex: 1 1 auto; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+      #rank ol { margin: 0; padding: 0; list-style: none; }
+      #rank li { display: grid; grid-template-columns: 34px 1fr auto; grid-template-areas: "pos who pts" "pos meta meta"; align-items: center; column-gap: 8px; padding: 7px 8px; border-radius: 12px; }
+      #rank li + li { margin-top: 2px; }
+      #rank li:nth-child(odd) { background: rgba(127,140,134,.08); }
+      #rank li.mine { background: rgba(224,162,60,.16); }
+      #rank li.new { box-shadow: inset 0 0 0 2px #e0a23c; }
+      #rank .pos { grid-area: pos; justify-self: center; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font: 800 14px/1 system-ui, -apple-system, sans-serif; opacity: .75; }
+      #rank .medal { opacity: 1; color: #2a1d08; }
+      #rank .m1 { background: #e0a23c; } #rank .m2 { background: #c5ccd0; } #rank .m3 { background: #d39a6a; }
+      #rank .who { grid-area: who; font: 800 17px/1.1 ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: .12em; }
+      #rank .who i { font: 600 10.5px/1 system-ui, -apple-system, sans-serif; letter-spacing: 0; padding: 2px 6px; border-radius: 999px; background: #e0a23c; color: #2a1d08; vertical-align: 2px; }
+      #rank .pts { grid-area: pts; font: 800 18px/1 'Alegreya Variable', Georgia, serif; font-variant-numeric: tabular-nums; }
+      #rank .meta { grid-area: meta; font-size: 12px; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #rank .empty { margin: 28px 8px; text-align: center; opacity: .7; }
+      #rank .rule { margin: 8px 4px 0; font-size: 11.5px; text-align: center; opacity: .6; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#rank h2, #match-end .scored .pts b, #match-end .note b) { color: #ffd27a; } }
+      :root[data-theme="dark"] :is(#rank h2, #match-end .scored .pts b, #match-end .note b) { color: #ffd27a; }
       #help-btn, #book-btn { position: fixed; top: var(--edge-top); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
       #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
+      #rank-btn { position: fixed; top: calc(var(--edge-top) + 48px); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
       .dev #help-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
       .dev #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 96px); }
-      :is(#help-btn, #book-btn):active { transform: scale(.92); }
-      :is(#help-btn, #book-btn):focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
-      #help-btn svg, #book-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
-      :is(#help-btn, #book-btn, #help) .ring { fill: var(--hud-fg); opacity: .32; }
-      :is(#help-btn, #book-btn) .glyph { fill: #b5761f; }
+      :is(#help-btn, #book-btn, #rank-btn):active { transform: scale(.92); }
+      :is(#help-btn, #book-btn, #rank-btn):focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
+      #help-btn svg, #book-btn svg, #rank-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
+      :is(#help-btn, #book-btn, #rank-btn, #help) .ring { fill: var(--hud-fg); opacity: .32; }
+      :is(#help-btn, #book-btn, #rank-btn) .glyph { fill: #b5761f; }
       /* The help is an alchemist's book: leather cover, gold-stamped title, parchment pages that flip over from the spine.
          It stays parchment in dark mode too, like a real book. Sized to the visible viewport (--seen, set from
          visualViewport) so mobile toolbars never cover the page-turn buttons. */
@@ -242,8 +293,8 @@
       @media (prefers-reduced-motion: reduce) { #help .book { transition: none; } #help .page.on { animation: leaf-fade .2s ease-out both; } @keyframes leaf-fade { from { opacity: 0; } to { opacity: 1; } } }
       .nosource { position: fixed; z-index: 3; width: 64px; height: 64px; pointer-events: none; border-radius: 50%; background: var(--hud-bg); box-shadow: 0 2px 10px rgba(20,28,24,.25); }
       .nosource svg { position: absolute; inset: 0; width: 100%; height: 100%; } .nosource .ring { fill: #23322a; opacity: .3; } .nosource .fire { fill: #e0712c; } .nosource .water { fill: #3f8fb0; } .nosource .cross { fill: #c8372d; } .nosource.wall .ring { fill: #23322a; opacity: .3; } .nosource.wall .glyph { fill: #b5761f; }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; } }
-      :root[data-theme="dark"] :is(#help-btn, #book-btn) .glyph { fill: #ffd27a; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#help-btn, #book-btn, #rank-btn) .glyph { fill: #ffd27a; } }
+      :root[data-theme="dark"] :is(#help-btn, #book-btn, #rank-btn) .glyph { fill: #ffd27a; }
       #tutorial { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .3s; }
       #tutorial[hidden] { display: none; }
       #tutorial.show { opacity: 1; }
