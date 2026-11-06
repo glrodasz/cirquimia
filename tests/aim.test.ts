@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { aimMarks, Reticle } from '../src/aim';
-import { PILLAR_AREA, RUNE_BOOST, STAR_REACH, starTips } from '../src/spells';
+import { AREA_OF, PILLAR_AREA, RUNE_BOOST, STAR_REACH, starTips } from '../src/spells';
 
 describe('aimMarks', () => {
   it('is one strike-sized circle for the square, fire and water', () => {
@@ -31,6 +31,12 @@ describe('aimMarks', () => {
       });
     }
     expect(Math.hypot(aimMarks('pentagram', true)[0].x, aimMarks('pentagram', true)[0].z)).toBeCloseTo(0.625);
+  });
+
+  it('is a smaller circle for the hourglass blast, grown by the runes like the rest', () => {
+    expect(aimMarks('hourglass', false)).toEqual([{ x: 0, z: 0, r: PILLAR_AREA * AREA_OF.blast }]);
+    expect(aimMarks('hourglass', true)[0].r).toBeCloseTo(PILLAR_AREA * AREA_OF.blast * RUNE_BOOST);
+    expect(AREA_OF.blast).toBeLessThan(1);
   });
 
   it('has nothing for shapes that need no target', () => {

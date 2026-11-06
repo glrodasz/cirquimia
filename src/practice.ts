@@ -3,7 +3,7 @@ import { DRILLS, showPractice, type Drill } from './help';
 import type { Element } from './spells';
 import { t } from './i18n';
 
-const DRILL_OF: Record<Element, Drill> = { earth: 'square', columns: 'pentagram', fire: 'triangle', water: 'triangleDown' };
+const DRILL_OF: Record<Element, Drill> = { earth: 'square', columns: 'pentagram', fire: 'triangle', water: 'triangleDown', blast: 'hourglass' };
 
 function downArrow() {
   let seed = 3;

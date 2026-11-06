@@ -47,7 +47,10 @@ export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
 }
 
 // Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
-export type Element = 'earth' | 'columns' | 'fire' | 'water';
+// Fire and water merged in hand (the hourglass) = blast: a tighter burst of flame and steam that hits harder.
+export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast';
+/** Radius of each element's strike against the square's: the blast packs its punch into a smaller area. */
+export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.7 };
 const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
 
 // Rhombus = healing on the caster: thin lines of light rising up through the body.
@@ -85,7 +88,8 @@ const FIRE = ['#f08a3a', '#f4a94c', '#e0663a'];
 const FIRE_CORE = '#ffd67a';
 const WATER = ['#7fb3c2', '#93c4cf', '#6a9fb1'];
 const WATER_FOAM = '#d9ecef';
-const WARNING: Record<Element, string> = { earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866' };
+const STEAM = ['#e8eeec', '#d3dedd', '#f4efe2'];
+const WARNING: Record<Element, string> = { earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866', blast: '#8a2f1c' };
 
 const tmpColor = new THREE.Color();
 const easeOutBack = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
@@ -336,7 +340,7 @@ function wallSegment(cx: number, cz: number, a: Section, b: Section, capStart: b
 /**
  * A tremor on the ground, then the strike breaks out: slanted square pillars of rock (square),
  * five short columns at the tips of a star (pentagram), a burst of flame tongues (fire triangle)
- * or a spout of water (water triangle).
+ * a spout of water (water triangle) or a tight burst of flame and steam (hourglass: fire and water merged).
  */
 class PillarStrike extends Effect {
   readonly obstacles: Obstacle[] = [];
@@ -349,7 +353,7 @@ class PillarStrike extends Effect {
 
   /** Radius of the cluster. */
   get area() {
-    return PILLAR_AREA * this.scale;
+    return PILLAR_AREA * AREA_OF[this.element] * this.scale;
   }
 
   constructor(
@@ -365,6 +369,7 @@ class PillarStrike extends Effect {
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
+    else if (element === 'blast') this.buildBlast();
     else this.buildFluid(element === 'fire');
     if (scale !== 1) {
       // Grow the cluster about its centre: spread, width and height alike.
@@ -474,6 +479,53 @@ class PillarStrike extends Effect {
     }
   }
 
+  /** The blast: a white-hot core, short flame tongues thrown outward and puffs of steam that swell and drift up. */
+  private buildBlast() {
+    const { x, z } = this;
+    const reach = PILLAR_AREA * AREA_OF.blast;
+    const glow = (mesh: THREE.Mesh, color: string, k: number, opacity = 1) => {
+      const m = mesh.material as THREE.MeshLambertMaterial;
+      m.emissive.set(color).multiplyScalar(k);
+      if (opacity < 1) {
+        m.transparent = true;
+        m.opacity = opacity;
+        m.depthWrite = false;
+      }
+      mesh.castShadow = false;
+      mesh.userData.base = mesh.scale.clone();
+      mesh.userData.phase = Math.random() * 10;
+    };
+    const core = this.addPiece(orbGeo, FIRE_CORE, x, z, 0.2, 0);
+    core.scale.set(0.13, 0.11, 0.13);
+    core.userData.blast = 'core';
+    glow(core, FIRE_CORE, 0.9);
+    const tongues = THREE.MathUtils.randInt(5, 6);
+    for (let i = 0; i < tongues; i++) {
+      const a = (i / tongues) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.5);
+      const d = reach * THREE.MathUtils.randFloat(0.25, 0.6);
+      const h = THREE.MathUtils.randFloat(0.18, 0.3);
+      const color = FIRE[i % FIRE.length];
+      const mesh = this.addPiece(flameGeo, color, x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0, 0.03));
+      mesh.scale.set(THREE.MathUtils.randFloat(0.06, 0.09), h, THREE.MathUtils.randFloat(0.06, 0.09));
+      // Thrown outward from the centre, much harder than a fire triangle's lean.
+      mesh.rotation.set(THREE.MathUtils.randFloat(0.55, 0.85), a, 0, 'YXZ');
+      mesh.userData.blast = 'tongue';
+      glow(mesh, color, 0.8);
+    }
+    const puffs = THREE.MathUtils.randInt(5, 7);
+    for (let i = 0; i < puffs; i++) {
+      const a = (i / puffs) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.7);
+      const d = reach * THREE.MathUtils.randFloat(0.4, 1);
+      const h = THREE.MathUtils.randFloat(0.1, 0.22);
+      const color = STEAM[i % STEAM.length];
+      const mesh = this.addPiece(orbGeo, color, x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0.03, 0.09));
+      mesh.scale.setScalar(THREE.MathUtils.randFloat(0.05, 0.08));
+      mesh.userData.blast = 'puff';
+      mesh.userData.rise = THREE.MathUtils.randFloat(0.25, 0.45);
+      glow(mesh, color, 0.25, 0.8);
+    }
+  }
+
   /** True on the frame the warning ends. */
   erupting(dt: number) {
     return this.age < this.warn && this.age + dt >= this.warn;
@@ -494,6 +546,7 @@ class PillarStrike extends Effect {
         p.mesh.scale.set(base.x * w, base.y * (1 + Math.sin(k) * 0.15), base.z * w);
       }
     }
+    if (this.element === 'blast' && t >= 0) this.animateBlast(t);
     if (t < 0) {
       // Grows and shudders during the warning so a target can still step out.
       const w = 1 + t / this.warn;
@@ -508,6 +561,30 @@ class PillarStrike extends Effect {
     }
     this.boostRing?.rotateY(0.04);
     if (this.inkMaterial) this.inkMaterial.opacity = Math.min(0.9, this.crackMaterial.opacity * 1.4);
+  }
+
+  /** The core flashes and dims, the tongues flicker, the steam swells, climbs and thins out. */
+  private animateBlast(t: number) {
+    const life = PILLAR_RISE + PILLAR_HOLD + PILLAR_SINK;
+    const u = Math.min(1, t / life);
+    for (const p of this.pieces) {
+      const mesh = p.mesh;
+      const base = mesh.userData.base as THREE.Vector3;
+      const m = mesh.material as THREE.MeshLambertMaterial;
+      const kind = mesh.userData.blast as 'core' | 'tongue' | 'puff';
+      if (kind === 'core') {
+        // A quick flash: swells to twice its size in the first instants, then shrinks into the smoke.
+        const flash = t < 0.12 ? 1 + t / 0.12 : Math.max(0.2, 2 - (t - 0.12) * 2.2);
+        mesh.scale.copy(base).multiplyScalar(flash);
+      } else if (kind === 'tongue') {
+        const k = this.age * 26 + (mesh.userData.phase as number);
+        mesh.scale.set(base.x * (1 + Math.sin(k * 1.3) * 0.15), base.y * (1 + Math.sin(k) * 0.2), base.z);
+      } else {
+        mesh.scale.copy(base).multiplyScalar(1 + u * 1.8);
+        mesh.position.y += u * (mesh.userData.rise as number);
+        m.opacity = 0.8 * (1 - u * u);
+      }
+    }
   }
 
   dispose() {

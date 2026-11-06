@@ -3,11 +3,12 @@ import { BODY_RADIUS, Character } from './character';
 import { HitMeLabel, Scarecrow } from './dummy';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
+import { AREA_OF, PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
 import { t } from './i18n';
 
-// Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35.
-export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35 };
+// Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
+// the blast (fire and water merged into an hourglass) 40 over a smaller area.
+export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 40 };
 // Rhombus: heals the caster; 30% more when cast from inside a rune circle.
 export const HEAL = 25;
 const RUNE_HEAL_BOOST = 1.3;
@@ -84,7 +85,7 @@ const RIVAL_LOOKS = [
   { coat: '#6b3a3a', coatDark: '#4f2a2b', ink: '#d9483b' },
   { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
 ];
-const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3' };
+const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c' };
 
 const projected = new THREE.Vector3();
 
@@ -98,7 +99,7 @@ const WALL_SKETCH = 0.35;
 // A rival only opens with a wall when its foe is this close: far off, the wall is not worth the turn.
 const FORTRESS_RANGE = 2.6;
 // The shapes drawn over a fighter's head when it stores a symbol, in a 40×40 box; every path starts where a hand would.
-export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus';
+export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass';
 const SKETCH_PATH: Record<Sketch, string> = {
   circle: 'M20 5 A15 15 0 1 1 19.9 5',
   square: 'M9 9 H31 V31 H9 Z',
@@ -106,6 +107,7 @@ const SKETCH_PATH: Record<Sketch, string> = {
   triangle: 'M20 6 L34 32 H6 Z',
   triangleDown: 'M20 34 L6 8 H34 Z',
   rhombus: 'M20 4 L34 20 L20 36 L6 20 Z',
+  hourglass: 'M7 5 H33 L7 35 H33 Z',
 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -284,6 +286,7 @@ const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
   columns: 'pentagram',
   fire: 'triangle',
   water: 'triangleDown',
+  blast: 'hourglass',
   heal: 'rhombus',
 };
 const sketchFor = (plan: Plan): Sketch =>
@@ -885,7 +888,7 @@ export class Combat {
         this.onHeroHit();
       }
     }
-    const boosted = area > PILLAR_AREA * 1.01;
+    const boosted = area > PILLAR_AREA * AREA_OF[element] * 1.01;
     for (const d of this.dummies) {
       if (d.down || Math.hypot(d.position.x - x, d.position.z - z) > area + DUMMY_RADIUS) continue;
       d.strike(DAMAGE[element], element, this.camera, boosted, (caster as Fighter | null)?.position);

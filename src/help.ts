@@ -135,8 +135,8 @@ const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; s
 const EFFECT = { dmg: t.help.damage, heal: t.help.healing };
 
 /** What training asks the player to try on the scarecrow: each attack, and any of them from a rune circle. */
-export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rune';
-export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'rune'];
+export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'hourglass' | 'rune';
+export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'hourglass', 'rune'];
 /** The drills tried in this training session, shown ticked in the symbols book; null outside training. */
 let practice: ReadonlySet<Drill> | null = null;
 export function showPractice(done: ReadonlySet<Drill> | null) {
@@ -187,7 +187,7 @@ function guide() {
   return bookCard('guide', t.help.title, pages, t.help.slideOf);
 }
 
-/** The symbols manual: every shape and what it does, then where fire and water get charged. */
+/** The symbols manual: every shape and what it does, then where fire and water get charged, then what they make together. */
 function symbols() {
   const rand = random();
   const shapes = SHAPES.map(
@@ -205,7 +205,15 @@ function symbols() {
   const progress = practice
     ? `<p class="training">${tried === DRILLS.length ? t.practice.allDone : t.practice.progress(tried, DRILLS.length)}</p>`
     : '';
-  return bookCard('manual', t.help.shapesTitle, [`${progress}<ul class="shapes">${shapes}</ul>`, notes], t.help.pageOf);
+  // Fire + water = the hourglass: the two charged triangles merge in hand into the blast.
+  const combo =
+    `<h3>${t.help.comboTitle}</h3>` +
+    `<div class="combo"${drillClass('hourglass')}>` +
+    `${fig('triangle charged', shapeIcon('triangle'))}<span class="op">+</span>${fig('triangleDown charged', shapeIcon('triangleDown'))}<span class="op">=</span>` +
+    `<span class="out">${fig('hourglass', shapeIcon('hourglass'))}<b>${t.help.names.hourglass}</b>` +
+    `<span class="val val-dmg"><small>${EFFECT.dmg}</small> 40</span></span></div>` +
+    `<p class="combo-note">${t.help.comboNote}</p>`;
+  return bookCard('manual', t.help.shapesTitle, [`${progress}<ul class="shapes">${shapes}</ul>`, notes, combo], t.help.pageOf);
 }
 
 /**
