@@ -126,6 +126,8 @@ export class Character {
   private heading = 0;
   /** Corners to walk through on the way to the target, last one being the target itself. */
   private path: Waypoint[] = [];
+  /** Walking on the keys: it keeps going the same way for as long as they are held. */
+  private steering = false;
   private stuckTimer = 0;
   private stuckCount = 0;
   private stuckFrom = new THREE.Vector3();
@@ -279,9 +281,40 @@ export class Character {
     const pos = this.root.position;
     this.target.set(pos.x + dx * STEER_AHEAD, 0, pos.z + dz * STEER_AHEAD);
     this.path = [{ x: this.target.x, z: this.target.z }];
+    this.steering = true;
     this.stuckCount = 0;
     this.stuckTimer = 0;
     this.stuckFrom.copy(pos);
+  }
+
+  /**
+   * Where it will be in `seconds` if it keeps doing what it is doing: along its route to the target,
+   * or straight on while the keys are held.
+   */
+  ahead(seconds: number, out = new THREE.Vector3()) {
+    const pos = this.root.position;
+    out.set(pos.x, 0, pos.z);
+    if (this.down) return out;
+    let left = this.speed * seconds;
+    let dx = 0;
+    let dz = 0;
+    for (const p of this.path) {
+      const ex = p.x - out.x;
+      const ez = p.z - out.z;
+      const d = Math.hypot(ex, ez);
+      if (d < 1e-6) continue;
+      dx = ex / d;
+      dz = ez / d;
+      const step = Math.min(d, left);
+      out.x += dx * step;
+      out.z += dz * step;
+      if ((left -= step) <= 0) return out;
+    }
+    if (this.steering) {
+      out.x += dx * left;
+      out.z += dz * left;
+    }
+    return out;
   }
 
   /** Stops where it stands. */
@@ -292,6 +325,7 @@ export class Character {
   private stop() {
     this.target.set(this.root.position.x, 0, this.root.position.z);
     this.path = [];
+    this.steering = false;
     this.stuckCount = 0;
   }
 
@@ -303,6 +337,7 @@ export class Character {
 
   /** Routes around trees, rocks and walls instead of pushing straight into them. */
   private plan() {
+    this.steering = false;
     this.stuckCount = 0;
     const pos = this.root.position;
     const path = findPath(pos.x, pos.z, this.target.x, this.target.z, this.obstacles, BODY_RADIUS + 0.02);
