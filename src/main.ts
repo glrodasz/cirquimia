@@ -23,6 +23,7 @@ import { showMissingSource } from './missing';
 import { mountDeviceHint } from './deviceHint';
 import { KeyboardMove, groundDir } from './keys';
 import { mountKeysHint } from './keysHint';
+import { mountPad } from './pad';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -496,13 +497,16 @@ const keys = new KeyboardMove();
 const keysHint = mountKeysHint();
 keys.onChange = (key, down) => keysHint.press(key, down);
 keys.listen(window, () => help.open || dev.open);
+// Phones and tablets: a faint stick at the bottom left walks the same way while held; tapping the ground still works.
+const pad = mountPad();
 const lookAlong = new THREE.Vector3();
 const ahead = new THREE.Vector3();
 let steering = false;
 
 /** Each frame: walk along the held keys, sliding along the screen's edge instead of leaving it. */
 function steerHero() {
-  const a = keys.axes();
+  const k = keys.axes();
+  const a = k.x || k.y ? k : pad.axes();
   const free = !combat.over && tutorial.canTap && !tutorial.aim();
   if ((!a.x && !a.y) || !free) {
     if (steering) hero.halt();
