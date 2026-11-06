@@ -131,8 +131,9 @@ const es = {
   practice: {
     hitMe: '¡Golpéame!',
     title: 'Entrenamiento',
-    body: 'Golpea al muñeco con cada ataque y mira cuánto daño hace.',
+    body: 'prueba cada ataque',
     rune: 'Runa',
+    close: 'Cerrar. Los ataques siguen en el libro de símbolos',
     tips: {
       square: 'Cuadrado: tierra justo donde toques.',
       pentagram: 'Estrella: cinco columnas alrededor del muñeco.',
@@ -140,7 +141,7 @@ const es = {
       triangleDown: 'Agua: el triángulo invertido sobre una laguna.',
       rune: 'Lanza desde un círculo de runas: +25% de área ✦',
     },
-    allDone: '¡Probaste todos los ataques! Sigue afinando la puntería.',
+    allDone: '¡Probaste todos los ataques! Los tienes en el libro.',
     down: '¡Derribado! Sale otro en el centro.',
   },
   device: {
@@ -314,8 +315,9 @@ const en: Strings = {
   practice: {
     hitMe: 'Hit me!',
     title: 'Training',
-    body: 'Hit the dummy with every attack and see how much damage it does.',
+    body: 'try every attack',
     rune: 'Rune',
+    close: 'Close. The attacks are still in the symbols book',
     tips: {
       square: 'Square: earth right where you tap.',
       pentagram: 'Star: five columns around the dummy.',
@@ -323,7 +325,7 @@ const en: Strings = {
       triangleDown: 'Water: the inverted triangle over a lagoon.',
       rune: 'Cast from a rune circle: +25% area ✦',
     },
-    allDone: 'You tried every attack! Keep sharpening your aim.',
+    allDone: 'You tried every attack! They are all in the book.',
     down: 'Knocked down! Another one pops up in the middle.',
   },
   device: {
