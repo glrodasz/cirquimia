@@ -211,7 +211,7 @@ function symbols() {
     `<div class="combo"${drillClass('hourglass')}>` +
     `${fig('triangle charged', shapeIcon('triangle'))}<span class="op">+</span>${fig('triangleDown charged', shapeIcon('triangleDown'))}<span class="op">=</span>` +
     `<span class="out">${fig('hourglass', shapeIcon('hourglass'))}<b>${t.help.names.hourglass}</b>` +
-    `<span class="val val-dmg"><small>${EFFECT.dmg}</small> 40</span></span></div>` +
+    `<span class="val val-dmg"><small>${EFFECT.dmg}</small> 45</span></span></div>` +
     `<p class="combo-note">${t.help.comboNote}</p>`;
   return bookCard('manual', t.help.shapesTitle, [`${progress}<ul class="shapes">${shapes}</ul>`, notes, combo], t.help.pageOf);
 }

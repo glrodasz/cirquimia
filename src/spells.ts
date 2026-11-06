@@ -50,7 +50,7 @@ export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
 // Fire and water merged in hand (the hourglass) = blast: a tighter burst of flame and steam that hits harder.
 export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast';
 /** Radius of each element's strike against the square's: the blast packs its punch into a smaller area. */
-export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.7 };
+export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6 };
 const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
 
 // Rhombus = healing on the caster: thin lines of light rising up through the body.
