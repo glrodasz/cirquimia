@@ -22,6 +22,10 @@ export const MAX_RIVALS = 2;
 // The tutorial's sparring rival lands its first strike as soon as it can, played at the top level, so the defence
 // lesson comes early: this long after the attack lesson, then drawn, held and warned at 'experto' pace and aimed true.
 const AMBUSH_DELAY = 0.6;
+// Until that strike lands, the rival cannot be knocked out: it holds on at this much health.
+const AMBUSH_FLOOR = 20;
+// In the wall lesson the rival's strike breaks on the ground this far to the alchemist's side, so the cross is not hidden under its feet.
+const PROVOKE_SIDE = 0.3;
 const auraGeo = new THREE.RingGeometry(0.18, 0.24, 32).rotateX(-Math.PI / 2);
 
 export type Fluid = 'fire' | 'water';
@@ -203,11 +207,16 @@ class Fighter<B extends Body = Body> {
     this.bar.classList.remove('ko');
   }
 
+  /** The least health a strike can leave it with. */
+  protected get floor() {
+    return 0;
+  }
+
   /** Takes a strike; a rune-boosted one pops its number marked with ✦. */
   hit(amount: number, element: Element, camera: THREE.Camera, boosted = false) {
     if (this.down) return;
     this.body.flash();
-    this.hp = Math.max(0, this.hp - amount);
+    this.hp = Math.max(this.floor, this.hp - amount);
     if (this.hp === 0) {
       this.hideSketch();
       this.body.fall();
@@ -410,6 +419,11 @@ class Rival extends Fighter<Character> {
     this.drawSketch(sketchFor(plan), tuning.draw);
   }
 
+  /** During the tutorial's ambush it cannot fall before its strike has landed on the alchemist. */
+  protected override get floor() {
+    return this.ambush ? AMBUSH_FLOOR : 0;
+  }
+
   /** How it plays right now: its level's tuning, or the top level's during the tutorial's ambush. */
   private get pace(): Tuning {
     return this.ambush ? TUNING.experto : this.tuning;
@@ -490,9 +504,11 @@ class Rival extends Fighter<Character> {
     }
     const a = Math.random() * Math.PI * 2;
     const e = Math.random() * tuning.aimError;
-    // The tutorial's ambush is a square right on the alchemist, and it lands wherever the alchemist has stepped.
+    // The tutorial's ambush is a square where the alchemist will be when the ground breaks, walking or not,
+    // and it lands even if the alchemist turns away in the meantime.
     if (this.ambush && foe === combat.heroFighter && plan.element === 'earth') {
-      aim.copy(target);
+      combat.heroAhead(tuning.warn, aim);
+      aim.y = heightAt(aim.x, aim.z);
       this.body.face(aim);
       this.body.cast();
       combat.strikeFrom(this, aim, 'earth', tuning.warn, false, true);
@@ -576,7 +592,7 @@ export type Outcome = 'defeat' | 'victory';
  */
 export class Combat {
   readonly root = new THREE.Group();
-  private readonly hero: Fighter;
+  private readonly hero: Fighter<Character>;
   private rivals: Rival[] = [];
   /** Training (no rivals): the standing scarecrow last in the list, fallen ones before it until they fade. */
   private dummies: Dummy[] = [];
@@ -617,6 +633,11 @@ export class Combat {
   /** The alchemist, as a fighter the rivals can pick. */
   get heroFighter(): Fighter {
     return this.hero;
+  }
+
+  /** Where the alchemist will be in `seconds` if it keeps walking the way it is. */
+  heroAhead(seconds: number, out?: THREE.Vector3) {
+    return this.hero.body.ahead(seconds, out);
   }
 
   /** The first standing rival goes for the alchemist at once, at the top level, until one of its strikes lands. */
@@ -687,7 +708,13 @@ export class Combat {
   provoke() {
     const rival = this.rivals.find((r) => !r.down);
     if (!rival || this.hero.down) return;
-    const aim = this.hero.position.clone();
+    // Inside the wall but beside the alchemist, on the side away from the rival (the arc's open side), where the cross shows.
+    const hero = this.hero.position;
+    const side = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0).setY(0).normalize();
+    const toRival = rival.position.clone().sub(hero);
+    if (side.dot(toRival) > 0) side.negate();
+    const aim = hero.clone().addScaledVector(side, PROVOKE_SIDE);
+    aim.y = heightAt(aim.x, aim.z);
     rival.body.face(aim);
     rival.body.cast();
     this.strikeFrom(rival, aim, 'earth', TUNING[this.level].warn);
