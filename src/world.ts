@@ -148,11 +148,14 @@ export class World {
   params: GenParams = { ...DEFAULT_PARAMS };
   /** True while meadows must come without rune circles (runes or crystals): the tutorial's, so its wall lesson always works. */
   noRunes: () => boolean = () => false;
+  /** Grass and flower density from the graphics quality tier (src/quality.ts), on top of the generator's sliders. */
+  cover = 1;
   /** Kinds every meadow must have right now: training always brings a campfire and a lagoon to draw from. */
   required: () => Kind[] = () => [];
   layout!: Layout;
   stats!: WorldStats;
   private root = new THREE.Group();
+  private coverGroup: THREE.Group | null = null;
   private debug: THREE.Group | null = null;
   private showDebug = false;
   private updateFeatures: (dt: number) => void = () => {};
@@ -196,7 +199,9 @@ export class World {
 
     const paint = paintFor(layout);
     this.root = new THREE.Group();
-    this.root.add(buildCover(layout, this.params, paint, this.obstacles), built.solids, built.features.group);
+    const coverParams = { ...this.params, hierba: this.params.hierba * this.cover, flores: this.params.flores * this.cover };
+    this.coverGroup = buildCover(layout, coverParams, paint, this.obstacles);
+    this.root.add(this.coverGroup, built.solids, built.features.group);
     cullUnseen(this.root);
     this.scene.add(this.root);
     this.updateFeatures = built.features.update;
@@ -233,6 +238,34 @@ export class World {
 
   update(dt: number) {
     this.updateFeatures(dt);
+  }
+
+  /**
+   * Lowers the grass and flower density of the meadow on screen without rebuilding it (the match goes on), by
+   * keeping an even spread of the grass blades. Flowers, and raising it, wait for the next meadow.
+   */
+  setCover(density: number) {
+    const ratio = density / this.cover;
+    this.cover = density;
+    if (ratio >= 1 || !this.coverGroup) return;
+    const matrix = new THREE.Matrix4();
+    const tint = new THREE.Color();
+    this.coverGroup.traverse((o) => {
+      const mesh = o as THREE.InstancedMesh;
+      // Grass only: flower stems and heads live in separate meshes and must stay paired, so they wait for the next meadow.
+      if (!mesh.isInstancedMesh || !mesh.userData.thinnable) return;
+      let kept = 0;
+      for (let i = 0; i < mesh.count; i++) {
+        if (Math.floor((i + 1) * ratio) === Math.floor(i * ratio)) continue;
+        mesh.getMatrixAt(i, matrix);
+        mesh.setMatrixAt(kept, matrix);
+        if (mesh.instanceColor) mesh.setColorAt(kept, mesh.getColorAt(i, tint));
+        kept++;
+      }
+      mesh.count = kept;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    });
   }
 
   setDebug(on: boolean) {
