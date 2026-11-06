@@ -19,27 +19,34 @@ export function padAxes(dx: number, dy: number, radius: number, deadZone = 0.22)
   return { x: dx / len, y: -dy / len };
 }
 
-/** ms a short flick must then rest before it reads as pushing the stick. */
+/** ms a flick must then rest before it reads as pushing the stick. */
 export const STILL_MS = 70;
 /** Extra rest for a flick that ends outside the ring. */
 export const LONG_EXTRA_MS = 40;
-/** px a finger may jitter and still count as resting. */
-export const STILL_PX = 5;
+/** px a resting thumb may drift or jitter and still count as resting. */
+export const STILL_PX = 9;
 /** px of stroke beyond which a press is a drawing for good. */
-export const FLICK_MAX = 220;
-/** A flick must be a fairly straight line (distance from the start over path drawn): shapes turn corners. */
-export const FLICK_STRAIGHT = 0.75;
+export const FLICK_MAX = 300;
+/**
+ * The line out to the farthest point must be fairly straight (distance over path drawn): shapes turn corners. What the
+ * finger does after its farthest point (easing back, adjusting the aim) does not count against it.
+ */
+export const FLICK_STRAIGHT = 0.72;
 /** How far from the ring's centre (in ring radii) a flick may end and still steer. */
-export const FLICK_REACH = 2.5;
+export const FLICK_REACH = 3.2;
+/** How far from the ring's centre (in ring radii) a press may land and still count as on it. */
+export const LAND_REACH = 1.3;
 
 export interface PressState {
   /** ms since the finger landed. */
   held: number;
-  /** px from where it landed. */
+  /** px from where it landed to the farthest point so far. */
   travelled: number;
-  /** px of path drawn so far. */
+  /** px of path drawn up to that farthest point. */
   path: number;
-  /** ms since it last moved more than STILL_PX. */
+  /** px of path drawn in all. */
+  total: number;
+  /** ms the finger has stayed within STILL_PX of where it is now. */
   still: number;
   /** Distance from the ring's centre, in ring radii. */
   reach: number;
@@ -47,26 +54,78 @@ export interface PressState {
 
 /** Whether a press on the ring has become the stick: a resting finger, or a straight flick from it that then rests. */
 export function padClaims(p: PressState) {
-  if (p.travelled <= DRAW_THRESHOLD) return p.reach <= 1 && p.held >= HOLD_MS;
-  if (p.reach > FLICK_REACH || p.path > FLICK_MAX || p.travelled < p.path * FLICK_STRAIGHT) return false;
+  if (p.travelled <= DRAW_THRESHOLD) return p.reach <= LAND_REACH && p.held >= HOLD_MS;
+  if (p.reach > FLICK_REACH || p.total > FLICK_MAX || p.travelled < p.path * FLICK_STRAIGHT) return false;
   // A line ending outside the ring could be a shape's first side with a pause at its corner: ask a little longer.
   return p.still >= (p.reach > 1 ? STILL_MS + LONG_EXTRA_MS : STILL_MS);
 }
 
-/** The screens that most likely have no keyboard: a finger drives them. */
-export const isTouch = () => matchMedia('(pointer: coarse)').matches;
-
-interface Press {
-  id: number;
+interface Sample {
   x: number;
   y: number;
   t: number;
-  /** Last known finger position, path length and when it last really moved. */
-  lx: number;
-  ly: number;
-  path: number;
-  movedAt: number;
 }
+
+/** A press followed point by point: how far and how straight it went, and how long it has been resting. */
+export class PressTrack {
+  private readonly samples: Sample[] = [];
+  private total = 0;
+  private far = 0;
+  private pathAtFar = 0;
+
+  constructor(readonly id: number, x: number, y: number, t: number) {
+    this.samples.push({ x, y, t });
+  }
+
+  get start() {
+    return this.samples[0];
+  }
+
+  /** px of path drawn in all. */
+  get length() {
+    return this.total;
+  }
+
+  get last() {
+    return this.samples[this.samples.length - 1];
+  }
+
+  add(x: number, y: number, t: number) {
+    const last = this.last;
+    const step = Math.hypot(x - last.x, y - last.y);
+    if (step < 1.5) return; // sub-pixel noise
+    this.total += step;
+    this.samples.push({ x, y, t });
+    const d = Math.hypot(x - this.start.x, y - this.start.y);
+    if (d > this.far) {
+      this.far = d;
+      this.pathAtFar = this.total;
+    }
+  }
+
+  /** The state at `now`, with the ring centre and radius to measure reach. */
+  state(now: number, cx: number, cy: number, radius: number): PressState {
+    const last = this.last;
+    // Walk back to the first sample of the current rest: every point since then stays within STILL_PX of here.
+    let since = last.t;
+    for (let i = this.samples.length - 1; i >= 0; i--) {
+      const q = this.samples[i];
+      if (Math.hypot(q.x - last.x, q.y - last.y) > STILL_PX) break;
+      since = q.t;
+    }
+    return {
+      held: now - this.start.t,
+      travelled: this.far,
+      path: this.pathAtFar,
+      total: this.total,
+      still: now - since,
+      reach: Math.hypot(last.x - cx, last.y - cy) / radius,
+    };
+  }
+}
+
+/** The screens that most likely have no keyboard: a finger drives them. */
+export const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
 export interface Pad {
   /** Walk intent while the stick is held: x right, y up, unit length or zero. */
@@ -106,7 +165,7 @@ export function mountPad(): Pad {
   const knob = el.querySelector<HTMLElement>('.knob')!;
 
   let a = { x: 0, y: 0 };
-  let press: Press | null = null;
+  let press: PressTrack | null = null;
   let stick: number | null = null;
 
   const ring = () => {
@@ -143,8 +202,8 @@ export function mountPad(): Pad {
     down(id, x, y, t) {
       if (press || stick !== null) return false;
       const { cx, cy, radius } = ring();
-      if (Math.hypot(x - cx, y - cy) > radius) return false;
-      press = { id, x, y, t, lx: x, ly: y, path: 0, movedAt: t };
+      if (Math.hypot(x - cx, y - cy) > radius * LAND_REACH) return false;
+      press = new PressTrack(id, x, y, t);
       return true;
     },
     move(id, x, y) {
@@ -152,16 +211,9 @@ export function mountPad(): Pad {
         follow(x, y);
         return true;
       }
-      const p = press;
-      if (p?.id === id) {
-        const step = Math.hypot(x - p.lx, y - p.ly);
-        if (step > STILL_PX) {
-          p.path += step;
-          p.lx = x;
-          p.ly = y;
-          p.movedAt = performance.now();
-        }
-        if (p.path > FLICK_MAX) press = null;
+      if (press?.id === id) {
+        press.add(x, y, performance.now());
+        if (press.length > FLICK_MAX) press = null;
       }
       return false;
     },
@@ -177,18 +229,11 @@ export function mountPad(): Pad {
       if (!press) return;
       const p = press;
       const { cx, cy, radius } = ring();
-      const state = {
-        held: now - p.t,
-        travelled: Math.hypot(p.lx - p.x, p.ly - p.y),
-        path: p.path,
-        still: now - p.movedAt,
-        reach: Math.hypot(p.lx - cx, p.ly - cy) / radius,
-      };
-      if (!padClaims(state)) return;
+      if (!padClaims(p.state(now, cx, cy, radius))) return;
       press = null;
       stick = p.id;
       el.classList.add('on');
-      follow(p.lx, p.ly);
+      follow(p.last.x, p.last.y);
       claim(p.id);
     },
   };
