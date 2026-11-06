@@ -107,7 +107,7 @@ const es = {
     close: 'Cerrar',
     category: { mobile: 'Móvil', tablet: 'Tablet', desktop: 'Escritorio' },
     columns: ['#', 'Iniciales', 'Puntos', 'Partida'] as [string, string, string, string],
-    rule: 'Puntos = rivales × dificultad × rapidez. «Hoy» empieza a medianoche UTC.',
+    rule: 'Puntos: rivales × dificultad × rapidez · «Hoy» se reinicia a medianoche UTC',
     mine: 'Tuyo',
   },
   help: {
@@ -326,7 +326,7 @@ const en: Strings = {
     close: 'Close',
     category: { mobile: 'Mobile', tablet: 'Tablet', desktop: 'Desktop' },
     columns: ['#', 'Initials', 'Points', 'Match'],
-    rule: 'Points = rivals × difficulty × speed. "Today" starts at midnight UTC.',
+    rule: 'Points: rivals × difficulty × speed · "Today" resets at midnight UTC',
     mine: 'Yours',
   },
   help: {

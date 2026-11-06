@@ -69,6 +69,14 @@
       #dev-panel .dev-check { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
       #match { position: fixed; top: var(--edge-top); left: max(12px, env(safe-area-inset-left)); display: flex; gap: 8px; z-index: 3; }
       .match-btn { display: flex; align-items: center; gap: 4px; height: 40px; box-sizing: border-box; padding: 0 12px 0 4px; border: 0; border-radius: 999px; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); color: var(--hud-fg); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; font: 600 13px/1 system-ui, -apple-system, sans-serif; white-space: nowrap; transition: box-shadow .15s, transform .15s; }
+      #match.snug { gap: 6px; }
+      #match.snug .match-btn { padding-right: 10px; }
+      #match.snug .match-btn .cap::after { content: none; }
+      #match.small { gap: 5px; }
+      #match.small .match-btn { gap: 2px; padding-right: 8px; font-size: 12px; letter-spacing: -.01em; }
+      #match.small .match-btn .disc { width: 30px; height: 30px; }
+      #match.tight .level .cap { display: none; }
+      #match.tight .level { padding-right: 4px; }
       .match-btn:hover { box-shadow: 0 3px 12px rgba(20,28,24,.26); }
       .match-btn:active { transform: scale(.95); }
       .match-btn:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
@@ -181,14 +189,15 @@
       #rank .pts { grid-area: pts; font: 800 18px/1 'Alegreya Variable', Georgia, serif; font-variant-numeric: tabular-nums; }
       #rank .meta { grid-area: meta; font-size: 12px; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #rank .empty { margin: 28px 8px; text-align: center; opacity: .7; }
-      #rank .rule { margin: 8px 4px 0; font-size: 11.5px; text-align: center; opacity: .6; }
+      #rank .rule { margin: 8px 4px 0; font-size: 10px; line-height: 1.3; text-align: center; opacity: .42; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(#rank h2, #match-end .scored .pts b, #match-end .note b) { color: #ffd27a; } }
       :root[data-theme="dark"] :is(#rank h2, #match-end .scored .pts b, #match-end .note b) { color: #ffd27a; }
       #help-btn, #book-btn { position: fixed; top: var(--edge-top); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
       #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
-      #rank-btn { position: fixed; top: calc(var(--edge-top) + 48px); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
+      #rank-btn { position: fixed; top: var(--edge-top); right: calc(max(12px, env(safe-area-inset-right)) + 96px); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
       .dev #help-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
       .dev #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 96px); }
+      .dev #rank-btn { right: calc(max(12px, env(safe-area-inset-right)) + 144px); }
       :is(#help-btn, #book-btn, #rank-btn):active { transform: scale(.92); }
       :is(#help-btn, #book-btn, #rank-btn):focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
       #help-btn svg, #book-btn svg, #rank-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
