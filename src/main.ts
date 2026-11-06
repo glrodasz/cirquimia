@@ -25,7 +25,7 @@ import { KeyboardMove, groundDir } from './keys';
 import { mountKeysHint } from './keysHint';
 import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 import { mountPad } from './pad';
-import { PracticeCard } from './practice';
+import { Practice } from './practice';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -200,9 +200,8 @@ const matchHud = mountMatchControls({
 hudReady = true;
 combat.onEnd = (outcome) => matchHud.showEnd(outcome);
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
-const practice = new PracticeCard();
+const practice = new Practice();
 combat.onDummyHit = (element, boosted) => practice.hit(element, boosted);
-combat.onDummyDown = () => practice.knocked();
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -637,9 +636,8 @@ renderer.setAnimationLoop((time) => {
     impact.update(dt);
     spells.update(dt);
     combat.update(dt);
-    practice.update(dt);
   }
-  practice.show(combat.rivalCount === 0);
+  practice.set(combat.rivalCount === 0);
   aimReticle(dt);
   ink.update(dt);
 
