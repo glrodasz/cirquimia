@@ -216,8 +216,11 @@ function makeTrail(rand: () => number): Array<[number, number]> {
   return points;
 }
 
-/** Decides what goes where. Pure data: building meshes happens in meadow.ts / features.ts. */
-export function generateLayout(seed: string, params: GenParams): Layout {
+/**
+ * Decides what goes where. Pure data: building meshes happens in meadow.ts / features.ts.
+ * `required` kinds are always asked for, placed first and given more tries, so they make it onto the screen.
+ */
+export function generateLayout(seed: string, params: GenParams, required: Kind[] = []): Layout {
   const seedNum = hashSeed(seed);
   const rand = mulberry32(seedNum);
   const trail = params.sendero >= 1 ? makeTrail(rand) : null;
@@ -243,8 +246,14 @@ export function generateLayout(seed: string, params: GenParams): Layout {
       wanted.push({ kind, size: lo + rand() * (hi - lo), rot, seed: Math.floor(rand() * 2 ** 31) });
     }
   }
-  // Big pieces first, so they still find room.
-  wanted.sort((a, b) => KINDS[b.kind].radius(b.size) - KINDS[a.kind].radius(a.size));
+  for (const kind of required) {
+    if (wanted.some((w) => w.kind === kind)) continue;
+    const [lo, hi] = KINDS[kind].size;
+    wanted.push({ kind, size: lo + rand() * (hi - lo), rot: rand() * Math.PI * 2, seed: Math.floor(rand() * 2 ** 31) });
+  }
+  // Required pieces first, then big ones, so they still find room.
+  const must = (k: Kind) => (required.includes(k) ? 1 : 0);
+  wanted.sort((a, b) => must(b.kind) - must(a.kind) || KINDS[b.kind].radius(b.size) - KINDS[a.kind].radius(a.size));
 
   const features: Feature[] = [];
   const skipped: string[] = [];
@@ -260,7 +269,8 @@ export function generateLayout(seed: string, params: GenParams): Layout {
       continue;
     }
     let placed: Feature | null = null;
-    for (let attempt = 0; attempt < 80 && !placed; attempt++) {
+    const tries = required.includes(w.kind) ? 400 : 80;
+    for (let attempt = 0; attempt < tries && !placed; attempt++) {
       const v = THREE.MathUtils.lerp(PLAY_AREA.vMin + insetV, PLAY_AREA.vMax - insetV, rand());
       const room = halfWidthAt(v) - insetU;
       if (room < 0) continue;

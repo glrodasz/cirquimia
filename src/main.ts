@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { mountDevTools } from './devtools';
-import { mountMatchControls } from './match';
+import { mountMatchControls, savedRivals } from './match';
 import { mountHelp } from './help';
 import { Tutorial } from './tutorial';
 import { Character } from './character';
@@ -24,6 +24,7 @@ import { mountDeviceHint } from './deviceHint';
 import { KeyboardMove, groundDir } from './keys';
 import { mountKeysHint } from './keysHint';
 import { mountPad } from './pad';
+import { PracticeCard } from './practice';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -134,6 +135,11 @@ combat.onHeroHit = () => tutorial.hurt();
 // The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
 world.noRunes = () => !tutorial.done;
 
+// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow.
+// The first meadow is built before the HUD restores the match, so it reads the saved setting.
+let hudReady = false;
+world.required = () => ((hudReady ? combat.rivalCount : savedRivals()) === 0 ? ['fogata', 'estanque'] : []);
+
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(
   world,
@@ -165,7 +171,12 @@ const matchHud = mountMatchControls({
   },
   restart: () => dev.newMeadow(),
 });
+hudReady = true;
 combat.onEnd = (outcome) => matchHud.showEnd(outcome);
+// Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
+const practice = new PracticeCard();
+combat.onDummyHit = (element, boosted) => practice.hit(element, boosted);
+combat.onDummyDown = () => practice.knocked();
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -371,7 +382,7 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   if (kind === 'circle' || kind === 'rhombus') {
     hold(null);
     if (tutorial.aim()) hero.setTarget(hero.root.position); // the lesson's wall must keep the alchemist inside
-    castShape(kind, combat.foe() ?? drawnAt);
+    castShape(kind, combat.foe() ?? combat.dummy() ?? drawnAt);
     tutorial.cast();
     return true;
   }
@@ -564,7 +575,9 @@ renderer.setAnimationLoop((time) => {
     impact.update(dt);
     spells.update(dt);
     combat.update(dt);
+    practice.update(dt);
   }
+  practice.show(combat.rivalCount === 0);
   aimReticle(dt);
   ink.update(dt);
 

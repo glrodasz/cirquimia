@@ -20,9 +20,9 @@ export function padAxes(dx: number, dy: number, radius: number, deadZone = 0.22)
 }
 
 /** ms a short flick must then rest before it reads as pushing the stick. */
-export const STILL_MS = 110;
+export const STILL_MS = 70;
 /** Extra rest for a flick that ends outside the ring. */
-export const LONG_EXTRA_MS = 60;
+export const LONG_EXTRA_MS = 40;
 /** px a finger may jitter and still count as resting. */
 export const STILL_PX = 5;
 /** px of stroke beyond which a press is a drawing for good. */
