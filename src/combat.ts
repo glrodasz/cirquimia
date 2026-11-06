@@ -18,7 +18,7 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
-export const MAX_RIVALS = 2;
+export const MAX_RIVALS = 3;
 // The tutorial's sparring rival lands its first strike as soon as it can, played at the top level, so the defence
 // lesson comes early: this long after the attack lesson, then drawn, held and warned at 'experto' pace and aimed true.
 const AMBUSH_DELAY = 0.6;
@@ -79,10 +79,11 @@ const TUNING: Record<Difficulty, Tuning> = {
 
 // Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
 export const HERO_INK = '#3d7fd6';
-// Rivals wear red and green coats so they read apart from the slate-blue alchemist.
+// Rivals wear red, green and plum coats so they read apart from the slate-blue alchemist.
 const RIVAL_LOOKS = [
   { coat: '#6b3a3a', coatDark: '#4f2a2b', ink: '#d9483b' },
   { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
+  { coat: '#55406b', coatDark: '#3e2f50', ink: '#9b6fd8' },
 ];
 const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3' };
 
@@ -587,7 +588,7 @@ class Dummy extends Fighter<Scarecrow> {
 export type Outcome = 'defeat' | 'victory';
 
 /**
- * Sparring rivals: 0–2 opponents in a free-for-all with the alchemist. Whoever reaches zero falls and lies there;
+ * Sparring rivals: 0–3 opponents in a free-for-all with the alchemist. Whoever reaches zero falls and lies there;
  * the match is lost when the alchemist falls and won when every rival has. With no rivals it never ends.
  */
 export class Combat {
@@ -791,10 +792,10 @@ export class Combat {
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
-      // Opposite sides when there are two, so the three start apart.
+      // Evenly spread around the alchemist (opposite sides for two, a triangle for three), so everyone starts apart.
       const base = Math.random() * Math.PI * 2;
       for (let tries = 0; tries < 12; tries++) {
-        const a = base + i * Math.PI + THREE.MathUtils.randFloatSpread(0.8);
+        const a = base + (i * Math.PI * 2) / this.count + THREE.MathUtils.randFloatSpread(0.8);
         const r = THREE.MathUtils.randFloat(1.5, 2.1);
         const spot = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
         const blocked = this.obstacles.some((o) => Math.hypot(o.x - spot.x, o.z - spot.z) < o.r + BODY_RADIUS + 0.05);

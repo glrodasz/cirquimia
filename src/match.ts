@@ -127,7 +127,8 @@ function rivalsIcon(count: number) {
   const rand = random();
   if (count === 0) return svg([scarecrow(rand)], rand);
   if (count === 1) return svg([person(24, 1, 'red', rand)], rand);
-  return svg([person(18, 0.8, 'red', rand), person(30.5, 0.8, 'green', rand)], rand);
+  if (count === 2) return svg([person(18, 0.8, 'red', rand), person(30.5, 0.8, 'green', rand)], rand);
+  return svg([person(14.5, 0.62, 'red', rand), person(24, 0.62, 'green', rand), person(33.5, 0.62, 'plum', rand)], rand);
 }
 
 /** One brush bar per level, inked up to the difficulty level, like a signal meter. */
