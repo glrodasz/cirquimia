@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { mountDevTools } from './devtools';
-import { mountMatchControls } from './match';
+import { mountMatchControls, savedRivals } from './match';
 import { mountHelp } from './help';
 import { Tutorial } from './tutorial';
 import { Character } from './character';
@@ -134,6 +134,11 @@ combat.onHeroHit = () => tutorial.hurt();
 // The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
 world.noRunes = () => !tutorial.done;
 
+// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow.
+// The first meadow is built before the HUD restores the match, so it reads the saved setting.
+let hudReady = false;
+world.required = () => ((hudReady ? combat.rivalCount : savedRivals()) === 0 ? ['fogata', 'estanque'] : []);
+
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(
   world,
@@ -165,6 +170,7 @@ const matchHud = mountMatchControls({
   },
   restart: () => dev.newMeadow(),
 });
+hudReady = true;
 combat.onEnd = (outcome) => matchHud.showEnd(outcome);
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
 const practice = new PracticeCard();

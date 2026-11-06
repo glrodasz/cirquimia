@@ -42,6 +42,11 @@ interface Saved {
   difficulty?: Difficulty;
 }
 
+/** How many rivals the saved match has, before the HUD mounts (the first meadow depends on it). */
+export function savedRivals(): number {
+  return load().rivals ?? FIRST_MATCH.rivals!;
+}
+
 function load(): Saved {
   try {
     const own = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Saved | null;
