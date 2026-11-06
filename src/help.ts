@@ -2,6 +2,7 @@ import { brushPath, shapeIcon, type Pt } from './ammo';
 import { arc, random, segment, svg } from './match';
 import type { ShapeKind } from './gestures';
 import { hasKeyboard } from './keys';
+import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
 import '@fontsource-variable/alegreya/wght.css';
 import moveShot from './assets/help/move.webp';
@@ -85,6 +86,12 @@ const OVERLAYS: Array<(rand: () => number) => string> = [
 ];
 const SHOTS = [moveShot, drawShot, useShot, chargeShot, runesShot];
 
+/** The optional stick: the ring, darkened as while steering, its knob pushed up and to the right, and the alchemist walking that way. */
+const padOverlay = (rand: () => number) =>
+  `<g class="pad"><circle cx="58" cy="178" r="34"/><circle class="knob" cx="72" cy="164" r="13"/></g>` +
+  `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` +
+  hand(72, 164, 1.3, false);
+
 /** A teardrop: the tip, down one side, round the belly and back up. */
 function drop(tipY: number, cls: string, rand: () => number) {
   const belly = arc(24, 29, 8, Math.PI + 0.45, -0.45);
@@ -153,11 +160,19 @@ function bookCard(cls: string, title: string, pages: string[], label: (n: number
 /** How to play: one illustrated page per step. */
 function guide() {
   const rand = random();
-  const pages = t.help.slides.map(
-    ([title, text], i) =>
-      `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
-      `<svg viewBox="0 0 312 234" aria-hidden="true">${OVERLAYS[i](rand)}</svg></figure>` +
-      `<h3><span class="num">${i + 1}</span>${title}</h3><p>${i === 0 && hasKeyboard() ? t.keys.move : text}</p>`,
+  const slides = t.help.slides.map(([title, text], i) => ({
+    shot: SHOTS[i],
+    overlay: OVERLAYS[i],
+    title,
+    text: i === 0 && hasKeyboard() ? t.keys.move : text,
+  }));
+  // Touch screens: right after walking, a page on the optional stick.
+  if (padEnabled()) slides.splice(1, 0, { shot: moveShot, overlay: padOverlay, title: t.help.pad[0], text: t.help.pad[1] });
+  const pages = slides.map(
+    ({ shot, overlay, title, text }, i) =>
+      `<figure class="shot"><img src="${shot}" alt="" draggable="false">` +
+      `<svg viewBox="0 0 312 234" aria-hidden="true">${overlay(rand)}</svg></figure>` +
+      `<h3><span class="num">${i + 1}</span>${title}</h3><p>${text}</p>`,
   );
   return bookCard('guide', t.help.title, pages, t.help.slideOf);
 }
