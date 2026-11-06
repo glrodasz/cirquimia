@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BODY_RADIUS, Character } from './character';
+import { HitMeLabel, Scarecrow } from './dummy';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
 import { PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
@@ -104,9 +105,20 @@ const SKETCH_PATH: Record<Sketch, string> = {
 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+/** What a fighter's body has to do: a character, or the training scarecrow. */
+interface Body {
+  readonly root: THREE.Object3D;
+  readonly isDown: boolean;
+  flash(): void;
+  fall(): void;
+  rise(): void;
+}
+
 /** Health bar floating over a character's head, and the damage numbers that pop out of it. */
-class Fighter {
+class Fighter<B extends Body = Body> {
   hp = MAX_HP;
+  /** World units above the feet where the health bar floats. */
+  protected head = HEAD_HEIGHT;
   private readonly bar = document.createElement('div');
   private readonly fill = document.createElement('div');
   /** The symbol it just stored, traced over its head in its ink so others can tell what it holds. */
@@ -121,7 +133,7 @@ class Fighter {
   private auraLevel = 0;
   private auraTime = 0;
 
-  constructor(readonly body: Character, readonly ink: string) {
+  constructor(readonly body: B, readonly ink: string) {
     this.auraMaterial = new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0, depthWrite: false });
     this.aura = new THREE.Mesh(auraGeo, this.auraMaterial);
     this.aura.position.y = 0.03;
@@ -191,7 +203,8 @@ class Fighter {
     this.bar.classList.remove('ko');
   }
 
-  hit(amount: number, element: Element, camera: THREE.Camera) {
+  /** Takes a strike; a rune-boosted one pops its number marked with ✦. */
+  hit(amount: number, element: Element, camera: THREE.Camera, boosted = false) {
     if (this.down) return;
     this.body.flash();
     this.hp = Math.max(0, this.hp - amount);
@@ -203,7 +216,7 @@ class Fighter {
     this.bar.classList.remove('hurt');
     void this.bar.offsetWidth; // restart the shake
     this.bar.classList.add('hurt');
-    this.popNumber(`-${amount}`, ELEMENT_COLOR[element], camera);
+    this.popNumber(boosted ? `-${amount} ✦` : `-${amount}`, ELEMENT_COLOR[element], camera);
   }
 
   /** Back up by `amount`, capped at full; no effect once down. */
@@ -214,7 +227,7 @@ class Fighter {
     this.popNumber(boosted ? `+${amount} ✦` : `+${amount}`, HEAL_COLOR, camera, boosted ? 1.4 : 1);
   }
 
-  private popNumber(text: string, color: string, camera: THREE.Camera, size = 1) {
+  protected popNumber(text: string, color: string, camera: THREE.Camera, size = 1) {
     if (!this.screen(camera)) return;
     const num = document.createElement('div');
     num.className = 'dmg';
@@ -241,9 +254,9 @@ class Fighter {
   }
 
   /** Projects the head to screen pixels into `projected`; false when it is behind the camera. */
-  private screen(camera: THREE.Camera) {
+  protected screen(camera: THREE.Camera, head = this.head) {
     projected.copy(this.position);
-    projected.y += HEAD_HEIGHT;
+    projected.y += head;
     projected.project(camera);
     if (projected.z > 1) return false;
     projected.set(((projected.x + 1) / 2) * innerWidth, ((1 - projected.y) / 2) * innerHeight, 0);
@@ -268,7 +281,7 @@ const sketchFor = (plan: Plan): Sketch =>
   plan.kind === 'wall' ? 'circle' : SKETCH_FOR[plan.kind === 'heal' ? 'heal' : plan.element];
 
 /** An opposing alchemist: picks someone to fight, circles them, strikes with warnings and steps out of incoming ones. */
-class Rival extends Fighter {
+class Rival extends Fighter<Character> {
   private attackTimer: number;
   private moveTimer = 0;
   private dodgeTimer = -1;
@@ -507,6 +520,54 @@ class Rival extends Fighter {
   }
 }
 
+/** The training scarecrow's ink: its health bar, in the colour of its wood. */
+const DUMMY_INK = '#c9a36a';
+const DUMMY_RADIUS = 0.13;
+/** Seconds after a scarecrow falls before a new one springs up, and after that before the fallen one fades away. */
+const DUMMY_RESPAWN = 1.4;
+const DUMMY_LINGER = 2.5;
+/** Head height of the scarecrow for its bar, and how far above that the "Hit me!" arrow points. */
+const DUMMY_HEAD = 0.7;
+const ARROW_GAP = 6;
+
+/** A training scarecrow: never moves or strikes back, shows the damage of every hit, and tips over at zero. */
+class Dummy extends Fighter<Scarecrow> {
+  private readonly label = new HitMeLabel(t.practice.hitMe);
+  readonly obstacle: Obstacle;
+  /** Seconds since it fell; -1 while standing. */
+  downFor = -1;
+
+  constructor(at: THREE.Vector3) {
+    super(new Scarecrow(), DUMMY_INK);
+    this.head = DUMMY_HEAD;
+    this.body.root.position.copy(at);
+    this.prev.copy(at);
+    this.obstacle = { x: at.x, z: at.z, r: DUMMY_RADIUS };
+  }
+
+  strike(amount: number, element: Element, camera: THREE.Camera, boosted: boolean, from: THREE.Vector3 | undefined) {
+    if (this.down) return;
+    this.body.flash(from);
+    this.hit(amount, element, camera, boosted);
+    this.label.dim();
+  }
+
+  tick(dt: number, camera: THREE.Camera) {
+    this.body.update(dt);
+    if (this.down) this.downFor += dt;
+    this.update(camera);
+    const visible = !this.down && this.screen(camera, DUMMY_HEAD);
+    this.label.place(projected.x, projected.y - ARROW_GAP, visible);
+  }
+
+  dispose() {
+    super.dispose();
+    this.label.dispose();
+    this.body.dispose();
+    this.disposeAura();
+  }
+}
+
 export type Outcome = 'defeat' | 'victory';
 
 /**
@@ -517,6 +578,8 @@ export class Combat {
   readonly root = new THREE.Group();
   private readonly hero: Fighter;
   private rivals: Rival[] = [];
+  /** Training (no rivals): the standing scarecrow last in the list, fallen ones before it until they fade. */
+  private dummies: Dummy[] = [];
   private count = 1;
   private level: Difficulty = 'normal';
   private outcome: Outcome | null = null;
@@ -525,6 +588,10 @@ export class Combat {
   onEnd: (outcome: Outcome) => void = () => {};
   /** Called whenever a strike hurts the alchemist. */
   onHeroHit: () => void = () => {};
+  /** Called whenever the alchemist's strike hits the training scarecrow, and whether it came from a rune circle. */
+  onDummyHit: (element: Element, boosted: boolean) => void = () => {};
+  /** Called when a training scarecrow is knocked down (a new one springs up a moment later). */
+  onDummyDown: () => void = () => {};
   /** While set, rivals stand still and do not attack (the tutorial is showing a cast play out). */
   private held = false;
   /** Seconds since the match started, and when the last rival strike booked against the alchemist starts and stops landing. */
@@ -688,6 +755,7 @@ export class Combat {
       r.dispose();
     }
     this.rivals = [];
+    this.clearDummies();
     this.held = false;
     this.homing = null;
     this.hero.reset();
@@ -713,6 +781,68 @@ export class Combat {
       this.rivals.push(rival);
       this.root.add(rival.body.root);
     }
+    if (this.count === 0) this.spawnDummy();
+  }
+
+  /** Training: the scarecrow standing now, if any. */
+  dummy(): THREE.Vector3 | null {
+    const d = this.dummies[this.dummies.length - 1];
+    return d && !d.down ? d.position : null;
+  }
+
+  private clearDummies() {
+    for (const d of this.dummies) this.removeDummy(d);
+    this.dummies = [];
+  }
+
+  private removeDummy(d: Dummy) {
+    const i = this.obstacles.indexOf(d.obstacle);
+    if (i >= 0) this.obstacles.splice(i, 1);
+    this.root.remove(d.body.root);
+    d.dispose();
+  }
+
+  /** A new scarecrow in the middle of the meadow, or as near it as there is room, facing the alchemist. */
+  private spawnDummy() {
+    const hero = this.hero.position;
+    // Up the screen from the centre first: away from the camera, so it stands in plain view above the alchemist.
+    const away = Math.atan2(-this.camera.position.x, -this.camera.position.z);
+    const free = (x: number, z: number) =>
+      Math.hypot(x - hero.x, z - hero.z) > 0.8 &&
+      this.dummies.every((d) => Math.hypot(x - d.position.x, z - d.position.z) > 0.6) &&
+      this.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.r + DUMMY_RADIUS + 0.15) &&
+      this.onScreen(new THREE.Vector3(x, 0, z));
+    let spot: [number, number] | null = free(0, 0) ? [0, 0] : null;
+    for (const r of [1.3, 1.7, 2.1]) {
+      for (let i = 0; i < 12 && !spot; i++) {
+        const a = away + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (Math.PI / 6);
+        const x = Math.sin(a) * r;
+        const z = Math.cos(a) * r;
+        if (free(x, z)) spot = [x, z];
+      }
+    }
+    const [x, z] = spot ?? [Math.sin(away) * 1.3, Math.cos(away) * 1.3];
+    const dummy = new Dummy(new THREE.Vector3(x, heightAt(x, z), z));
+    dummy.body.face(hero);
+    this.obstacles.push(dummy.obstacle);
+    this.dummies.push(dummy);
+    this.root.add(dummy.body.root);
+  }
+
+  private updateDummies(dt: number) {
+    const last = this.dummies[this.dummies.length - 1];
+    if (last?.down && last.downFor >= DUMMY_RESPAWN) this.spawnDummy();
+    for (const d of [...this.dummies]) {
+      d.tick(dt, this.camera);
+      if (!d.down) continue;
+      const i = this.obstacles.indexOf(d.obstacle);
+      if (i >= 0) this.obstacles.splice(i, 1); // lying down, it no longer blocks the way
+      if (d.downFor >= DUMMY_RESPAWN + DUMMY_LINGER) d.body.vanish();
+      if (d.body.gone) {
+        this.removeDummy(d);
+        this.dummies.splice(this.dummies.indexOf(d), 1);
+      }
+    }
   }
 
   private strike(x: number, z: number, element: Element, caster: unknown, area: number) {
@@ -727,6 +857,13 @@ export class Combat {
         for (const r of this.rivals) r.ambush = false;
         this.onHeroHit();
       }
+    }
+    const boosted = area > PILLAR_AREA * 1.01;
+    for (const d of this.dummies) {
+      if (d.down || Math.hypot(d.position.x - x, d.position.z - z) > area + DUMMY_RADIUS) continue;
+      d.strike(DAMAGE[element], element, this.camera, boosted, (caster as Fighter | null)?.position);
+      if (caster === this.hero) this.onDummyHit(element, boosted);
+      if (d.down) this.onDummyDown();
     }
   }
 
@@ -750,6 +887,7 @@ export class Combat {
       r.body.update(dt);
       r.update(this.camera);
     }
+    this.updateDummies(dt);
     this.hero.update(this.camera);
     for (const f of all) {
       f.empower(!f.down && this.onRunes(f.position), dt);
