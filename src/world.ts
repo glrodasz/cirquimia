@@ -12,6 +12,7 @@ import {
   paintFor,
   toWorld,
   type GenParams,
+  type Kind,
   type Layout,
 } from './generator';
 
@@ -149,6 +150,8 @@ export class World {
   noRunes: () => boolean = () => false;
   /** Grass and flower density from the graphics quality tier (src/quality.ts), on top of the generator's sliders. */
   cover = 1;
+  /** Kinds every meadow must have right now: training always brings a campfire and a lagoon to draw from. */
+  required: () => Kind[] = () => [];
   layout!: Layout;
   stats!: WorldStats;
   private root = new THREE.Group();
@@ -168,7 +171,8 @@ export class World {
     dispose(this.root);
     this.obstacles.length = 0;
 
-    const layout = generateLayout(seed, this.noRunes() ? { ...this.params, magia: 0 } : this.params);
+    const required = this.required();
+    const layout = generateLayout(seed, this.noRunes() ? { ...this.params, magia: 0 } : this.params, required);
     const drops: string[] = [];
     let built: { features: ReturnType<typeof buildFeatures>; solids: THREE.Group; walk: Walkability };
     // Build what blocks the walk, check it, and drop the most blocking piece until enough is walkable.
@@ -182,8 +186,9 @@ export class World {
       if (walk.reachable >= this.params.caminableMin || drops.length >= MAX_DROPS || !layout.features.some((f) => f.solid)) break;
       let worst = -1;
       features.blockedArea.forEach((a, i) => {
-        if (layout.features[i].solid && (worst < 0 || a > features.blockedArea[worst])) worst = i;
+        if (layout.features[i].solid && !required.includes(layout.features[i].kind) && (worst < 0 || a > features.blockedArea[worst])) worst = i;
       });
+      if (worst < 0) break; // only required pieces left to drop: keep them
       const [removed] = layout.features.splice(worst, 1);
       drops.push(`${KIND_LABEL[removed.kind]} (${t.dev.blockedPath})`);
       dispose(features.group);
