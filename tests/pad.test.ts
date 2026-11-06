@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLICK_MAX, HOLD_MS, padAxes, padClaims, STILL_MS } from '../src/pad';
+import { FLICK_MAX, FLICK_REACH, HOLD_MS, LONG_EXTRA_MS, padAxes, padClaims, STILL_MS } from '../src/pad';
 import { DRAW_THRESHOLD } from '../src/pointer';
 
 describe('padAxes', () => {
@@ -21,23 +21,28 @@ describe('padAxes', () => {
 });
 
 describe('padClaims', () => {
-  const rest = { held: 0, travelled: 0, path: 0, still: 0, inside: true };
+  const rest = { held: 0, travelled: 0, path: 0, still: 0, reach: 0.2 };
   it('leaves a quick tap alone so it can walk or cast', () => {
     expect(padClaims({ ...rest, held: HOLD_MS - 40, travelled: 2, still: HOLD_MS - 40 })).toBe(false);
   });
   it('takes a finger that rests on the ring', () => {
     expect(padClaims({ ...rest, held: HOLD_MS, travelled: 3, still: HOLD_MS })).toBe(true);
   });
-  it('takes a short flick that then rests on the ring', () => {
-    const flick = { ...rest, held: 300, travelled: 40, path: 45 };
+  it('takes a straight flick that then rests, short or long, if it ends near the ring', () => {
+    const flick = { ...rest, held: 300, travelled: 40, path: 45, reach: 0.9 };
     expect(padClaims({ ...flick, still: 20 })).toBe(false);
     expect(padClaims({ ...flick, still: STILL_MS })).toBe(true);
+    const long = { ...rest, held: 500, travelled: 150, path: 175, reach: 2 };
+    expect(padClaims({ ...long, still: STILL_MS })).toBe(false);
+    expect(padClaims({ ...long, still: STILL_MS + LONG_EXTRA_MS })).toBe(true);
   });
-  it('never takes a drawing: a long stroke, or one that left the ring', () => {
-    expect(padClaims({ ...rest, held: 900, travelled: 60, path: FLICK_MAX + 1, still: 500 })).toBe(false);
-    expect(padClaims({ ...rest, held: 900, travelled: 60, path: 60, still: 500, inside: false })).toBe(false);
+  it('never takes a drawing: too long, curved like a shape, or ending far away', () => {
+    const long = { ...rest, held: 900, still: 500 };
+    expect(padClaims({ ...long, travelled: 200, path: FLICK_MAX + 1, reach: 1 })).toBe(false);
+    expect(padClaims({ ...long, travelled: 40, path: 150, reach: 1 })).toBe(false);
+    expect(padClaims({ ...long, travelled: 60, path: 60, reach: FLICK_REACH + 0.1 })).toBe(false);
   });
-  it('waits while a short stroke keeps moving', () => {
+  it('waits while a stroke keeps moving', () => {
     expect(padClaims({ ...rest, held: 400, travelled: DRAW_THRESHOLD + 10, path: 60, still: 16 })).toBe(false);
   });
 });

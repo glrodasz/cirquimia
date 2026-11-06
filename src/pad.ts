@@ -2,7 +2,7 @@
  * Touch stick for phones and tablets: a faint ring at the bottom left. It is no blind spot: the ring only shows where
  * the stick is, and every touch there first goes to the usual tap/draw logic. A quick tap still walks or casts, and a
  * stroke that keeps moving is a drawing. A press becomes the stick when the finger stays put for HOLD_MS, or when it
- * flicks a short line and then rests on the ring for STILL_MS (people press and push toward where they want to go;
+ * flicks a fairly straight line out of the ring and then rests near it for STILL_MS (people press and push toward where they want to go;
  * drawings are longer and keep moving). The flick's ink is dropped and the alchemist walks toward the finger, relative
  * to the screen like WASD, until it lifts.
  */
@@ -21,10 +21,16 @@ export function padAxes(dx: number, dy: number, radius: number, deadZone = 0.22)
 
 /** ms a short flick must then rest before it reads as pushing the stick. */
 export const STILL_MS = 110;
+/** Extra rest for a flick that ends outside the ring. */
+export const LONG_EXTRA_MS = 60;
 /** px a finger may jitter and still count as resting. */
 export const STILL_PX = 5;
-/** px of stroke beyond which a press is a drawing for good: no shape is this small. */
-export const FLICK_MAX = 110;
+/** px of stroke beyond which a press is a drawing for good. */
+export const FLICK_MAX = 220;
+/** A flick must be a fairly straight line (distance from the start over path drawn): shapes turn corners. */
+export const FLICK_STRAIGHT = 0.75;
+/** How far from the ring's centre (in ring radii) a flick may end and still steer. */
+export const FLICK_REACH = 2.5;
 
 export interface PressState {
   /** ms since the finger landed. */
@@ -35,15 +41,16 @@ export interface PressState {
   path: number;
   /** ms since it last moved more than STILL_PX. */
   still: number;
-  /** Still on (or just around) the ring. */
-  inside: boolean;
+  /** Distance from the ring's centre, in ring radii. */
+  reach: number;
 }
 
-/** Whether a press on the ring has become the stick: a resting finger, or a short flick that then rests there. */
+/** Whether a press on the ring has become the stick: a resting finger, or a straight flick from it that then rests. */
 export function padClaims(p: PressState) {
-  if (!p.inside || p.path > FLICK_MAX) return false;
-  if (p.travelled <= DRAW_THRESHOLD) return p.held >= HOLD_MS;
-  return p.still >= STILL_MS;
+  if (p.travelled <= DRAW_THRESHOLD) return p.reach <= 1 && p.held >= HOLD_MS;
+  if (p.reach > FLICK_REACH || p.path > FLICK_MAX || p.travelled < p.path * FLICK_STRAIGHT) return false;
+  // A line ending outside the ring could be a shape's first side with a pause at its corner: ask a little longer.
+  return p.still >= (p.reach > 1 ? STILL_MS + LONG_EXTRA_MS : STILL_MS);
 }
 
 /** The screens that most likely have no keyboard: a finger drives them. */
@@ -172,7 +179,7 @@ export function mountPad(): Pad {
         travelled: Math.hypot(p.lx - p.x, p.ly - p.y),
         path: p.path,
         still: now - p.movedAt,
-        inside: Math.hypot(p.lx - cx, p.ly - cy) <= radius * 1.25,
+        reach: Math.hypot(p.lx - cx, p.ly - cy) / radius,
       };
       if (!padClaims(state)) return;
       press = null;
