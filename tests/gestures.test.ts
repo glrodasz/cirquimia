@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recognize, type ShapeKind } from '../src/gestures';
+import { chargedInHand, recognize, type ShapeKind } from '../src/gestures';
 import { circle, regular, rng, squareCorners, trace, type Sloppy } from './strokes';
 
 /** Draws `count` random strokes and tallies what they read as. */
@@ -71,5 +71,19 @@ describe('circles stay circles', () => {
   it('wobbly circles never turn into squares', () => {
     const t = tally(400, 5, (r) => circle(35 + r() * 80, { start: r(), jitter: r() * 10, over: r() * 0.2, clockwise: r() < 0.5 }, r));
     expect(t.circle).toBe(400);
+  });
+});
+
+describe('chargedInHand', () => {
+  it('merges fire and water, in either order, into the hourglass', () => {
+    expect(chargedInHand('triangle', 'triangleDown')).toBe('hourglass');
+    expect(chargedInHand('triangleDown', 'triangle')).toBe('hourglass');
+  });
+
+  it('just replaces anything else in hand', () => {
+    expect(chargedInHand(null, 'triangle')).toBe('triangle');
+    expect(chargedInHand('triangle', 'triangle')).toBe('triangle');
+    expect(chargedInHand('square', 'triangleDown')).toBe('triangleDown');
+    expect(chargedInHand('hourglass', 'triangle')).toBe('triangle');
   });
 });
