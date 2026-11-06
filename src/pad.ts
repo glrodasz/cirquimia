@@ -91,8 +91,11 @@ const NONE: Pad = {
   owns: () => false,
 };
 
+/** Whether this screen gets the stick: touch screens, unless `?pad=0`. */
+export const padEnabled = () => isTouch() && new URLSearchParams(location.search).get('pad') !== '0';
+
 export function mountPad(): Pad {
-  if (!isTouch() || new URLSearchParams(location.search).get('pad') === '0') return NONE;
+  if (!padEnabled()) return NONE;
 
   const el = document.createElement('div');
   el.id = 'pad';
