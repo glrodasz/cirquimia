@@ -21,8 +21,10 @@ const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 3;
 // The tutorial's sparring rival lands its first strike as soon as it can, played at the top level, so the defence
-// lesson comes early: this long after the attack lesson, then drawn, held and warned at 'experto' pace and aimed true.
+// lesson comes early: this long after the attack lesson, then drawn and held at 'experto' pace, aimed where the
+// alchemist is heading and warned only briefly, so it really lands. If the alchemist still gets out, it tries again soon.
 const AMBUSH_DELAY = 0.6;
+const AMBUSH_WARN = 0.25;
 // Until that strike lands, the rival cannot be knocked out: it holds on at this much health.
 const AMBUSH_FLOOR = 20;
 // In the wall lesson the rival's strike breaks on the ground this far to the alchemist's side, so the cross is not hidden under its feet.
@@ -508,14 +510,14 @@ class Rival extends Fighter<Character> {
     }
     const a = Math.random() * Math.PI * 2;
     const e = Math.random() * tuning.aimError;
-    // The tutorial's ambush is a square where the alchemist will be when the ground breaks, walking or not,
-    // and it lands even if the alchemist turns away in the meantime.
+    // The tutorial's ambush is a square where the alchemist will be when the ground breaks, walking or not.
     if (this.ambush && foe === combat.heroFighter && plan.element === 'earth') {
-      combat.heroAhead(tuning.warn, aim);
+      combat.heroAhead(AMBUSH_WARN, aim);
       aim.y = heightAt(aim.x, aim.z);
       this.body.face(aim);
       this.body.cast();
-      combat.strikeFrom(this, aim, 'earth', tuning.warn, false, true);
+      combat.strikeFrom(this, aim, 'earth', AMBUSH_WARN);
+      this.attackTimer = AMBUSH_DELAY; // dodged anyway: another one soon
       return;
     }
     aim.x += Math.sin(a) * e;
@@ -618,8 +620,6 @@ export class Combat {
   private clock = 0;
   private heroStrikeFrom = -Infinity;
   private heroStrikeTo = -Infinity;
-  /** The rival whose pending tutorial strike lands on the alchemist wherever it stands. */
-  private homing: Fighter | null = null;
 
   constructor(
     heroBody: Character,
@@ -756,9 +756,7 @@ export class Combat {
   }
 
   /** A strike in the caster's ink; rivals near the warning may try to step out of it. */
-  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false, homing = false) {
-    // The tutorial's ambush: this caster's next earth strike hurts the alchemist even if it stepped out.
-    if (homing) this.homing = caster;
+  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false) {
     // Cast from inside a rune circle, the strike is 25% bigger.
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
     if (element === 'columns') {
@@ -788,7 +786,6 @@ export class Combat {
     this.rivals = [];
     this.clearDummies();
     this.held = false;
-    this.homing = null;
     this.hero.reset();
     this.outcome = null;
     this.endTimer = 0;
@@ -880,11 +877,9 @@ export class Combat {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
-      const sure = f === this.hero && caster === this.homing && element === 'earth';
-      if (!sure && Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+      if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
       f.hit(DAMAGE[element], element, this.camera);
       if (f === this.hero) {
-        this.homing = null;
         for (const r of this.rivals) r.ambush = false;
         this.onHeroHit();
       }
