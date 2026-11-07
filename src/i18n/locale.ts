@@ -6,7 +6,7 @@ export const LOCALE_COOKIE = 'locale';
 /** Registrable domain shared by sibling apps; undefined = host-only cookie. */
 export const COOKIE_DOMAIN: string | undefined = undefined;
 /** Never auto-redirected (segment-boundary match). Add per-language-slug content roots. */
-export const EXEMPT_PATHS = ['/assets', '/og'];
+export const EXEMPT_PATHS = ['/assets', '/og', '/api'];
 
 export const LANGUAGE_NAMES: Record<Locale, string> = { en: 'English', es: 'Español' };
 export const OG_LOCALES: Record<Locale, string> = { en: 'en_US', es: 'es_ES' };
