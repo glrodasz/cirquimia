@@ -3,11 +3,12 @@ import { BODY_RADIUS, Character } from './character';
 import { HitMeLabel, Scarecrow } from './dummy';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
+import { AREA_OF, PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
 import { t } from './i18n';
 
-// Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35.
-export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35 };
+// Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
+// the blast (fire and water merged into an hourglass) 45 over a smaller area.
+export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45 };
 // Rhombus: heals the caster; 30% more when cast from inside a rune circle.
 export const HEAL = 25;
 const RUNE_HEAL_BOOST = 1.3;
@@ -18,10 +19,12 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
-export const MAX_RIVALS = 2;
+export const MAX_RIVALS = 3;
 // The tutorial's sparring rival lands its first strike as soon as it can, played at the top level, so the defence
-// lesson comes early: this long after the attack lesson, then drawn, held and warned at 'experto' pace and aimed true.
+// lesson comes early: this long after the attack lesson, then drawn and held at 'experto' pace, aimed where the
+// alchemist is heading and warned only briefly, so it really lands. If the alchemist still gets out, it tries again soon.
 const AMBUSH_DELAY = 0.6;
+const AMBUSH_WARN = 0.25;
 // Until that strike lands, the rival cannot be knocked out: it holds on at this much health.
 const AMBUSH_FLOOR = 20;
 // In the wall lesson the rival's strike breaks on the ground this far to the alchemist's side, so the cross is not hidden under its feet.
@@ -50,6 +53,8 @@ interface Tuning {
   reaction: number;
   /** Chance of drawing fire or water (35) from a source before attacking, instead of using pillars (20). */
   elemental: number;
+  /** Chance, holding fire or water, of fetching the other one too to merge them into the hourglass (blast, 45). */
+  blast: number;
   /** Chance of healing instead of attacking when at half health or less. */
   heal: number;
   /** Chance of an earth attack being the pentagram's columns (10) instead of the square's pillars (20). */
@@ -69,22 +74,26 @@ interface Tuning {
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false },
+  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, blast: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false },
   // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
-  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true },
-  // Hard pushed further (quicker, sharper, readier to dodge) yet the warning still leaves time to step out.
-  experto: { speed: 1.5, cooldown: [2.3, 3], warn: 0.58, aimError: 0.09, lead: 0.55, dodge: 0.6, reaction: 0.1, elemental: 0.55, heal: 0.4, columns: 0.15, draw: 0.6, stagger: 0.8, guard: 0.5, fortress: 0.4, wallCooldown: 4.5, counter: true },
+  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, blast: 0.5, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true },
+  // Hard pushed well further: relentless, sharp aim well ahead, dodges and walls most strikes, loves the blast;
+  // the warning still leaves time to step out.
+  experto: { speed: 1.65, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.06, lead: 0.75, dodge: 0.75, reaction: 0.08, elemental: 0.7, blast: 0.75, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.6, fortress: 0.45, wallCooldown: 3.5, counter: true },
 };
+// The tutorial's ambush keeps the pace 'experto' had when it was tuned, so making the top level harder leaves it alone.
+const AMBUSH_PACE: Tuning = { ...TUNING.experto, cooldown: [2.3, 3], draw: 0.6, lead: 0.55 };
 
 // Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
 export const HERO_INK = '#3d7fd6';
-// Rivals wear red and green coats so they read apart from the slate-blue alchemist.
+// Rivals wear red, green and plum coats so they read apart from the slate-blue alchemist.
 const RIVAL_LOOKS = [
   { coat: '#6b3a3a', coatDark: '#4f2a2b', ink: '#d9483b' },
   { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
+  { coat: '#55406b', coatDark: '#3e2f50', ink: '#9b6fd8' },
 ];
-const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3' };
+const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c' };
 
 const projected = new THREE.Vector3();
 
@@ -98,7 +107,7 @@ const WALL_SKETCH = 0.35;
 // A rival only opens with a wall when its foe is this close: far off, the wall is not worth the turn.
 const FORTRESS_RANGE = 2.6;
 // The shapes drawn over a fighter's head when it stores a symbol, in a 40×40 box; every path starts where a hand would.
-export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus';
+export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass';
 const SKETCH_PATH: Record<Sketch, string> = {
   circle: 'M20 5 A15 15 0 1 1 19.9 5',
   square: 'M9 9 H31 V31 H9 Z',
@@ -106,6 +115,7 @@ const SKETCH_PATH: Record<Sketch, string> = {
   triangle: 'M20 6 L34 32 H6 Z',
   triangleDown: 'M20 34 L6 8 H34 Z',
   rhombus: 'M20 4 L34 20 L20 36 L6 20 Z',
+  hourglass: 'M7 5 H33 L7 35 H33 Z',
 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -284,6 +294,7 @@ const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
   columns: 'pentagram',
   fire: 'triangle',
   water: 'triangleDown',
+  blast: 'hourglass',
   heal: 'rhombus',
 };
 const sketchFor = (plan: Plan): Sketch =>
@@ -296,8 +307,8 @@ class Rival extends Fighter<Character> {
   private dodgeTimer = -1;
   private dodgeFrom = new THREE.Vector3();
   private foe: Fighter | null = null;
-  /** Fire or water already drawn from a source, kept until the next attack. */
-  private charged: Fluid | null = null;
+  /** Fire or water already drawn from a source (or both, merged into the blast), kept until the next attack. */
+  private charged: Fluid | 'blast' | null = null;
   private retarget = 0;
   /** The spell being drawn (then held a moment once stored), and how long until it is cast. */
   private plan: Plan | null = null;
@@ -426,7 +437,7 @@ class Rival extends Fighter<Character> {
 
   /** How it plays right now: its level's tuning, or the top level's during the tutorial's ambush. */
   private get pace(): Tuning {
-    return this.ambush ? TUNING.experto : this.tuning;
+    return this.ambush ? AMBUSH_PACE : this.tuning;
   }
 
   /** Strikes the alchemist as soon as possible, at the top level and without missing, until a strike lands. */
@@ -451,6 +462,11 @@ class Rival extends Fighter<Character> {
       const order: Fluid[] = Math.random() < 0.5 ? ['fire', 'water'] : ['water', 'fire'];
       const element = order.find((e) => combat.findSource(e, this.position));
       if (element) return { kind: 'charge', element };
+    }
+    // Holding one triangle, harder rivals fetch the other too: the two merge into the hourglass, as for the player.
+    if ((this.charged === 'fire' || this.charged === 'water') && Math.random() < this.tuning.blast) {
+      const other: Fluid = this.charged === 'fire' ? 'water' : 'fire';
+      if (combat.findSource(other, this.position)) return { kind: 'charge', element: other };
     }
     return { kind: 'strike', element: this.charged ?? (Math.random() < this.tuning.columns ? 'columns' : 'earth') };
   }
@@ -485,10 +501,12 @@ class Rival extends Fighter<Character> {
     if (plan.kind === 'charge') {
       const source = combat.findSource(plan.element, this.position);
       if (!source) return;
-      this.charged = plan.element;
+      const merged = this.charged !== null && this.charged !== 'blast' && this.charged !== plan.element;
+      this.charged = merged ? 'blast' : plan.element;
       this.body.face(source);
       this.body.cast();
       combat.channel(this, source, plan.element);
+      if (merged) this.drawSketch('hourglass', HERO_SKETCH);
       this.attackTimer = THREE.MathUtils.randFloat(0.8, 1.4);
       return;
     }
@@ -504,14 +522,14 @@ class Rival extends Fighter<Character> {
     }
     const a = Math.random() * Math.PI * 2;
     const e = Math.random() * tuning.aimError;
-    // The tutorial's ambush is a square where the alchemist will be when the ground breaks, walking or not,
-    // and it lands even if the alchemist turns away in the meantime.
+    // The tutorial's ambush is a square where the alchemist will be when the ground breaks, walking or not.
     if (this.ambush && foe === combat.heroFighter && plan.element === 'earth') {
-      combat.heroAhead(tuning.warn, aim);
+      combat.heroAhead(AMBUSH_WARN, aim);
       aim.y = heightAt(aim.x, aim.z);
       this.body.face(aim);
       this.body.cast();
-      combat.strikeFrom(this, aim, 'earth', tuning.warn, false, true);
+      combat.strikeFrom(this, aim, 'earth', AMBUSH_WARN);
+      this.attackTimer = AMBUSH_DELAY; // dodged anyway: another one soon
       return;
     }
     aim.x += Math.sin(a) * e;
@@ -587,7 +605,7 @@ class Dummy extends Fighter<Scarecrow> {
 export type Outcome = 'defeat' | 'victory';
 
 /**
- * Sparring rivals: 0–2 opponents in a free-for-all with the alchemist. Whoever reaches zero falls and lies there;
+ * Sparring rivals: 0–3 opponents in a free-for-all with the alchemist. Whoever reaches zero falls and lies there;
  * the match is lost when the alchemist falls and won when every rival has. With no rivals it never ends.
  */
 export class Combat {
@@ -618,8 +636,6 @@ export class Combat {
   private played = 0;
   private heroStrikeFrom = -Infinity;
   private heroStrikeTo = -Infinity;
-  /** The rival whose pending tutorial strike lands on the alchemist wherever it stands. */
-  private homing: Fighter | null = null;
 
   constructor(
     heroBody: Character,
@@ -761,9 +777,7 @@ export class Combat {
   }
 
   /** A strike in the caster's ink; rivals near the warning may try to step out of it. */
-  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false, homing = false) {
-    // The tutorial's ambush: this caster's next earth strike hurts the alchemist even if it stepped out.
-    if (homing) this.homing = caster;
+  strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false) {
     // Cast from inside a rune circle, the strike is 25% bigger.
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
     if (element === 'columns') {
@@ -793,7 +807,6 @@ export class Combat {
     this.rivals = [];
     this.clearDummies();
     this.held = false;
-    this.homing = null;
     this.hero.reset();
     this.outcome = null;
     this.endTimer = 0;
@@ -801,10 +814,10 @@ export class Combat {
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
-      // Opposite sides when there are two, so the three start apart.
+      // Evenly spread around the alchemist (opposite sides for two, a triangle for three), so everyone starts apart.
       const base = Math.random() * Math.PI * 2;
       for (let tries = 0; tries < 12; tries++) {
-        const a = base + i * Math.PI + THREE.MathUtils.randFloatSpread(0.8);
+        const a = base + (i * Math.PI * 2) / this.count + THREE.MathUtils.randFloatSpread(0.8);
         const r = THREE.MathUtils.randFloat(1.5, 2.1);
         const spot = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
         const blocked = this.obstacles.some((o) => Math.hypot(o.x - spot.x, o.z - spot.z) < o.r + BODY_RADIUS + 0.05);
@@ -887,16 +900,14 @@ export class Combat {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
-      const sure = f === this.hero && caster === this.homing && element === 'earth';
-      if (!sure && Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+      if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
       f.hit(DAMAGE[element], element, this.camera);
       if (f === this.hero) {
-        this.homing = null;
         for (const r of this.rivals) r.ambush = false;
         this.onHeroHit();
       }
     }
-    const boosted = area > PILLAR_AREA * 1.01;
+    const boosted = area > PILLAR_AREA * AREA_OF[element] * 1.01;
     for (const d of this.dummies) {
       if (d.down || Math.hypot(d.position.x - x, d.position.z - z) > area + DUMMY_RADIUS) continue;
       d.strike(DAMAGE[element], element, this.camera, boosted, (caster as Fighter | null)?.position);

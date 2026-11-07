@@ -84,9 +84,9 @@
       .match-btn svg { display: block; width: 100%; height: 100%; overflow: visible; }
       .match-btn .ring { fill: var(--hud-fg); opacity: .32; }
       .match-btn .glyph { fill: #b5761f; }
-      .match-btn .red { fill: #d9483b; } .match-btn .green { fill: #3fae5a; }
+      .match-btn .red { fill: #d9483b; } .match-btn .green { fill: #3fae5a; } .match-btn .plum { fill: #9b6fd8; }
       .match-btn .faint { fill: var(--hud-fg); opacity: .3; }
-      .match-btn .red, .match-btn .green, .match-btn .glyph { filter: drop-shadow(0 .6px .4px rgba(0,0,0,.18)); }
+      .match-btn .red, .match-btn .green, .match-btn .plum, .match-btn .glyph { filter: drop-shadow(0 .6px .4px rgba(0,0,0,.18)); }
       .match-btn .cap b { font-weight: 800; }
       .match-btn .cap::after { content: " ↻"; opacity: .5; }
       .match-btn[hidden] { display: none; }
@@ -114,8 +114,8 @@
       .hitme svg { display: block; width: 30px; height: 30px; overflow: visible; fill: #e0a23c; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); animation: tutorial-bob .9s ease-in-out infinite alternate; }
       #match-toast { position: fixed; top: calc(var(--edge-top) + 50px); left: 50%; transform: translate(-50%, 6px); z-index: 3; pointer-events: none; padding: 7px 14px; border-radius: 999px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; white-space: nowrap; opacity: 0; transition: opacity .25s, transform .25s; }
       #match-toast.show { opacity: 1; transform: translate(-50%, 0); }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .match-btn .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) .match-btn .red { fill: #ff7a6b; } :root:not([data-theme="light"]) .match-btn .green { fill: #7fd690; } }
-      :root[data-theme="dark"] .match-btn .glyph { fill: #ffd27a; } :root[data-theme="dark"] .match-btn .red { fill: #ff7a6b; } :root[data-theme="dark"] .match-btn .green { fill: #7fd690; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .match-btn .glyph { fill: #ffd27a; } :root:not([data-theme="light"]) .match-btn .red { fill: #ff7a6b; } :root:not([data-theme="light"]) .match-btn .green { fill: #7fd690; } :root:not([data-theme="light"]) .match-btn .plum { fill: #c7a6f2; } }
+      :root[data-theme="dark"] .match-btn .glyph { fill: #ffd27a; } :root[data-theme="dark"] .match-btn .red { fill: #ff7a6b; } :root[data-theme="dark"] .match-btn .green { fill: #7fd690; } :root[data-theme="dark"] .match-btn .plum { fill: #c7a6f2; }
       #match-end { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.35), rgba(35,50,42,.55)); backdrop-filter: blur(2px) saturate(.8); -webkit-backdrop-filter: blur(2px) saturate(.8); opacity: 0; transition: opacity .45s; touch-action: none; }
       #match-end[hidden] { display: none; }
       #match.spot { z-index: 7; }
@@ -293,6 +293,15 @@
       #help .val-dmg { color: #9f2f24 !important; } #help .val-heal { color: #2c6a36 !important; }
       #help .shapes .src { position: absolute; top: -4px; left: calc(50% + 16px); width: 26px; height: 26px; border-radius: 50%; background: #fbf3de; box-shadow: 0 1px 2px rgba(60,40,15,.3); }
       #help .src .ring { opacity: 0; }
+      #help .combo { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; }
+      #help .combo .op { font: 800 26px/1 'Alegreya Variable', Georgia, serif; color: var(--ink); opacity: .7; }
+      #help .combo .out { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 4px; }
+      #help .combo b { font-size: 19px; }
+      #help .combo .val { font: 800 18px/1.1 'Alegreya Variable', Georgia, serif; font-variant-numeric: lining-nums tabular-nums; }
+      #help .combo .val small { font-size: 14px; font-weight: 600; }
+      #help .combo.tried .out::after { content: '✓'; position: absolute; top: -4px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: #3f9a52; color: #fff; font: 800 13px/22px system-ui, -apple-system, sans-serif; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+      #help .combo.todo .out .fig { opacity: .55; }
+      #help .combo-note { margin-top: 14px; font-size: 18px; line-height: 1.3; text-align: center; }
       #help .notes { display: flex; flex-direction: column; gap: 16px; width: 100%; margin-top: 10px; text-align: left; font-size: 18px; line-height: 1.3; }
       #help .notes li { display: flex; align-items: center; gap: 12px; }
       #help .notes .src { flex: none; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,250,235,.7); box-shadow: inset 0 0 0 1.5px rgba(90,60,20,.25); }
@@ -356,13 +365,16 @@
       #ink { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
       /* The HUD buttons sit along the bottom, kept well clear of the edge, where iOS/iPadOS reserve the swipe-up
          home gesture. Tablets get more room. */
-      :root { --edge-bottom: calc(max(16px, env(safe-area-inset-bottom)) + 24px); --edge-top: calc(max(16px, env(safe-area-inset-top)) + 24px); }
-      @media (min-width: 600px) and (min-height: 800px) { :root { --edge-bottom: calc(max(24px, env(safe-area-inset-bottom)) + 48px); --edge-top: calc(max(24px, env(safe-area-inset-top)) + 48px); } }
+      :root { --edge-bottom: calc(max(16px, env(safe-area-inset-bottom)) + 24px); --edge-top: calc(max(12px, env(safe-area-inset-top)) + 8px); }
+      @media (min-width: 600px) and (min-height: 800px) { :root { --edge-bottom: calc(max(24px, env(safe-area-inset-bottom)) + 48px); --edge-top: calc(max(20px, env(safe-area-inset-top)) + 16px); } }
+      /* The extra bottom margin keeps fingers off the home-bar swipe (the top only clears the notch); a mouse needs none, so desktop hugs the edges. */
+      @media (pointer: fine) { :root { --edge-bottom: 16px; --edge-top: 16px; } }
       :is(#help .fig, #help .mini).triangle { color: #b0482c; }
       :is(#help .fig, #help .mini).square { color: #3f6f8a; }
       :is(#help .fig, #help .mini).triangleDown { color: #8a3f5c; }
       :is(#help .fig, #help .mini).rhombus { color: #4f7a52; }
       :is(#help .fig, #help .mini).pentagram { color: #6a4f8a; }
+      :is(#help .fig, #help .mini).hourglass { color: #a8402a; background: radial-gradient(circle, #ffd0a0 0%, #f08a3a55 40%, #d9ecef66 60%, rgba(255,250,235,0) 74%); }
       :is(#help .fig, #help .mini).charged.triangle { background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, var(--hud-bg) 75%); }
       :is(#help .fig, #help .mini).charged.triangleDown { background: radial-gradient(circle, #d9ecef 0%, #7fb3c299 45%, var(--hud-bg) 75%); }
       body.aiming canvas { cursor: crosshair; }

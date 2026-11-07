@@ -1,7 +1,18 @@
 // Single-stroke shape recognition with plain geometry: no templates, no training.
 
 export type Point = { x: number; y: number };
-export type ShapeKind = 'circle' | 'triangle' | 'triangleDown' | 'square' | 'rhombus' | 'pentagram';
+// 'hourglass' is never recognized from a stroke: it is what a charged fire triangle and a charged water triangle
+// merge into when one is drawn while the other is in hand (src/main.ts useDrawn).
+export type ShapeKind = 'circle' | 'triangle' | 'triangleDown' | 'square' | 'rhombus' | 'pentagram' | 'hourglass';
+
+/**
+ * What is in hand after a charged triangle is drawn: the other charged triangle already in hand merges with it into
+ * the hourglass (fire then water or water then fire); anything else is simply replaced.
+ */
+export function chargedInHand(held: ShapeKind | null, drawn: 'triangle' | 'triangleDown'): ShapeKind {
+  const other = drawn === 'triangle' ? 'triangleDown' : 'triangle';
+  return held === other ? 'hourglass' : drawn;
+}
 
 export interface Recognized {
   kind: ShapeKind;

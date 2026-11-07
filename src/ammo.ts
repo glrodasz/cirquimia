@@ -9,6 +9,8 @@ const OUTLINES: Record<Exclude<ShapeKind, 'circle'>, Pt[]> = {
   square: [[12, 12], [36, 12], [36, 36], [12, 36]],
   rhombus: [[24, 7], [38, 24], [24, 41], [10, 24]],
   pentagram: [[24, 9], [32.8, 36.1], [9.7, 19.4], [38.3, 19.4], [15.2, 36.1]],
+  // Fire's triangle on top of water's, tips meeting in the middle: one stroke across the top, down, across, back up.
+  hourglass: [[11, 9], [37, 9], [11, 39], [37, 39]],
 };
 const RING_R = 22.2; // the enso around an icon
 const STEP = 0.7; // px between brush samples
@@ -93,7 +95,7 @@ function strokeLine(kind: ShapeKind, rand: () => number): { line: Pt[]; corners:
   }
   const poly = OUTLINES[kind];
   const sides = poly.length;
-  const first = kind === 'pentagram' ? 0 : Math.floor(rand() * sides);
+  const first = kind === 'pentagram' || kind === 'hourglass' ? 0 : Math.floor(rand() * sides);
   const pts = Array.from({ length: sides + 1 }, (_, i) => poly[(first + i) % sides]);
   let l = 0;
   for (let s = 0; s < sides; s++) {
@@ -147,7 +149,7 @@ export function shapeIcon(kind: ShapeKind): string {
   const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
   const id = `brush${++iconId}`;
   const { line, corners } = strokeLine(kind, rand);
-  const glyph = brushPath(line, kind === 'pentagram' ? 3.2 : 3.9, rand, corners);
+  const glyph = brushPath(line, kind === 'pentagram' || kind === 'hourglass' ? 3.2 : 3.9, rand, corners);
 
   const ring = brushPath(ensoLine(rand), 2.2, rand);
   return (
