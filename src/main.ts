@@ -206,7 +206,7 @@ const runs = new Runs();
 combat.onStart = () => runs.start(combat.rivalCount, combat.difficulty, combat.rivalCount > 0 && tutorial.done && !DEV);
 combat.onEnd = (outcome) => {
   const ranked = outcome === 'victory' && combat.rivalCount > 0;
-  const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs };
+  const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs, damage: combat.heroDamage };
   matchHud.showEnd(outcome);
   if (ranked && tutorial.done && !DEV) board.fillEnd(matchHud.scoreSlot, runs, match);
 };

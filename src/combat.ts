@@ -634,6 +634,8 @@ export class Combat {
   private clock = 0;
   /** Seconds of play in this match until it was decided (the game holds still while a card is open). */
   private played = 0;
+  /** Health the alchemist's own strikes took off the rivals this match (what the ranking scores). */
+  private dealt = 0;
   private heroStrikeFrom = -Infinity;
   private heroStrikeTo = -Infinity;
 
@@ -681,6 +683,11 @@ export class Combat {
   /** Milliseconds of play from the start of the match until it was decided (or until now). */
   get elapsedMs() {
     return Math.round(this.played * 1000);
+  }
+
+  /** Damage the alchemist dealt to rivals this match; rivals hurting each other does not count. */
+  get heroDamage() {
+    return Math.round(this.dealt);
   }
 
   setRivals(count: number) {
@@ -811,6 +818,7 @@ export class Combat {
     this.outcome = null;
     this.endTimer = 0;
     this.played = 0;
+    this.dealt = 0;
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
@@ -901,7 +909,9 @@ export class Combat {
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
       if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+      const before = f.hp;
       f.hit(DAMAGE[element], element, this.camera);
+      if (caster === this.hero) this.dealt += before - f.hp;
       if (f === this.hero) {
         for (const r of this.rivals) r.ambush = false;
         this.onHeroHit();

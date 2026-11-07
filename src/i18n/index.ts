@@ -88,6 +88,7 @@ const es = {
     all: 'Siempre',
     points: (n: number): string => (n === 1 ? 'punto' : 'puntos'),
     rivals: (n: number) => (n === 1 ? '1 rival' : `${n} rivales`),
+    damage: (n: number) => `${n} de daño`,
     placeToday: (n: number) => `#${n} hoy`,
     placed: (today: number, all: number) => `Puesto <b>#${today}</b> de hoy · <b>#${all}</b> global`,
     beatMe: '¿Me superas?',
@@ -107,7 +108,7 @@ const es = {
     close: 'Cerrar',
     category: { mobile: 'Móvil', tablet: 'Tablet', desktop: 'Escritorio' },
     columns: ['#', 'Iniciales', 'Puntos', 'Partida'] as [string, string, string, string],
-    rule: 'Puntos: rivales × dificultad × rapidez · «Hoy» se reinicia a medianoche UTC',
+    rule: 'Puntos: tu daño × dificultad × rapidez · «Hoy» se reinicia a medianoche UTC',
     mine: 'Tuyo',
   },
   help: {
@@ -309,6 +310,7 @@ const en: Strings = {
     all: 'All time',
     points: (n) => (n === 1 ? 'point' : 'points'),
     rivals: (n) => (n === 1 ? '1 rival' : `${n} rivals`),
+    damage: (n) => `${n} damage`,
     placeToday: (n) => `#${n} today`,
     placed: (today, all) => `<b>#${today}</b> today · <b>#${all}</b> all time`,
     beatMe: 'Can you beat me?',
@@ -328,7 +330,7 @@ const en: Strings = {
     close: 'Close',
     category: { mobile: 'Mobile', tablet: 'Tablet', desktop: 'Desktop' },
     columns: ['#', 'Initials', 'Points', 'Match'],
-    rule: 'Points: rivals × difficulty × speed · "Today" resets at midnight UTC',
+    rule: 'Points: your damage × difficulty × speed · "Today" resets at midnight UTC',
     mine: 'Yours',
   },
   help: {

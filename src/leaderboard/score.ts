@@ -8,15 +8,23 @@ import type { Difficulty } from '../combat';
 export const LEVEL_FACTOR: Record<Difficulty, number> = { facil: 1, normal: 1.5, dificil: 2, experto: 3 };
 export const LEVELS = Object.keys(LEVEL_FACTOR) as Difficulty[];
 export const MIN_RIVALS = 1;
-export const MAX_RIVALS = 2;
+export const MAX_RIVALS = 3;
 
-/** Points for one rival on Easy beaten in 30 s; beating them faster gives more, slower gives less. */
-const BASE = 60_000;
+/**
+ * Points come from the damage the alchemist itself dealt, not from how many rivals fell: in a free-for-all
+ * the rivals also knock each other down, and that should not score for the player.
+ * 100 damage (one rival's health) on Easy in 30 s is 1 000 points; faster gives more, slower less.
+ */
+const PER_DAMAGE = 600;
 /** Added to the seconds so a couple of seconds less never makes the score explode. */
 const PAD_SECONDS = 30;
 
-/** Below this many seconds per rival nobody can have won: five strikes each take longer than that. */
-export const MIN_SECONDS_PER_RIVAL = 4;
+/** No won match is shorter than this. */
+export const MIN_SECONDS = 4;
+/** Nobody deals damage faster than this on average (a blast is 45 and every cast needs a drawing). */
+export const MAX_DAMAGE_PER_SECOND = 40;
+/** A rival has 100 health but can heal, so the alchemist may take off more than that; never this much. */
+export const MAX_DAMAGE_PER_RIVAL = 300;
 /** A match longer than this is not a run worth ranking (and keeps durations sane). */
 export const MAX_SECONDS = 30 * 60;
 
@@ -24,18 +32,20 @@ export function isDifficulty(v: unknown): v is Difficulty {
   return typeof v === 'string' && (LEVELS as string[]).includes(v);
 }
 
-/** points = rivals × difficulty × 60 000 / (seconds + 30), rounded. */
-export function scoreFor(rivals: number, difficulty: Difficulty, durationMs: number): number {
+/** points = damage dealt × difficulty × 600 / (seconds + 30), rounded. */
+export function scoreFor(damage: number, difficulty: Difficulty, durationMs: number): number {
   const seconds = Math.max(0, durationMs) / 1000;
-  return Math.round((rivals * LEVEL_FACTOR[difficulty] * BASE) / (seconds + PAD_SECONDS));
+  return Math.round((Math.max(0, damage) * LEVEL_FACTOR[difficulty] * PER_DAMAGE) / (seconds + PAD_SECONDS));
 }
 
-/** Whether a won match could really have happened: rival count, level and a plausible duration. */
-export function plausible(rivals: unknown, difficulty: unknown, durationMs: unknown): boolean {
+/** Whether a won match could really have happened: rival count, level, a plausible duration and damage. */
+export function plausible(rivals: unknown, difficulty: unknown, durationMs: unknown, damage: unknown): boolean {
   if (!Number.isInteger(rivals) || (rivals as number) < MIN_RIVALS || (rivals as number) > MAX_RIVALS) return false;
   if (!isDifficulty(difficulty)) return false;
   if (typeof durationMs !== 'number' || !Number.isFinite(durationMs)) return false;
-  return durationMs >= (rivals as number) * MIN_SECONDS_PER_RIVAL * 1000 && durationMs <= MAX_SECONDS * 1000;
+  if (!Number.isInteger(damage) || (damage as number) < 1 || (damage as number) > (rivals as number) * MAX_DAMAGE_PER_RIVAL) return false;
+  const seconds = durationMs / 1000;
+  return seconds >= MIN_SECONDS && seconds <= MAX_SECONDS && (damage as number) <= seconds * MAX_DAMAGE_PER_SECOND;
 }
 
 /** Letters (Ñ included) and digits, up to four, like an arcade cabinet. */

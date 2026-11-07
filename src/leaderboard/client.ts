@@ -17,6 +17,7 @@ export interface Entry {
   initials: string;
   score: number;
   durationMs: number;
+  damage: number;
   rivals: number;
   difficulty: Difficulty;
   category: Category;
@@ -27,6 +28,7 @@ export interface Submitted {
   id: number | null;
   score: number;
   durationMs: number;
+  damage: number;
   rivals: number;
   difficulty: Difficulty;
   category: Category;
@@ -100,11 +102,12 @@ async function hints() {
   };
 }
 
-export async function submitScore(runId: string, initials: string, durationMs: number) {
+export async function submitScore(runId: string, initials: string, durationMs: number, damage: number) {
   const body = {
     runId,
     initials,
     durationMs,
+    damage,
     hints: await hints(),
     screen: `${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 100) / 100}`,
     locale: LANG,

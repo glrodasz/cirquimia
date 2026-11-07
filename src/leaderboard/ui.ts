@@ -38,15 +38,17 @@ const stop = (node: HTMLElement) => {
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) node.addEventListener(type, (e) => e.stopPropagation());
 };
 
-function metaLine(e: { durationMs: number; rivals: number; difficulty: Difficulty }) {
-  return `⏱ ${formatTime(e.durationMs)} · ${t.rank.rivals(e.rivals)} · ${DIFFICULTY_LABEL[e.difficulty] ?? e.difficulty}`;
+/** The match in one line; the board's rows use the short form so the device still fits on a phone. */
+function metaLine(e: { durationMs: number; damage: number; rivals: number; difficulty: Difficulty }, short = false) {
+  const damage = short ? `⚔ ${e.damage}` : t.rank.damage(e.damage);
+  return `⏱ ${formatTime(e.durationMs)} · ${damage} · ${t.rank.rivals(e.rivals)} · ${DIFFICULTY_LABEL[e.difficulty] ?? e.difficulty}`;
 }
 
 export interface Leaderboard {
   readonly open: boolean;
   show(period?: Period): void;
   /** Fills the victory card's score block for a won match; `runs` holds the server run if it counts. */
-  fillEnd(slot: HTMLElement, runs: Runs, match: { rivals: number; difficulty: Difficulty; durationMs: number }): void;
+  fillEnd(slot: HTMLElement, runs: Runs, match: { rivals: number; difficulty: Difficulty; durationMs: number; damage: number }): void;
 }
 
 export function mountLeaderboard(): Leaderboard {
@@ -100,7 +102,7 @@ export function mountLeaderboard(): Leaderboard {
             `<span class="pos${medal}">${i + 1}</span>` +
             `<span class="who">${esc(e.initials)}${mine.has(e.id) ? ` <i>${t.rank.mine}</i>` : ''}</span>` +
             `<span class="pts">${e.score.toLocaleString(LANG)}</span>` +
-            `<span class="meta">${metaLine(e)} · ${t.rank.category[e.category] ?? ''}</span>` +
+            `<span class="meta">${metaLine(e, true)} · ${t.rank.category[e.category] ?? ''}</span>` +
             `</li>`
           );
         })
@@ -145,7 +147,7 @@ export function mountLeaderboard(): Leaderboard {
   for (const tab of tabs) tab.addEventListener('click', () => load(tab.dataset.period as Period));
 
   const fillEnd: Leaderboard['fillEnd'] = (slot, runs, match) => {
-    const data: ShareData = { ...match, score: scoreFor(match.rivals, match.difficulty, match.durationMs) };
+    const data: ShareData = { ...match, score: scoreFor(match.damage, match.difficulty, match.durationMs) };
     slot.hidden = false;
     slot.innerHTML =
       `<div class="pts"><b>${data.score.toLocaleString(LANG)}</b> ${t.rank.points(data.score)}</div>` +
@@ -201,7 +203,7 @@ export function mountLeaderboard(): Leaderboard {
       save.disabled = input.disabled = true;
       save.querySelector('.cap')!.textContent = t.rank.saving;
       const id = await runs.current();
-      const res = id ? await submitScore(id, initials, match.durationMs) : 'unavailable';
+      const res = id ? await submitScore(id, initials, match.durationMs, match.damage) : 'unavailable';
       if (failed(res)) {
         save.disabled = input.disabled = false;
         save.querySelector('.cap')!.textContent = t.rank.save;

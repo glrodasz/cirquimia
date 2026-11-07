@@ -5,8 +5,9 @@ up to four initials, no account. The board has two tabs: **Today** (UTC day) and
 
 ## Score
 
-`points = rivals × difficulty × 60 000 / (seconds + 30)`, with Easy ×1, Normal ×1.5, Hard ×2, Very hard ×3.
-Seconds are play time (the game holds still while a card is open). Rules live in `src/leaderboard/score.ts`,
+`points = damage dealt × difficulty × 600 / (seconds + 30)`, with Easy ×1, Normal ×1.5, Hard ×2, Very hard ×3.
+Damage is the health the alchemist's own strikes took off the rivals: rivals knocking each other down
+score nothing for the player. Seconds are play time (the game holds still while a card is open). Rules live in `src/leaderboard/score.ts`,
 shared by the game and the server.
 
 ## Backend
@@ -15,9 +16,9 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
 `src/leaderboard/server.ts`) on a D1 database bound as `DB`. Tables create themselves on first use.
 
 - `POST /api/runs {rivals, difficulty}` opens a run when a ranked match starts.
-- `POST /api/scores {runId, initials, durationMs, hints}` stores a won match; the server recomputes the score
-  from the run's own settings, refuses impossible durations (under 4 s per rival, over 30 min, or longer than
-  the real time since the run opened), accepts one score per run and limits submissions per address.
+- `POST /api/scores {runId, initials, durationMs, damage, hints}` stores a won match; the server recomputes the
+  score with the run's own difficulty, refuses impossible numbers (under 4 s or over 30 min, more than 40 damage
+  a second or 300 per rival, a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
 - `GET /api/scores?period=today|all` returns the top 50.
 
 The board shows only Mobile / Tablet / Desktop; each row also stores OS, device (iPhone, iPad, Android

@@ -3,20 +3,26 @@ import { cleanInitials, formatTime, plausible, scoreFor, validInitials } from '.
 import { classifyDevice } from '../src/leaderboard/device';
 
 describe('score', () => {
-  it('multiplies rivals and difficulty and rewards speed', () => {
-    expect(scoreFor(1, 'facil', 30_000)).toBe(1000);
-    expect(scoreFor(2, 'experto', 60_000)).toBe(4000);
-    expect(scoreFor(2, 'experto', 30_000)).toBeGreaterThan(scoreFor(2, 'experto', 60_000));
-    expect(scoreFor(1, 'dificil', 40_000)).toBeGreaterThan(scoreFor(1, 'normal', 40_000));
+  it('scores the damage the alchemist dealt, by difficulty and speed', () => {
+    expect(scoreFor(100, 'facil', 30_000)).toBe(1000);
+    expect(scoreFor(200, 'experto', 60_000)).toBe(4000);
+    expect(scoreFor(200, 'experto', 30_000)).toBeGreaterThan(scoreFor(200, 'experto', 60_000));
+    expect(scoreFor(100, 'dificil', 40_000)).toBeGreaterThan(scoreFor(100, 'normal', 40_000));
+    // Three rivals that mostly knock each other out score less than one beaten alone.
+    expect(scoreFor(60, 'normal', 40_000)).toBeLessThan(scoreFor(100, 'normal', 40_000));
   });
 
   it('refuses impossible matches', () => {
-    expect(plausible(0, 'facil', 60_000)).toBe(false); // training
-    expect(plausible(3, 'facil', 60_000)).toBe(false);
-    expect(plausible(1, 'imposible', 60_000)).toBe(false);
-    expect(plausible(2, 'experto', 7_000)).toBe(false); // under 4 s per rival
-    expect(plausible(2, 'experto', 8_000)).toBe(true);
-    expect(plausible(1, 'normal', 31 * 60_000)).toBe(false);
+    expect(plausible(0, 'facil', 60_000, 100)).toBe(false); // training
+    expect(plausible(4, 'facil', 60_000, 100)).toBe(false);
+    expect(plausible(3, 'facil', 60_000, 100)).toBe(true);
+    expect(plausible(1, 'imposible', 60_000, 100)).toBe(false);
+    expect(plausible(1, 'normal', 60_000, 0)).toBe(false); // the rivals did it all
+    expect(plausible(1, 'normal', 60_000, 301)).toBe(false); // more than one rival can lose
+    expect(plausible(2, 'experto', 3_000, 100)).toBe(false); // too short
+    expect(plausible(2, 'experto', 4_000, 200)).toBe(false); // 50 damage a second
+    expect(plausible(2, 'experto', 5_000, 200)).toBe(true);
+    expect(plausible(1, 'normal', 31 * 60_000, 100)).toBe(false);
   });
 
   it('keeps initials to four letters or digits', () => {

@@ -3,8 +3,8 @@
  * bound as DB. The tables create themselves on first use, so the database only needs to exist and be bound.
  *
  * Basic sanity, not a fortress: the server opens a run when a match starts and only accepts one score per run,
- * recomputes the score itself from the run's own rivals and difficulty, refuses durations that are impossible
- * or longer than the real time since the run opened, and limits how often one address can play and submit.
+ * recomputes the score itself with the run's own difficulty, refuses durations and damage that are impossible
+ * (or a duration longer than the real time since the run opened), and limits how often one address can play and submit.
  */
 import { classifyDevice, type DeviceHints } from './device';
 import { dayOf, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
@@ -60,6 +60,7 @@ const SCHEMA = [
     initials TEXT NOT NULL,
     score INTEGER NOT NULL,
     duration_ms INTEGER NOT NULL,
+    damage INTEGER NOT NULL DEFAULT 0,
     rivals INTEGER NOT NULL,
     difficulty TEXT NOT NULL,
     category TEXT NOT NULL,
@@ -81,9 +82,14 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS scores_ip ON scores (ip_hash, created_at)`,
 ];
 
+/** Columns added after the first release, for databases created before them (fails harmlessly once present). */
+const MIGRATIONS = ['ALTER TABLE scores ADD COLUMN damage INTEGER NOT NULL DEFAULT 0'];
+
 let ready: Promise<unknown> | null = null;
 function ensureSchema(db: D1Database) {
-  ready ??= db.batch(SCHEMA.map((q) => db.prepare(q))).catch((e) => {
+  ready ??= db.batch(SCHEMA.map((q) => db.prepare(q))).then(async () => {
+    for (const q of MIGRATIONS) await db.prepare(q).run().catch(() => {});
+  }).catch((e) => {
     ready = null; // try again on the next request
     throw e;
   });
@@ -152,6 +158,7 @@ interface Row {
   initials: string;
   score: number;
   duration_ms: number;
+  damage: number;
   rivals: number;
   difficulty: string;
   category: string;
@@ -163,19 +170,20 @@ const entry = (r: Row) => ({
   initials: r.initials,
   score: r.score,
   durationMs: r.duration_ms,
+  damage: r.damage,
   rivals: r.rivals,
   difficulty: r.difficulty,
   category: r.category,
   at: r.created_at,
 });
 
-/** POST /api/scores {runId, initials, durationMs, hints…} → {id, score, rank, total}. */
+/** POST /api/scores {runId, initials, durationMs, damage, hints…} → {id, score, rank, total}. */
 export async function submitScore(ctx: Ctx): Promise<Response> {
   const s = await setup(ctx);
   if (!s) return fail('unavailable', 503);
   const body = await readBody(ctx.request);
   if (!body) return fail('bad-request', 400);
-  const { runId, initials, durationMs } = body;
+  const { runId, initials, durationMs, damage } = body;
   if (typeof runId !== 'string' || runId.length > 64) return fail('bad-request', 400);
   if (!validInitials(initials)) return fail('bad-initials', 400);
 
@@ -188,7 +196,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
     .bind(runId)
     .first<{ created_at: number; rivals: number; difficulty: string; used: number }>();
   if (!run || run.used || now - run.created_at > RUN_TTL_MS) return fail('unknown-run', 409);
-  if (!isDifficulty(run.difficulty) || !plausible(run.rivals, run.difficulty, durationMs)) return fail('implausible', 422);
+  if (!isDifficulty(run.difficulty) || !plausible(run.rivals, run.difficulty, durationMs, damage)) return fail('implausible', 422);
   const duration = Math.round(durationMs as number);
   if (now - run.created_at + CLOCK_SLACK_MS < duration) return fail('implausible', 422);
 
@@ -205,20 +213,22 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   };
   const ua = ctx.request.headers.get('User-Agent') ?? '';
   const device = classifyDevice(ua, hints);
-  const score = scoreFor(run.rivals, run.difficulty, duration);
+  const dealt = damage as number;
+  const score = scoreFor(dealt, run.difficulty, duration);
   const day = dayOf(now);
   const country = (ctx.request as Request & { cf?: { country?: string } }).cf?.country ?? null;
 
   const inserted = await s.db
     .prepare(
-      `INSERT INTO scores (run_id, initials, score, duration_ms, rivals, difficulty, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO scores (run_id, initials, score, duration_ms, damage, rivals, difficulty, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .bind(
       runId,
       initials,
       score,
       duration,
+      dealt,
       run.rivals,
       run.difficulty,
       device.category,
@@ -253,6 +263,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       id: inserted?.id ?? null,
       score,
       durationMs: duration,
+      damage: dealt,
       rivals: run.rivals,
       difficulty: run.difficulty,
       category: device.category,
@@ -271,7 +282,7 @@ export async function listScores(ctx: Ctx): Promise<Response> {
   const url = new URL(ctx.request.url);
   const period = url.searchParams.get('period') === 'all' ? 'all' : 'today';
   const day = dayOf(Date.now());
-  const columns = 'id, initials, score, duration_ms, rivals, difficulty, category, created_at';
+  const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at';
   const query =
     period === 'all'
       ? s.prepare(`SELECT ${columns} FROM scores ORDER BY score DESC, created_at ASC LIMIT ?`).bind(BOARD_SIZE)

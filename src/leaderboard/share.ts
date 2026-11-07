@@ -14,6 +14,7 @@ import { formatTime } from './score';
 export interface ShareData {
   score: number;
   durationMs: number;
+  damage: number;
   rivals: number;
   difficulty: Difficulty;
   initials?: string;
@@ -105,8 +106,11 @@ export async function renderShareCard(d: ShareData): Promise<Blob> {
   g.fillText(t.rank.points(d.score), W / 2, 950);
   g.globalAlpha = 1;
 
-  g.font = `600 44px ${SANS}`;
-  g.fillText(`⏱ ${formatTime(d.durationMs)}   ·   ${t.rank.rivals(d.rivals)}   ·   ${DIFFICULTY_LABEL[d.difficulty]}`, W / 2, 1060);
+  const stats = `⏱ ${formatTime(d.durationMs)}  ·  ${t.rank.damage(d.damage)}  ·  ${t.rank.rivals(d.rivals)}  ·  ${DIFFICULTY_LABEL[d.difficulty]}`;
+  let size = 44;
+  do g.font = `600 ${size}px ${SANS}`;
+  while (g.measureText(stats).width > W - 140 && --size > 28);
+  g.fillText(stats, W / 2, 1060);
 
   if (d.initials) {
     g.font = `800 60px ${SANS}`;
