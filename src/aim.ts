@@ -8,7 +8,7 @@ export type AimMark = { x: number; z: number; r: number };
 
 /**
  * The ground a held strike would cover if cast at the aimed point, mark by mark, matching what Combat.strikeFrom
- * casts: square, fire and water hit one area (the hourglass's blast a smaller one); the pentagram five areas at the star's tips. Cast from inside a rune
+ * casts: square, fire and water hit one area (the hourglass's blast a smaller one); the pentagram (plain, fire or water) five areas at the star's tips. Cast from inside a rune
  * circle (`boosted`) every area and the star's spread are RUNE_BOOST bigger. Shapes that need no target (circle,
  * rhombus) have no reticle.
  */
@@ -17,7 +17,7 @@ export function aimMarks(kind: ShapeKind, boosted: boolean): AimMark[] {
   const r = PILLAR_AREA * scale;
   if (kind === 'square' || kind === 'triangle' || kind === 'triangleDown') return [{ x: 0, z: 0, r }];
   if (kind === 'hourglass') return [{ x: 0, z: 0, r: r * AREA_OF.blast }];
-  if (kind === 'pentagram') return starOffsets(STAR_REACH * scale).map((o) => ({ ...o, r }));
+  if (kind === 'pentagram' || kind === 'fireStar' || kind === 'waterStar') return starOffsets(STAR_REACH * scale).map((o) => ({ ...o, r }));
   return [];
 }
 

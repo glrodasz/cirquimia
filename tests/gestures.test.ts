@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chargedInHand, recognize, type ShapeKind } from '../src/gestures';
+import { mergedInHand, recognize, type ShapeKind } from '../src/gestures';
 import { circle, regular, rng, squareCorners, trace, type Sloppy } from './strokes';
 
 /** Draws `count` random strokes and tallies what they read as. */
@@ -74,16 +74,29 @@ describe('circles stay circles', () => {
   });
 });
 
-describe('chargedInHand', () => {
+describe('mergedInHand', () => {
   it('merges fire and water, in either order, into the hourglass', () => {
-    expect(chargedInHand('triangle', 'triangleDown')).toBe('hourglass');
-    expect(chargedInHand('triangleDown', 'triangle')).toBe('hourglass');
+    expect(mergedInHand('triangle', 'triangleDown')).toBe('hourglass');
+    expect(mergedInHand('triangleDown', 'triangle')).toBe('hourglass');
+  });
+
+  it('merges the star with fire or water, in either order, into a fire or water star', () => {
+    expect(mergedInHand('pentagram', 'triangle')).toBe('fireStar');
+    expect(mergedInHand('triangle', 'pentagram')).toBe('fireStar');
+    expect(mergedInHand('pentagram', 'triangleDown')).toBe('waterStar');
+    expect(mergedInHand('triangleDown', 'pentagram')).toBe('waterStar');
   });
 
   it('just replaces anything else in hand', () => {
-    expect(chargedInHand(null, 'triangle')).toBe('triangle');
-    expect(chargedInHand('triangle', 'triangle')).toBe('triangle');
-    expect(chargedInHand('square', 'triangleDown')).toBe('triangleDown');
-    expect(chargedInHand('hourglass', 'triangle')).toBe('triangle');
+    expect(mergedInHand(null, 'triangle')).toBe('triangle');
+    expect(mergedInHand(null, 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('triangle', 'triangle')).toBe('triangle');
+    expect(mergedInHand('pentagram', 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('square', 'triangleDown')).toBe('triangleDown');
+    expect(mergedInHand('hourglass', 'triangle')).toBe('triangle');
+    expect(mergedInHand('hourglass', 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('fireStar', 'triangleDown')).toBe('triangleDown');
+    expect(mergedInHand('waterStar', 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('triangle', 'square')).toBe('square');
   });
 });

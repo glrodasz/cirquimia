@@ -9,7 +9,7 @@ import { Character } from './character';
 import { TapMarker } from './marker';
 import { heightAt } from './noise';
 import { tiltShiftShader } from './tiltShift';
-import { chargedInHand, recognize, type Point, type ShapeKind } from './gestures';
+import { mergedInHand, recognize, type Point, type ShapeKind } from './gestures';
 import { PointerRouter, type GestureEvent } from './pointer';
 import { Ink } from './ink';
 import { Spells } from './spells';
@@ -340,7 +340,8 @@ const elementOf = (kind: ShapeKind) => (kind === 'triangle' ? 'fire' : kind === 
 /**
  * Casts a shape at a ground point: circle = earth wall around the alchemist, square = pillars at that spot,
  * pentagram = five short earth columns around that spot, rhombus = heal the alchemist, triangles = fire / water,
- * hourglass (both triangles merged) = blast.
+ * hourglass (both triangles merged) = blast, fire / water star (the star merged with a triangle) = five flame bursts /
+ * water spouts around that spot.
  */
 function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   const element = elementOf(kind);
@@ -351,6 +352,7 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   else if (kind === 'pentagram') combat.cast(at, 'columns');
   else if (kind === 'rhombus') combat.heal();
   else if (kind === 'hourglass') combat.cast(at, 'blast');
+  else if (kind === 'fireStar' || kind === 'waterStar') combat.cast(at, kind);
   else if (element) combat.cast(at, element);
   else impact.show(at.x, at.z);
 }
@@ -400,7 +402,8 @@ function tapAt(clientX: number, clientY: number) {
  * tap. A triangle must be drawn over its source and comes charged; drawn anywhere else it is refused (false), the
  * missing source is flashed there, and the shape already in hand stays. A circle drawn inside a rune circle is refused
  * the same way. A charged triangle drawn while the other one is in hand (fire then water, or water then fire) does not
- * replace it: the two merge into an hourglass, the blast.
+ * replace it: the two merge into an hourglass, the blast. The star and a charged triangle merge the same way, in
+ * either order, into a fire or water star.
  */
 function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   const drawnAt = new THREE.Vector3();
@@ -422,7 +425,7 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
     showMissingSource(element, cx, cy);
     return false;
   }
-  hold(kind === 'triangle' || kind === 'triangleDown' ? chargedInHand(held, kind) : kind);
+  hold(mergedInHand(held, kind));
   const source = element && sourceAt(drawnAt, element);
   if (source) {
     hero.face(source);
@@ -460,7 +463,7 @@ function finishStroke(stroke: Point[], tapLike: boolean) {
   if (shape) {
     if (useDrawn(shape.kind, shape.cx, shape.cy)) {
       ink.end(shape);
-      // What ends up in hand can differ from what was drawn: two charged triangles merge into the hourglass.
+      // What ends up in hand can differ from what was drawn: a merge (hourglass, fire or water star).
       combat.stored(held ?? shape.kind, held !== null);
     } else ink.end(null);
     return;

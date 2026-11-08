@@ -21,6 +21,7 @@ export const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist w
 
 // Pentagram = earth columns: five separate, lower square strikes at the tips of a star around the target.
 const COLUMN_SCALE = 0.6; // pillar height against the square's: each one only hits for half
+const STAR_FLUID_SCALE = 0.75; // a fire or water star's flames and spouts against a triangle's
 export const STAR_REACH = 0.5; // from the target to each tip, world units: the target itself sits between them
 export const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
 
@@ -48,9 +49,16 @@ export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
 
 // Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
 // Fire and water merged in hand (the hourglass) = blast: a tighter burst of flame and steam that hits harder.
-export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast';
+// The star merged in hand with fire or water = fire star / water star: the pentagram's five tips, each one a flame
+// burst or a water spout instead of an earth column.
+export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast' | 'fireStar' | 'waterStar';
 /** Radius of each element's strike against the square's: the blast packs its punch into a smaller area. */
-export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6 };
+export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6, fireStar: 1, waterStar: 1 };
+/** The strikes that land as five separate hits at the tips of a star around the target. */
+export const isStar = (element: Element) => element === 'columns' || element === 'fireStar' || element === 'waterStar';
+/** Fire or water in a strike (a triangle's, or a star's merged with one), or null for earth and the blast. */
+export const fluidOf = (element: Element): 'fire' | 'water' | null =>
+  element === 'fire' || element === 'fireStar' ? 'fire' : element === 'water' || element === 'waterStar' ? 'water' : null;
 const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
 
 // Rhombus = healing on the caster: thin lines of light rising up through the body.
@@ -89,7 +97,9 @@ const FIRE_CORE = '#ffd67a';
 const WATER = ['#7fb3c2', '#93c4cf', '#6a9fb1'];
 const WATER_FOAM = '#d9ecef';
 const STEAM = ['#e8eeec', '#d3dedd', '#f4efe2'];
-const WARNING: Record<Element, string> = { earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866', blast: '#8a2f1c' };
+const WARNING: Record<Element, string> = {
+  earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866', blast: '#8a2f1c', fireStar: '#c4552c', waterStar: '#2f5866',
+};
 
 const tmpColor = new THREE.Color();
 const easeOutBack = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
@@ -340,7 +350,8 @@ function wallSegment(cx: number, cz: number, a: Section, b: Section, capStart: b
 /**
  * A tremor on the ground, then the strike breaks out: slanted square pillars of rock (square),
  * five short columns at the tips of a star (pentagram), a burst of flame tongues (fire triangle)
- * a spout of water (water triangle) or a tight burst of flame and steam (hourglass: fire and water merged).
+ * a spout of water (water triangle), a tight burst of flame and steam (hourglass: fire and water merged)
+ * or, at each tip of a fire or water star, a lower burst of flame or spout of water.
  */
 class PillarStrike extends Effect {
   readonly obstacles: Obstacle[] = [];
@@ -370,7 +381,7 @@ class PillarStrike extends Effect {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
     else if (element === 'blast') this.buildBlast();
-    else this.buildFluid(element === 'fire');
+    else this.buildFluid(fluidOf(element) === 'fire', isStar(element) ? STAR_FLUID_SCALE : 1);
     if (scale !== 1) {
       // Grow the cluster about its centre: spread, width and height alike.
       for (const p of this.pieces) {
@@ -448,12 +459,12 @@ class PillarStrike extends Effect {
     }
   }
 
-  /** Flame tongues or water spouts: a tall core with shorter ones around it, all swaying while up. */
-  private buildFluid(fire: boolean) {
+  /** Flame tongues or water spouts: a tall core with shorter ones around it, all swaying while up; `tall` shortens them. */
+  private buildFluid(fire: boolean, tall = 1) {
     const { x, z } = this;
     const palette = fire ? FIRE : WATER;
     const add = (px: number, pz: number, w: number, h: number, color: string, delay: number, tilt: number, toward: number) => {
-      const mesh = this.addPiece(fire ? flameGeo : spoutGeo, color, px, pz, h, delay);
+      const mesh = this.addPiece(fire ? flameGeo : spoutGeo, color, px, pz, h * tall, delay);
       const m = mesh.material as THREE.MeshLambertMaterial;
       // Lit from within so it glows against the muted meadow.
       m.emissive.set(color).multiplyScalar(fire ? 0.75 : 0.35);
@@ -462,7 +473,7 @@ class PillarStrike extends Effect {
         m.opacity = 0.82;
       }
       mesh.castShadow = fire ? false : true;
-      mesh.scale.set(w, h, w);
+      mesh.scale.set(w, h * tall, w);
       mesh.rotation.set(tilt, toward, 0, 'YXZ');
       mesh.userData.base = mesh.scale.clone();
       mesh.userData.phase = Math.random() * 10;
@@ -536,9 +547,10 @@ class PillarStrike extends Effect {
       for (const p of this.pieces) p.mesh.visible = false;
       this.solid = false;
     }
-    if (this.element === 'fire' || this.element === 'water') {
+    const fluid = fluidOf(this.element);
+    if (fluid) {
       // Flames lick and water churns: each tongue breathes in height and width on its own beat.
-      const fast = this.element === 'fire' ? 22 : 14;
+      const fast = fluid === 'fire' ? 22 : 14;
       for (const p of this.pieces) {
         const base = p.mesh.userData.base as THREE.Vector3;
         const k = this.age * fast + (p.mesh.userData.phase as number);

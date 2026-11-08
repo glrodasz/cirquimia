@@ -135,8 +135,8 @@ const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; s
 const EFFECT = { dmg: t.help.damage, heal: t.help.healing };
 
 /** What training asks the player to try on the scarecrow: each attack, and any of them from a rune circle. */
-export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'hourglass' | 'rune';
-export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'hourglass', 'rune'];
+export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
+export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'hourglass', 'fireStar', 'waterStar', 'rune'];
 /** The drills tried in this training session, shown ticked in the symbols book; null outside training. */
 let practice: ReadonlySet<Drill> | null = null;
 export function showPractice(done: ReadonlySet<Drill> | null) {
@@ -205,13 +205,17 @@ function symbols() {
   const progress = practice
     ? `<p class="training">${tried === DRILLS.length ? t.practice.allDone : t.practice.progress(tried, DRILLS.length)}</p>`
     : '';
-  // Fire + water = the hourglass: the two charged triangles merge in hand into the blast.
+  // Two symbols merged in hand: fire + water = the hourglass (blast), the star + fire or water = a fire or water star.
+  const part = (kind: ShapeKind) => fig(kind === 'pentagram' ? kind : `${kind} charged`, shapeIcon(kind));
+  const merge = (a: ShapeKind, b: ShapeKind, out: 'hourglass' | 'fireStar' | 'waterStar', value: string) =>
+    `<div class="combo"${drillClass(out)}>${part(a)}<span class="op">+</span>${part(b)}<span class="op">=</span>` +
+    `<span class="out">${fig(out, shapeIcon(out))}<b>${t.help.names[out]}</b>` +
+    `<span class="val val-dmg"><small>${EFFECT.dmg}</small> ${value}</span></span></div>`;
   const combo =
     `<h3>${t.help.comboTitle}</h3>` +
-    `<div class="combo"${drillClass('hourglass')}>` +
-    `${fig('triangle charged', shapeIcon('triangle'))}<span class="op">+</span>${fig('triangleDown charged', shapeIcon('triangleDown'))}<span class="op">=</span>` +
-    `<span class="out">${fig('hourglass', shapeIcon('hourglass'))}<b>${t.help.names.hourglass}</b>` +
-    `<span class="val val-dmg"><small>${EFFECT.dmg}</small> 45</span></span></div>` +
+    merge('triangle', 'triangleDown', 'hourglass', '45') +
+    merge('pentagram', 'triangle', 'fireStar', '5×20') +
+    merge('pentagram', 'triangleDown', 'waterStar', '5×20') +
     `<p class="combo-note">${t.help.comboNote}</p>`;
   return bookCard('manual', t.help.shapesTitle, [`${progress}<ul class="shapes">${shapes}</ul>`, notes, combo], t.help.pageOf);
 }

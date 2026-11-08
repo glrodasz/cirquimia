@@ -1,17 +1,33 @@
 // Single-stroke shape recognition with plain geometry: no templates, no training.
 
 export type Point = { x: number; y: number };
-// 'hourglass' is never recognized from a stroke: it is what a charged fire triangle and a charged water triangle
-// merge into when one is drawn while the other is in hand (src/main.ts useDrawn).
-export type ShapeKind = 'circle' | 'triangle' | 'triangleDown' | 'square' | 'rhombus' | 'pentagram' | 'hourglass';
+// The compound shapes are never recognized from a stroke: they are what two symbols merge into when one is drawn
+// while the other is in hand (src/main.ts useDrawn). 'hourglass' = charged fire triangle + charged water triangle;
+// 'fireStar' / 'waterStar' = the pentagram + a charged fire / water triangle.
+export type ShapeKind =
+  | 'circle'
+  | 'triangle'
+  | 'triangleDown'
+  | 'square'
+  | 'rhombus'
+  | 'pentagram'
+  | 'hourglass'
+  | 'fireStar'
+  | 'waterStar';
+
+const MERGES: Array<[ShapeKind, ShapeKind, ShapeKind]> = [
+  ['triangle', 'triangleDown', 'hourglass'],
+  ['pentagram', 'triangle', 'fireStar'],
+  ['pentagram', 'triangleDown', 'waterStar'],
+];
 
 /**
- * What is in hand after a charged triangle is drawn: the other charged triangle already in hand merges with it into
- * the hourglass (fire then water or water then fire); anything else is simply replaced.
+ * What is in hand after `drawn` is stored: fire and water merge into the hourglass, the star and fire (or water) into
+ * a fire (or water) star, in either order; anything else simply replaces what was held.
  */
-export function chargedInHand(held: ShapeKind | null, drawn: 'triangle' | 'triangleDown'): ShapeKind {
-  const other = drawn === 'triangle' ? 'triangleDown' : 'triangle';
-  return held === other ? 'hourglass' : drawn;
+export function mergedInHand(held: ShapeKind | null, drawn: ShapeKind): ShapeKind {
+  const merge = MERGES.find(([a, b]) => (held === a && drawn === b) || (held === b && drawn === a));
+  return merge ? merge[2] : drawn;
 }
 
 export interface Recognized {

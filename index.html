@@ -234,8 +234,9 @@
       #help .shapes .src { position: absolute; top: -4px; left: calc(50% + 16px); width: 26px; height: 26px; border-radius: 50%; background: #fbf3de; box-shadow: 0 1px 2px rgba(60,40,15,.3); }
       #help .src .ring { opacity: 0; }
       #help .combo { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; }
+      #help .combo + .combo { margin-top: 8px; }
       #help .combo .op { font: 800 26px/1 'Alegreya Variable', Georgia, serif; color: var(--ink); opacity: .7; }
-      #help .combo .out { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 4px; }
+      #help .combo .out { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 4px; min-width: 136px; }
       #help .combo b { font-size: 19px; }
       #help .combo .val { font: 800 18px/1.1 'Alegreya Variable', Georgia, serif; font-variant-numeric: lining-nums tabular-nums; }
       #help .combo .val small { font-size: 14px; font-weight: 600; }
@@ -315,6 +316,8 @@
       :is(#help .fig, #help .mini).rhombus { color: #4f7a52; }
       :is(#help .fig, #help .mini).pentagram { color: #6a4f8a; }
       :is(#help .fig, #help .mini).hourglass { color: #a8402a; background: radial-gradient(circle, #ffd0a0 0%, #f08a3a55 40%, #d9ecef66 60%, rgba(255,250,235,0) 74%); }
+      :is(#help .fig, #help .mini).fireStar { color: #b0482c; background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, rgba(255,250,235,0) 74%); }
+      :is(#help .fig, #help .mini).waterStar { color: #8a3f5c; background: radial-gradient(circle, #d9ecef 0%, #7fb3c299 45%, rgba(255,250,235,0) 74%); }
       :is(#help .fig, #help .mini).charged.triangle { background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, var(--hud-bg) 75%); }
       :is(#help .fig, #help .mini).charged.triangleDown { background: radial-gradient(circle, #d9ecef 0%, #7fb3c299 45%, var(--hud-bg) 75%); }
       body.aiming canvas { cursor: crosshair; }

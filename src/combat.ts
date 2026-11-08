@@ -3,12 +3,13 @@ import { BODY_RADIUS, Character } from './character';
 import { HitMeLabel, Scarecrow } from './dummy';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { AREA_OF, PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, starTips, type Element, type Spells } from './spells';
+import { AREA_OF, PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells } from './spells';
 import { t } from './i18n';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
-// the blast (fire and water merged into an hourglass) 45 over a smaller area.
-export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45 };
+// the blast (fire and water merged into an hourglass) 45 over a smaller area, each tip of a fire or water star
+// (the star merged with fire or water) 20.
+export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45, fireStar: 20, waterStar: 20 };
 // Rhombus: heals the caster; 30% more when cast from inside a rune circle.
 export const HEAL = 25;
 const RUNE_HEAL_BOOST = 1.3;
@@ -55,6 +56,8 @@ interface Tuning {
   elemental: number;
   /** Chance, holding fire or water, of fetching the other one too to merge them into the hourglass (blast, 45). */
   blast: number;
+  /** Chance, holding fire or water, of drawing the star over it to merge them into a fire or water star (5×20). */
+  star: number;
   /** Chance of healing instead of attacking when at half health or less. */
   heal: number;
   /** Chance of an earth attack being the pentagram's columns (10) instead of the square's pillars (20). */
@@ -74,13 +77,13 @@ interface Tuning {
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, blast: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, star: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false },
+  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, blast: 0.15, star: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false },
   // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
-  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, blast: 0.5, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true },
+  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, blast: 0.5, star: 0.3, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true },
   // Hard pushed well further: relentless, sharp aim well ahead, dodges and walls most strikes, loves the blast;
   // the warning still leaves time to step out.
-  experto: { speed: 1.65, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.06, lead: 0.75, dodge: 0.75, reaction: 0.08, elemental: 0.7, blast: 0.75, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.6, fortress: 0.45, wallCooldown: 3.5, counter: true },
+  experto: { speed: 1.65, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.06, lead: 0.75, dodge: 0.75, reaction: 0.08, elemental: 0.7, blast: 0.75, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.6, fortress: 0.45, wallCooldown: 3.5, counter: true },
 };
 // The tutorial's ambush keeps the pace 'experto' had when it was tuned, so making the top level harder leaves it alone.
 const AMBUSH_PACE: Tuning = { ...TUNING.experto, cooldown: [2.3, 3], draw: 0.6, lead: 0.55 };
@@ -93,7 +96,9 @@ const RIVAL_LOOKS = [
   { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
   { coat: '#55406b', coatDark: '#3e2f50', ink: '#9b6fd8' },
 ];
-const ELEMENT_COLOR: Record<Element, string> = { earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c' };
+const ELEMENT_COLOR: Record<Element, string> = {
+  earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c', fireStar: '#ffb35c', waterStar: '#9fd6e3',
+};
 
 const projected = new THREE.Vector3();
 
@@ -107,7 +112,7 @@ const WALL_SKETCH = 0.35;
 // A rival only opens with a wall when its foe is this close: far off, the wall is not worth the turn.
 const FORTRESS_RANGE = 2.6;
 // The shapes drawn over a fighter's head when it stores a symbol, in a 40×40 box; every path starts where a hand would.
-export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass';
+export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass' | 'fireStar' | 'waterStar';
 const SKETCH_PATH: Record<Sketch, string> = {
   circle: 'M20 5 A15 15 0 1 1 19.9 5',
   square: 'M9 9 H31 V31 H9 Z',
@@ -116,6 +121,9 @@ const SKETCH_PATH: Record<Sketch, string> = {
   triangleDown: 'M20 34 L6 8 H34 Z',
   rhombus: 'M20 4 L34 20 L20 36 L6 20 Z',
   hourglass: 'M7 5 H33 L7 35 H33 Z',
+  // The star drawn inside fire's triangle, or inside water's upside-down one.
+  fireStar: 'M20 2 L38 35 H2 Z M20 15 L25.3 31.3 L11.4 21.2 H28.6 L14.7 31.3 Z',
+  waterStar: 'M20 38 L2 5 H38 Z M20 7 L25.3 23.3 L11.4 13.2 H28.6 L14.7 23.3 Z',
 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -295,6 +303,8 @@ const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
   fire: 'triangle',
   water: 'triangleDown',
   blast: 'hourglass',
+  fireStar: 'fireStar',
+  waterStar: 'waterStar',
   heal: 'rhombus',
 };
 const sketchFor = (plan: Plan): Sketch =>
@@ -412,12 +422,13 @@ class Rival extends Fighter<Character> {
     const tuning = this.pace;
     this.attackTimer = THREE.MathUtils.randFloat(...tuning.cooldown);
     const plan: Plan = this.ambush && foe === combat.heroFighter ? { kind: 'strike', element: 'earth' } : this.choose(combat, foe);
-    // Fire or water fetched earlier is already stored: no new shape to draw before casting it.
-    const drawn = !(plan.kind === 'strike' && this.charged);
+    // Fire or water fetched earlier is already stored: no new shape to draw before casting it (unless a star is
+    // drawn over it, to merge them).
+    const drawn = !(plan.kind === 'strike' && this.charged && !isStar(plan.element));
     // A wall goes up the moment its circle is finished; every other symbol is held a moment first.
     const delay = drawn ? tuning.draw + (plan.kind === 'wall' ? 0 : RIVAL_HOLD) : 0;
     // Two rivals never bring their strikes down on the alchemist together: the later one waits a moment.
-    if (plan.kind === 'strike' && !combat.book(foe, delay, plan.element === 'columns' ? STAR_STAGGER * 4 : 0, this.tuning.stagger)) {
+    if (plan.kind === 'strike' && !combat.book(foe, delay, isStar(plan.element) ? STAR_STAGGER * 4 : 0, this.tuning.stagger)) {
       this.attackTimer = THREE.MathUtils.randFloat(0.4, 0.8);
       return;
     }
@@ -467,6 +478,10 @@ class Rival extends Fighter<Character> {
     if ((this.charged === 'fire' || this.charged === 'water') && Math.random() < this.tuning.blast) {
       const other: Fluid = this.charged === 'fire' ? 'water' : 'fire';
       if (combat.findSource(other, this.position)) return { kind: 'charge', element: other };
+    }
+    // Or they draw the star over it: the two merge into a fire or water star, as for the player.
+    if ((this.charged === 'fire' || this.charged === 'water') && Math.random() < this.tuning.star) {
+      return { kind: 'strike', element: this.charged === 'fire' ? 'fireStar' : 'waterStar' };
     }
     return { kind: 'strike', element: this.charged ?? (Math.random() < this.tuning.columns ? 'columns' : 'earth') };
   }
@@ -771,8 +786,8 @@ export class Combat {
   strikeFrom(caster: Fighter, at: THREE.Vector3, element: Element, warn?: number, sure = false) {
     // Cast from inside a rune circle, the strike is 25% bigger.
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
-    if (element === 'columns') {
-      // The pentagram: five separate strikes at the star's tips around the target, spread wider from the runes too.
+    if (isStar(element)) {
+      // The pentagram (plain, fire or water): five separate strikes at the star's tips around the target, spread wider from the runes too.
       for (const tip of starTips(at, STAR_REACH * scale)) this.strikeOne(caster, tip.at, element, (warn ?? PILLAR_WARN) + tip.delay, scale);
       return;
     }
