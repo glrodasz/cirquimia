@@ -132,7 +132,7 @@ const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal' | 'root'; value: 
   { kind: 'rhombus', effect: 'heal', value: '25' },
   { kind: 'pentagram', effect: 'dmg', value: '5×10' },
   // The vine's point is holding the target still, not its 5 damage.
-  { kind: 'spiral', effect: 'root', value: '3 s' },
+  { kind: 'spiral', effect: 'root', value: '2 s' },
 ];
 const EFFECT = { dmg: t.help.damage, heal: t.help.healing, root: t.help.rooting };
 

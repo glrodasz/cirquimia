@@ -341,7 +341,7 @@ const elementOf = (kind: ShapeKind) => (kind === 'triangle' ? 'fire' : kind === 
  * Casts a shape at a ground point: circle = earth wall around the alchemist, square = pillars at that spot,
  * pentagram = five short earth columns around that spot, rhombus = heal the alchemist, triangles = fire / water,
  * hourglass (both triangles merged) = blast, fire / water star (the star merged with a triangle) = five flame bursts /
- * water spouts around that spot, spiral = vine that roots whoever it catches there for 3 s.
+ * water spouts around that spot, spiral = vine that roots whoever it catches there for 2 s.
  */
 function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   const element = elementOf(kind);

@@ -61,7 +61,7 @@ export const isStar = (element: Element) => element === 'columns' || element ===
 export const fluidOf = (element: Element): 'fire' | 'water' | null =>
   element === 'fire' || element === 'fireStar' ? 'fire' : element === 'water' || element === 'waterStar' ? 'water' : null;
 /** Seconds someone caught by the vine stays rooted: no walking (they can still draw and cast). */
-export const ROOT_TIME = 3;
+export const ROOT_TIME = 2;
 const SNARE_GROW = 0.25; // s for the coils to climb the legs
 const SNARE_WITHER = 0.4; // s for them to shrink back into the ground once it lets go
 const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
