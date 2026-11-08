@@ -87,3 +87,29 @@ export function circle(radius: number, o: Sloppy, r: () => number, cx = 200, cy 
   }
   return pts;
 }
+
+/** A spiral of `turns` laps from radius `inner` out to `outer`, drawn from the inside out unless `outsideIn`. */
+export function spiral(
+  turns: number,
+  outer: number,
+  o: Sloppy & { inner?: number; outsideIn?: boolean; squash?: number },
+  r: () => number,
+  cx = 200,
+  cy = 300,
+): Point[] {
+  const pts: Point[] = [];
+  const start = (o.start ?? 0) * Math.PI * 2;
+  const dir = o.clockwise === false ? -1 : 1;
+  const inner = o.inner ?? outer * 0.08;
+  const samples = Math.round(60 * turns);
+  for (let i = 0; i <= samples; i++) {
+    const u = i / samples;
+    const a = start + dir * u * turns * Math.PI * 2;
+    const rad = inner + (outer - inner) * u;
+    pts.push({
+      x: cx + Math.cos(a) * rad + (r() - 0.5) * (o.jitter ?? 0),
+      y: cy + Math.sin(a) * rad * (o.squash ?? 1) + (r() - 0.5) * (o.jitter ?? 0),
+    });
+  }
+  return o.outsideIn ? pts.reverse() : pts;
+}

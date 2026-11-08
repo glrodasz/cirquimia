@@ -11,6 +11,7 @@ const DRILL_OF: Record<Element, Drill> = {
   blast: 'hourglass',
   fireStar: 'fireStar',
   waterStar: 'waterStar',
+  vine: 'spiral',
 };
 
 function downArrow() {

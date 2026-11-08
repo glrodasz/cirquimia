@@ -17,6 +17,7 @@ export function aimMarks(kind: ShapeKind, boosted: boolean): AimMark[] {
   const r = PILLAR_AREA * scale;
   if (kind === 'square' || kind === 'triangle' || kind === 'triangleDown') return [{ x: 0, z: 0, r }];
   if (kind === 'hourglass') return [{ x: 0, z: 0, r: r * AREA_OF.blast }];
+  if (kind === 'spiral') return [{ x: 0, z: 0, r: r * AREA_OF.vine }];
   if (kind === 'pentagram' || kind === 'fireStar' || kind === 'waterStar') return starOffsets(STAR_REACH * scale).map((o) => ({ ...o, r }));
   return [];
 }
