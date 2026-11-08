@@ -53,8 +53,8 @@ export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
 // burst or a water spout instead of an earth column.
 // Spiral = vine: curling tendrils break out of the ground and whoever they catch is rooted to the spot for a while.
 export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast' | 'fireStar' | 'waterStar' | 'vine';
-/** Radius of each element's strike against the square's: the blast packs its punch into a smaller area. */
-export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6, fireStar: 1, waterStar: 1, vine: 1 };
+/** Radius of each element's strike against the square's: the blast and the vine hit a smaller area. */
+export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6, fireStar: 1, waterStar: 1, vine: 0.6 };
 /** The strikes that land as five separate hits at the tips of a star around the target. */
 export const isStar = (element: Element) => element === 'columns' || element === 'fireStar' || element === 'waterStar';
 /** Fire or water in a strike (a triangle's, or a star's merged with one), or null for earth and the blast. */
@@ -507,7 +507,7 @@ class PillarStrike extends Effect {
     const count = THREE.MathUtils.randInt(6, 8);
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.6);
-      const d = i === 0 ? 0 : PILLAR_AREA * THREE.MathUtils.randFloat(0.35, 0.95);
+      const d = i === 0 ? 0 : PILLAR_AREA * AREA_OF.vine * THREE.MathUtils.randFloat(0.35, 0.95);
       const h = i === 0 ? 0.42 : THREE.MathUtils.randFloat(0.2, 0.34);
       const geo = tendrilGeo(h, THREE.MathUtils.randFloat(0.035, 0.06), Math.random() < 0.5 ? 1 : -1, i === 0 ? 0.016 : 0.011);
       const mesh = this.addPiece(geo, VINE[i % VINE.length], x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0, 0.08));
