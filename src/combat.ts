@@ -3,13 +3,13 @@ import { BODY_RADIUS, Character } from './character';
 import { HitMeLabel, Scarecrow } from './dummy';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { AREA_OF, PILLAR_AREA, PILLAR_WARN, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells } from './spells';
+import { AREA_OF, PILLAR_AREA, PILLAR_WARN, ROOT_TIME, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells } from './spells';
 import { t } from './i18n';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
 // the blast (fire and water merged into an hourglass) 45 over a smaller area, each tip of a fire or water star
-// (the star merged with fire or water) 20.
-export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45, fireStar: 20, waterStar: 20 };
+// (the star merged with fire or water) 20, the vine (spiral) 5: its point is rooting the target for ROOT_TIME.
+export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45, fireStar: 20, waterStar: 20, vine: 5 };
 // Rhombus: heals the caster; 30% more when cast from inside a rune circle.
 export const HEAL = 25;
 const RUNE_HEAL_BOOST = 1.3;
@@ -97,7 +97,7 @@ const RIVAL_LOOKS = [
   { coat: '#55406b', coatDark: '#3e2f50', ink: '#9b6fd8' },
 ];
 const ELEMENT_COLOR: Record<Element, string> = {
-  earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c', fireStar: '#ffb35c', waterStar: '#9fd6e3',
+  earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c', fireStar: '#ffb35c', waterStar: '#9fd6e3', vine: '#8cc46a',
 };
 
 const projected = new THREE.Vector3();
@@ -112,7 +112,7 @@ const WALL_SKETCH = 0.35;
 // A rival only opens with a wall when its foe is this close: far off, the wall is not worth the turn.
 const FORTRESS_RANGE = 2.6;
 // The shapes drawn over a fighter's head when it stores a symbol, in a 40×40 box; every path starts where a hand would.
-export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass' | 'fireStar' | 'waterStar';
+export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass' | 'fireStar' | 'waterStar' | 'spiral';
 const SKETCH_PATH: Record<Sketch, string> = {
   circle: 'M20 5 A15 15 0 1 1 19.9 5',
   square: 'M9 9 H31 V31 H9 Z',
@@ -121,6 +121,7 @@ const SKETCH_PATH: Record<Sketch, string> = {
   triangleDown: 'M20 34 L6 8 H34 Z',
   rhombus: 'M20 4 L34 20 L20 36 L6 20 Z',
   hourglass: 'M7 5 H33 L7 35 H33 Z',
+  spiral: 'M20 20 C22 18 24 21 22 23 C19 26 14 22 15 18 C16 12 25 11 28 17 C31 24 25 31 18 31 C9 31 5 23 7 15 C9 7 19 3 27 6 C33 8 36 13 36 19',
   // The star drawn inside fire's triangle, or inside water's upside-down one.
   fireStar: 'M20 2 L38 35 H2 Z M20 15 L25.3 31.3 L11.4 21.2 H28.6 L14.7 31.3 Z',
   waterStar: 'M20 38 L2 5 H38 Z M20 7 L25.3 23.3 L11.4 13.2 H28.6 L14.7 23.3 Z',
@@ -134,6 +135,8 @@ interface Body {
   flash(): void;
   fall(): void;
   rise(): void;
+  /** Rooted to the spot for `seconds` (the vine): it cannot walk, but can still draw and cast. */
+  entangle?(seconds: number): void;
 }
 
 /** Health bar floating over a character's head, and the damage numbers that pop out of it. */
@@ -305,6 +308,7 @@ const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
   blast: 'hourglass',
   fireStar: 'fireStar',
   waterStar: 'waterStar',
+  vine: 'spiral',
   heal: 'rhombus',
 };
 const sketchFor = (plan: Plan): Sketch =>
@@ -906,6 +910,7 @@ export class Combat {
       if (f === caster || f.down || this.over) continue;
       if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
       f.hit(DAMAGE[element], element, this.camera);
+      if (element === 'vine') this.snare(f, caster);
       if (f === this.hero) {
         for (const r of this.rivals) r.ambush = false;
         this.onHeroHit();
@@ -915,9 +920,17 @@ export class Combat {
     for (const d of this.dummies) {
       if (d.down || Math.hypot(d.position.x - x, d.position.z - z) > area + DUMMY_RADIUS) continue;
       d.strike(DAMAGE[element], element, this.camera, boosted, (caster as Fighter | null)?.position);
+      if (element === 'vine' && !d.down) this.snare(d, caster);
       if (caster === this.hero) this.onDummyHit(element, boosted);
       if (d.down) this.onDummyDown();
     }
+  }
+
+  /** Caught by the vine: rooted to the spot (a scarecrow never walks anyway) with coils round the legs. */
+  private snare(f: Fighter, caster: unknown) {
+    if (f.down) return;
+    f.body.entangle?.(ROOT_TIME);
+    this.spells.snare(f.position, (caster as Fighter | null)?.ink ?? null);
   }
 
   update(dt: number) {

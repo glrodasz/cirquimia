@@ -124,19 +124,21 @@ function bookIcon(rand: () => number) {
   ], rand);
 }
 
-const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; source?: 'fire' | 'water' }> = [
+const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal' | 'root'; value: string; source?: 'fire' | 'water' }> = [
   { kind: 'circle', value: t.help.defence },
   { kind: 'square', effect: 'dmg', value: '20' },
   { kind: 'triangle', effect: 'dmg', value: '35', source: 'fire' },
   { kind: 'triangleDown', effect: 'dmg', value: '35', source: 'water' },
   { kind: 'rhombus', effect: 'heal', value: '25' },
   { kind: 'pentagram', effect: 'dmg', value: '5×10' },
+  // The vine's point is holding the target still, not its 5 damage.
+  { kind: 'spiral', effect: 'root', value: '3 s' },
 ];
-const EFFECT = { dmg: t.help.damage, heal: t.help.healing };
+const EFFECT = { dmg: t.help.damage, heal: t.help.healing, root: t.help.rooting };
 
 /** What training asks the player to try on the scarecrow: each attack, and any of them from a rune circle. */
-export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
-export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'hourglass', 'fireStar', 'waterStar', 'rune'];
+export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
+export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'spiral', 'hourglass', 'fireStar', 'waterStar', 'rune'];
 /** The drills tried in this training session, shown ticked in the symbols book; null outside training. */
 let practice: ReadonlySet<Drill> | null = null;
 export function showPractice(done: ReadonlySet<Drill> | null) {

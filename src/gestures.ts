@@ -11,6 +11,7 @@ export type ShapeKind =
   | 'square'
   | 'rhombus'
   | 'pentagram'
+  | 'spiral'
   | 'hourglass'
   | 'fireStar'
   | 'waterStar';
@@ -36,7 +37,10 @@ export interface Recognized {
   cx: number;
   cy: number;
   r: number;
-  /** Corners in drawing order (screen pixels); star tips for a pentagram; empty for a circle. */
+  /**
+   * Corners in drawing order (screen pixels); star tips for a pentagram; empty for a circle; for a spiral, the ideal
+   * open curve itself, sampled in drawing order.
+   */
   corners: Point[];
   /** How many times the stroke went round the shape (1 unless it was traced over again). */
   laps?: number;
@@ -56,6 +60,10 @@ const STAR_MAX_TIP_ANGLE = 75; // degrees; a pentagram tip is ~36°
 const STAR_MAX_TIP_SPREAD = 0.25; // tip distance spread / mean tip distance
 const ROUNDED_SQUARE_MIN_SWELL = 0.04; // four-fold radius swell, relative to the mean radius
 const ROUNDED_SQUARE_DOMINANCE = 2.5; // ...and this many times all the other wobble together
+const SPIRAL_MIN_TURNS = 1.4; // laps around its centre: a looser single coil reads as nothing
+const SPIRAL_MIN_GROWTH = 2; // outer coil's radius against the inner one's: a circle traced over twice stays a circle
+const SPIRAL_MIN_OPEN = 0.25; // gap between its two ends, as a fraction of the diagonal
+const SPIRAL_MAX_BACKTRACK = 0.12; // share of the turning that may go the wrong way (finger wobble near the centre)
 const LAP_NEAR = 0.2; // back within this fraction of the diagonal from the start closes a lap
 const LAP_MIN_LENGTH = 1.6; // a lap is at least this many diagonals long (circle ~2.2, diamond 2)
 
@@ -204,6 +212,9 @@ function sweepAround(points: Point[], cx: number, cy: number) {
  * A pentagram never passes its start mid-stroke, so it is still read from the whole stroke.
  */
 export function recognize(raw: Point[]): Recognized | null {
+  // A spiral is open and its radius keeps growing, so no closed shape can pass for one (nor it for them).
+  const spiral = recognizeSpiral(raw);
+  if (spiral) return spiral;
   const along = [0];
   for (let i = 1; i < raw.length; i++) along.push(along[i - 1] + dist(raw[i - 1], raw[i]));
   const total = along[along.length - 1];
@@ -444,6 +455,82 @@ function recognizeLap(raw: Point[], smooth: number): Recognized | null {
   return null;
 }
 
+/**
+ * Spiral (the vine): an open stroke that winds round and round one point, at least SPIRAL_MIN_TURNS laps, getting
+ * steadily further from it, from the inside out or the outside in. Snapped to an even (Archimedean) spiral with
+ * the same centre, laps, direction and outer end.
+ */
+function recognizeSpiral(raw: Point[]): Recognized | null {
+  if (raw.length < 12) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of raw) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const diag = Math.hypot(maxX - minX, maxY - minY);
+  if (diag < MIN_SIZE) return null;
+  // It ends far from where it began (centre to rim); a closed shape ends back near its start.
+  if (dist(raw[0], raw[raw.length - 1]) < diag * SPIRAL_MIN_OPEN) return null;
+  const box = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  let pts = resample(raw, 96);
+  // Read it from the inside out: the end nearer the middle is where the coil starts.
+  const outsideIn = dist(pts[0], box) > dist(pts[pts.length - 1], box);
+  if (outsideIn) pts = pts.slice().reverse();
+  const n = pts.length;
+  const mean = (ps: Point[]) => ({ x: ps.reduce((a, p) => a + p.x, 0) / ps.length, y: ps.reduce((a, p) => a + p.y, 0) / ps.length });
+  // The middle of a hand-drawn spiral is not quite the middle of its box: try a few and keep the first that works.
+  for (const c of [box, mean(pts), mean(pts.slice(0, Math.ceil(n * 0.3)))]) {
+    const angles = [Math.atan2(pts[0].y - c.y, pts[0].x - c.x)];
+    let forward = 0;
+    let back = 0;
+    for (let i = 1; i < n; i++) {
+      let d = Math.atan2(pts[i].y - c.y, pts[i].x - c.x) - Math.atan2(pts[i - 1].y - c.y, pts[i - 1].x - c.x);
+      if (d > Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      angles.push(angles[i - 1] + d);
+    }
+    const sweep = angles[n - 1] - angles[0];
+    const dir = Math.sign(sweep) || 1;
+    for (let i = 1; i < n; i++) {
+      const d = (angles[i] - angles[i - 1]) * dir;
+      if (d > 0) forward += d;
+      else back -= d;
+    }
+    const turns = Math.abs(sweep) / (Math.PI * 2);
+    if (turns < SPIRAL_MIN_TURNS || back > forward * SPIRAL_MAX_BACKTRACK) continue;
+    // Mean distance from the centre over each half lap: it must keep growing, lap after lap.
+    const halves: number[][] = [];
+    for (let i = 0; i < n; i++) {
+      const k = Math.min(Math.floor(((angles[i] - angles[0]) * dir) / Math.PI), Math.floor(turns * 2) - 1);
+      if (k < 0) continue;
+      (halves[k] ??= []).push(dist(pts[i], c));
+    }
+    const radii = halves.filter((h) => h?.length).map((h) => h.reduce((a, b) => a + b, 0) / h.length);
+    if (radii.length < 3) continue;
+    const growing = radii.every((r, i) => i === 0 || r > radii[i - 1] * 0.92);
+    const inner = Math.max(radii[0], 1);
+    const outer = radii[radii.length - 1];
+    if (!growing || outer < inner * SPIRAL_MIN_GROWTH) continue;
+    // Ideal: radius grows evenly with the angle from the drawn start to the drawn outer end.
+    const r0 = dist(pts[0], c) * 0.5;
+    const r1 = dist(pts[n - 1], c);
+    const a1 = angles[n - 1];
+    const total = Math.abs(sweep);
+    const curve: Point[] = [];
+    for (let i = 0; i <= 120; i++) {
+      const u = i / 120;
+      const a = a1 - dir * total * (1 - u);
+      const r = r0 + (r1 - r0) * u;
+      curve.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r });
+    }
+    if (outsideIn) curve.reverse();
+    return { kind: 'spiral', cx: c.x, cy: c.y, r: r1, corners: curve };
+  }
+  return null;
+}
+
 /** Closed outline of the ideal shape, as a polygon in screen pixels. */
 function outline(s: Recognized): Point[] {
   if (s.kind !== 'circle') return s.corners;
@@ -470,6 +557,7 @@ function signedArea(points: Point[]) {
  * arc length over exactly one lap, so a stroke that falls short or overshoots still closes cleanly.
  */
 export function idealPath(s: Recognized, stroke: Point[]): Point[] {
+  if (s.kind === 'spiral') return alongOpen(s.corners, stroke);
   let poly = outline(s);
   if (Math.sign(signedArea(poly)) !== Math.sign(signedArea(stroke))) poly = poly.slice().reverse();
   const n = poly.length;
@@ -505,6 +593,26 @@ export function idealPath(s: Recognized, stroke: Point[]): Point[] {
     const b = poly[(seg + 1) % n];
     const len = lengths[seg + 1] - lengths[seg];
     const t = len === 0 ? 0 : (target - lengths[seg]) / len;
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  });
+}
+
+/** An open curve has no lap to wrap round: each stroke point goes to the same share of the curve's length. */
+function alongOpen(curve: Point[], stroke: Point[]): Point[] {
+  const lengths = [0];
+  for (let i = 1; i < curve.length; i++) lengths.push(lengths[i - 1] + dist(curve[i - 1], curve[i]));
+  const length = lengths[lengths.length - 1];
+  const along = [0];
+  for (let i = 1; i < stroke.length; i++) along.push(along[i - 1] + dist(stroke[i - 1], stroke[i]));
+  const total = along[along.length - 1] || 1;
+  let seg = 0;
+  return along.map((l) => {
+    const target = (l / total) * length;
+    while (seg < curve.length - 2 && lengths[seg + 1] < target) seg++;
+    const len = lengths[seg + 1] - lengths[seg];
+    const t = len === 0 ? 0 : Math.min(1, (target - lengths[seg]) / len);
+    const a = curve[seg];
+    const b = curve[seg + 1];
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   });
 }

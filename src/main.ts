@@ -341,7 +341,7 @@ const elementOf = (kind: ShapeKind) => (kind === 'triangle' ? 'fire' : kind === 
  * Casts a shape at a ground point: circle = earth wall around the alchemist, square = pillars at that spot,
  * pentagram = five short earth columns around that spot, rhombus = heal the alchemist, triangles = fire / water,
  * hourglass (both triangles merged) = blast, fire / water star (the star merged with a triangle) = five flame bursts /
- * water spouts around that spot.
+ * water spouts around that spot, spiral = vine that roots whoever it catches there for 3 s.
  */
 function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   const element = elementOf(kind);
@@ -353,6 +353,7 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   else if (kind === 'rhombus') combat.heal();
   else if (kind === 'hourglass') combat.cast(at, 'blast');
   else if (kind === 'fireStar' || kind === 'waterStar') combat.cast(at, kind);
+  else if (kind === 'spiral') combat.cast(at, 'vine');
   else if (element) combat.cast(at, element);
   else impact.show(at.x, at.z);
 }
@@ -363,7 +364,7 @@ const HERO_TAP = 48; // px: a tap this close to the alchemist drops the shape in
 function walkTo(clientX: number, clientY: number) {
   if (combat.over || tutorial.aim() || !groundAt(clientX, clientY, hit)) return;
   hero.setTarget(hit);
-  marker.show(hero.target.x, hero.target.z);
+  if (!hero.rooted) marker.show(hero.target.x, hero.target.z); // held by a vine, it goes nowhere
 }
 
 /** A quick tap walks there, or casts the shape in hand there. */
@@ -393,7 +394,7 @@ function tapAt(clientX: number, clientY: number) {
     return;
   }
   hero.setTarget(hit);
-  marker.show(hero.target.x, hero.target.z);
+  if (!hero.rooted) marker.show(hero.target.x, hero.target.z); // held by a vine, it goes nowhere
 }
 
 /**

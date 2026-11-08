@@ -4,7 +4,7 @@ export type Pt = [number, number];
 
 // Each icon is one brush stroke in a 48×48 box, redrawn with fresh jitter every time so no two look stamped.
 const STAR: Pt[] = [[24, 9], [32.8, 36.1], [9.7, 19.4], [38.3, 19.4], [15.2, 36.1]];
-const OUTLINES: Record<Exclude<ShapeKind, 'circle'>, Pt[]> = {
+const OUTLINES: Record<Exclude<ShapeKind, 'circle' | 'spiral'>, Pt[]> = {
   triangle: [[24, 9], [38, 35], [10, 35]],
   triangleDown: [[24, 39], [38, 13], [10, 13]],
   square: [[12, 12], [36, 12], [36, 36], [12, 36]],
@@ -99,6 +99,17 @@ function strokeLine(kind: ShapeKind, rand: () => number): { line: Pt[]; corners:
     }
     return { line, corners };
   }
+  if (kind === 'spiral') {
+    // From the middle outward, a little over two laps, the hand loosening as it goes.
+    const turns = 2.3;
+    const a0 = rand() * Math.PI * 2;
+    for (let l = 0, a = 0; a < turns * Math.PI * 2; l += STEP) {
+      const r = 1.2 + (14.5 * a) / (turns * Math.PI * 2);
+      line.push([24 + Math.cos(a0 + a) * (r + tremor(l, k) * 0.6), 24 + Math.sin(a0 + a) * (r + tremor(l, k) * 0.6)]);
+      a += STEP / Math.max(r, 2.5);
+    }
+    return { line, corners };
+  }
   const poly = OUTLINES[kind];
   const sides = poly.length;
   const first = SELF_CROSSING.has(kind) ? 0 : Math.floor(rand() * sides);
@@ -155,7 +166,7 @@ export function shapeIcon(kind: ShapeKind): string {
   const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
   const id = `brush${++iconId}`;
   const { line, corners } = strokeLine(kind, rand);
-  const glyph = brushPath(line, SELF_CROSSING.has(kind) ? 3.2 : 3.9, rand, corners);
+  const glyph = brushPath(line, kind === 'spiral' ? 2.8 : SELF_CROSSING.has(kind) ? 3.2 : 3.9, rand, corners);
 
   const ring = brushPath(ensoLine(rand), 2.2, rand);
   return (
