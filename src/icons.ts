@@ -11,8 +11,11 @@ const figure = (x: number, s: number, cls: string) =>
 
 export function rivalsIcon(count: number) {
   if (count === 0)
-    // The training scarecrow: head, crossbar and stake.
-    return box('<g class="ink"><circle cx="12" cy="5.4" r="3.2"/><rect x="3.5" y="10" width="17" height="2.6"/><rect x="10.7" y="8" width="2.6" height="14"/></g>');
+    // Training: a target with a red bullseye (the old scarecrow read as a cross).
+    return box(
+      '<path class="ink" fill-rule="evenodd" d="M12 1.5A10.5 10.5 0 1 1 12 22.5A10.5 10.5 0 1 1 12 1.5ZM12 4.6A7.4 7.4 0 1 0 12 19.4A7.4 7.4 0 1 0 12 4.6Z"/>' +
+        '<circle class="red" cx="12" cy="12" r="4"/>',
+    );
   if (count === 1) return box(figure(0, 1, 'red'));
   if (count === 2) return box(figure(-3.6, 0.82, 'red') + figure(7.9, 0.82, 'green'));
   return box(figure(-2.5, 0.6, 'red') + figure(4.8, 0.6, 'green') + figure(12.1, 0.6, 'plum'));
