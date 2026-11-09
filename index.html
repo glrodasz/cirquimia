@@ -143,6 +143,23 @@
       #help-btn svg, #book-btn svg, #help svg { display: block; width: 100%; height: 100%; overflow: visible; }
       :is(#help-btn, #book-btn, #help) .ring { fill: var(--hud-fg); opacity: .32; }
       :is(#help-btn, #book-btn) .glyph { fill: #b5761f; }
+      /* HUD in the grimoire's print: square cards of cream paper with a double black rule, solid icons in black and red ink, small-caps Garamond. Same in light and dark. */
+      :root { --hud-paper: rgba(245,239,224,.95); --hud-ink: #1f1a15; --hud-red: #a3271c; }
+      #match .match-btn, #help-btn, #book-btn, #trophy-btn, #dev-gear { border-radius: 0; background: var(--hud-paper); color: var(--hud-ink); border: 1px solid var(--hud-ink); box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 2px 6px rgba(20,28,24,.18); backdrop-filter: none; -webkit-backdrop-filter: none; }
+      #match .match-btn { gap: 4px; padding: 0 9px 0 6px; font: 500 16px/1 'EB Garamond Variable', Garamond, Georgia, serif; font-variant-caps: small-caps; letter-spacing: .02em; }
+      #match .match-btn .cap::after { font-size: 13px; }
+      #match .match-btn:hover { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 3px 10px rgba(20,28,24,.28); }
+      #match .match-btn .disc { width: 24px; height: 24px; }
+      #match .match-btn .cap b { font-weight: 600; }
+      #match .match-btn .cap::after { content: " ↻"; opacity: .45; font-variant-caps: normal; }
+      #help-btn, #book-btn, #trophy-btn { padding: 8px; }
+      #dev-gear { opacity: .85; }
+      :is(#match, #help-btn, #book-btn, #trophy-btn) .hud-icon { display: block; width: 100%; height: 100%; overflow: visible; }
+      :is(#match, #help-btn, #book-btn, #trophy-btn) .hud-icon .ink { fill: var(--hud-ink); }
+      :is(#match, #help-btn, #book-btn, #trophy-btn) .hud-icon .faint { fill: var(--hud-ink); opacity: .2; }
+      #match .hud-icon .red { fill: var(--hud-red); } #match .hud-icon .green { fill: #3d6b3a; } #match .hud-icon .plum { fill: #6a3f7a; }
+      #match.spot .match-btn { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 0 0 2px var(--hud-red), 0 0 16px 3px rgba(163,39,28,.45); animation-name: hud-spot; }
+      @keyframes hud-spot { to { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 0 0 3px var(--hud-red), 0 0 24px 6px rgba(163,39,28,.6); transform: translateY(-2px); } }
       /* The help is an alchemist's book: leather cover, gold-stamped title, parchment pages that flip over from the spine.
          It stays parchment in dark mode too, like a real book. Sized to the visible viewport (--seen, set from
          visualViewport) so mobile toolbars never cover the page-turn buttons. */

@@ -4,6 +4,7 @@ import type { ShapeKind } from './gestures';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
+import { bookIcon, questionIcon } from './hudIcons';
 import '@fontsource-variable/alegreya/wght.css';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
@@ -106,24 +107,6 @@ export function waterIcon(rand: () => number) {
   return svg([drop(12, 'water', rand), stroke(arc(24, 29, 4.5, Math.PI * 0.6, Math.PI * 0.95), 2, 'water', rand)], rand);
 }
 
-function questionIcon(rand: () => number) {
-  const hook = arc(24, 19, 6.5, Math.PI * 1.05, Math.PI * 2.3);
-  return svg([
-    stroke(hook.concat(segment(hook[hook.length - 1], [24, 29])), 3.6, 'glyph', rand),
-    stroke(arc(24, 35.5, 0.8, 0, Math.PI * 2.2), 3.4, 'glyph', rand),
-  ], rand);
-}
-
-/** An open book: two pages sagging from the spine. */
-function bookIcon(rand: () => number) {
-  const page = (side: number) => poly([[24, 33], [24 - side * 4, 31], [24 - side * 11, 31.5], [24 - side * 11, 16], [24 - side * 4, 15.5], [24, 17.5]]);
-  return svg([
-    stroke(page(1), 2.8, 'glyph', rand),
-    stroke(page(-1), 2.8, 'glyph', rand),
-    stroke(segment([24, 18], [24, 32.5]), 2.2, 'glyph', rand),
-  ], rand);
-}
-
 const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; source?: 'fire' | 'water' }> = [
   { kind: 'circle', value: t.help.defence },
   { kind: 'square', effect: 'dmg', value: '20' },
@@ -221,18 +204,17 @@ function symbols() {
  * first visit) and the book lists the symbols. The game holds still while either is open.
  */
 export function mountHelp() {
-  const rand = random();
   const button = document.createElement('button');
   button.type = 'button';
   button.id = 'help-btn';
   button.setAttribute('aria-label', t.help.button);
-  button.innerHTML = questionIcon(rand);
+  button.innerHTML = questionIcon();
 
   const book = document.createElement('button');
   book.type = 'button';
   book.id = 'book-btn';
   book.setAttribute('aria-label', t.help.symbolsButton);
-  book.innerHTML = bookIcon(rand);
+  book.innerHTML = bookIcon();
 
   const overlay = document.createElement('div');
   overlay.id = 'help';
