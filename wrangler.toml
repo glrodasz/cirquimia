@@ -1,0 +1,12 @@
+# Cloudflare Pages configuration. With this file in the repo, the project's bindings live here
+# instead of in the dashboard: Pages reads it on every deploy (production and previews).
+name = "cirquimia"
+pages_build_output_dir = "./dist"
+compatibility_date = "2025-01-01"
+
+# The global leaderboard's database (src/leaderboard/server.ts). Its tables create themselves.
+# Top-level bindings apply to production and to every preview deployment.
+[[d1_databases]]
+binding = "DB"
+database_name = "cirquimia"
+database_id = "aa75c837-df2f-431a-a138-3abe4ca9164b"

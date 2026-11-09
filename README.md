@@ -183,6 +183,7 @@ docs/           diagrams
 | --- | --- |
 | [`estilos/README.md`](estilos/README.md) | The visual style experiments that led to the Bruma look (Spanish) |
 | [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | The test, build and Cloudflare Pages deploy pipeline |
+| [`docs/leaderboard.md`](docs/leaderboard.md) | The global leaderboard: score formula, API, stored device data and the one-time D1 setup |
 
 ## Contributing
 
