@@ -219,7 +219,7 @@ function shapePath(ctx: CanvasRenderingContext2D, s: Recognized, scale: number) 
   ctx.beginPath();
   if (s.kind !== 'circle') {
     for (const p of s.corners) ctx.lineTo((p.x - s.cx) * scale, (p.y - s.cy) * scale);
-    ctx.closePath();
+    if (s.kind !== 'spiral') ctx.closePath(); // the spiral is the one open shape
   } else {
     ctx.arc(0, 0, s.r * scale, 0, Math.PI * 2);
   }

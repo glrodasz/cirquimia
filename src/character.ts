@@ -137,6 +137,8 @@ export class Character {
   /** 0 standing, 1 lying on the ground. */
   private fallen = 0;
   private down = false;
+  /** Seconds left rooted to the spot by a vine: no walking until then. */
+  private rootedFor = 0;
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -251,8 +253,20 @@ export class Character {
     this.castTimer = CAST_TIME;
   }
 
-  setTarget(point: THREE.Vector3) {
+  /** Held by a vine for `seconds`: it stops where it stands and cannot walk until it lets go (casting still works). */
+  entangle(seconds: number) {
     if (this.down) return;
+    this.rootedFor = Math.max(this.rootedFor, seconds);
+    this.stop();
+  }
+
+  /** True while a vine holds it in place. */
+  get rooted() {
+    return this.rootedFor > 0 && !this.down;
+  }
+
+  setTarget(point: THREE.Vector3) {
+    if (this.down || this.rooted) return;
     this.target.set(point.x, 0, point.z);
     // Never aim inside a tree or a big rock; push the goal to its edge.
     for (const o of this.obstacles) {
@@ -277,7 +291,7 @@ export class Character {
    * Call it every frame while the keys are held, then halt().
    */
   steer(dx: number, dz: number) {
-    if (this.down) return;
+    if (this.down || this.rooted) return;
     const pos = this.root.position;
     this.target.set(pos.x + dx * STEER_AHEAD, 0, pos.z + dz * STEER_AHEAD);
     this.path = [{ x: this.target.x, z: this.target.z }];
@@ -294,7 +308,7 @@ export class Character {
   ahead(seconds: number, out = new THREE.Vector3()) {
     const pos = this.root.position;
     out.set(pos.x, 0, pos.z);
-    if (this.down) return out;
+    if (this.down || this.rooted) return out;
     let left = this.speed * seconds;
     let dx = 0;
     let dz = 0;
@@ -364,6 +378,7 @@ export class Character {
 
   update(dt: number) {
     this.time += dt;
+    this.rootedFor = Math.max(0, this.rootedFor - dt);
     const pos = this.root.position;
     // Drop corners already reached; the last waypoint is the target.
     while (this.path.length > 1 && Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < WAYPOINT_RADIUS) this.path.shift();
