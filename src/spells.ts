@@ -21,6 +21,7 @@ export const PILLAR_AREA = 0.17; // radius of the cluster, about one alchemist w
 
 // Pentagram = earth columns: five separate, lower square strikes at the tips of a star around the target.
 const COLUMN_SCALE = 0.6; // pillar height against the square's: each one only hits for half
+const STAR_FLUID_SCALE = 0.75; // a fire or water star's flames and spouts against a triangle's
 export const STAR_REACH = 0.5; // from the target to each tip, world units: the target itself sits between them
 export const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
 
@@ -48,9 +49,21 @@ export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
 
 // Triangles = fire (apex up) and water (apex down): drawn from a source first, then cast like the square.
 // Fire and water merged in hand (the hourglass) = blast: a tighter burst of flame and steam that hits harder.
-export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast';
-/** Radius of each element's strike against the square's: the blast packs its punch into a smaller area. */
-export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6 };
+// The star merged in hand with fire or water = fire star / water star: the pentagram's five tips, each one a flame
+// burst or a water spout instead of an earth column.
+// Spiral = vine: curling tendrils break out of the ground and whoever they catch is rooted to the spot for a while.
+export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast' | 'fireStar' | 'waterStar' | 'vine';
+/** Radius of each element's strike against the square's: the blast and the vine hit a smaller area. */
+export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6, fireStar: 1, waterStar: 1, vine: 0.6 };
+/** The strikes that land as five separate hits at the tips of a star around the target. */
+export const isStar = (element: Element) => element === 'columns' || element === 'fireStar' || element === 'waterStar';
+/** Fire or water in a strike (a triangle's, or a star's merged with one), or null for earth and the blast. */
+export const fluidOf = (element: Element): 'fire' | 'water' | null =>
+  element === 'fire' || element === 'fireStar' ? 'fire' : element === 'water' || element === 'waterStar' ? 'water' : null;
+/** Seconds someone caught by the vine stays rooted: no walking (they can still draw and cast). */
+export const ROOT_TIME = 2;
+const SNARE_GROW = 0.25; // s for the coils to climb the legs
+const SNARE_WITHER = 0.4; // s for them to shrink back into the ground once it lets go
 const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
 
 // Rhombus = healing on the caster: thin lines of light rising up through the body.
@@ -89,7 +102,14 @@ const FIRE_CORE = '#ffd67a';
 const WATER = ['#7fb3c2', '#93c4cf', '#6a9fb1'];
 const WATER_FOAM = '#d9ecef';
 const STEAM = ['#e8eeec', '#d3dedd', '#f4efe2'];
-const WARNING: Record<Element, string> = { earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866', blast: '#8a2f1c' };
+// Muted meadow greens, a touch brighter than the grass so the vines read on it.
+const VINE = ['#5f9a40', '#72aa4c', '#4f8236'];
+const LEAF = '#8cb35e';
+const leafGeo = new THREE.OctahedronGeometry(1, 0);
+const leafMaterial = new THREE.MeshLambertMaterial({ color: LEAF, flatShading: true });
+const WARNING: Record<Element, string> = {
+  earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866', blast: '#8a2f1c', fireStar: '#c4552c', waterStar: '#2f5866', vine: '#2f4a26',
+};
 
 const tmpColor = new THREE.Color();
 const easeOutBack = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
@@ -340,7 +360,8 @@ function wallSegment(cx: number, cz: number, a: Section, b: Section, capStart: b
 /**
  * A tremor on the ground, then the strike breaks out: slanted square pillars of rock (square),
  * five short columns at the tips of a star (pentagram), a burst of flame tongues (fire triangle)
- * a spout of water (water triangle) or a tight burst of flame and steam (hourglass: fire and water merged).
+ * a spout of water (water triangle), a tight burst of flame and steam (hourglass: fire and water merged)
+ * or, at each tip of a fire or water star, a lower burst of flame or spout of water.
  */
 class PillarStrike extends Effect {
   readonly obstacles: Obstacle[] = [];
@@ -370,7 +391,8 @@ class PillarStrike extends Effect {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
     else if (element === 'blast') this.buildBlast();
-    else this.buildFluid(element === 'fire');
+    else if (element === 'vine') this.buildVines();
+    else this.buildFluid(fluidOf(element) === 'fire', isStar(element) ? STAR_FLUID_SCALE : 1);
     if (scale !== 1) {
       // Grow the cluster about its centre: spread, width and height alike.
       for (const p of this.pieces) {
@@ -448,12 +470,12 @@ class PillarStrike extends Effect {
     }
   }
 
-  /** Flame tongues or water spouts: a tall core with shorter ones around it, all swaying while up. */
-  private buildFluid(fire: boolean) {
+  /** Flame tongues or water spouts: a tall core with shorter ones around it, all swaying while up; `tall` shortens them. */
+  private buildFluid(fire: boolean, tall = 1) {
     const { x, z } = this;
     const palette = fire ? FIRE : WATER;
     const add = (px: number, pz: number, w: number, h: number, color: string, delay: number, tilt: number, toward: number) => {
-      const mesh = this.addPiece(fire ? flameGeo : spoutGeo, color, px, pz, h, delay);
+      const mesh = this.addPiece(fire ? flameGeo : spoutGeo, color, px, pz, h * tall, delay);
       const m = mesh.material as THREE.MeshLambertMaterial;
       // Lit from within so it glows against the muted meadow.
       m.emissive.set(color).multiplyScalar(fire ? 0.75 : 0.35);
@@ -462,7 +484,7 @@ class PillarStrike extends Effect {
         m.opacity = 0.82;
       }
       mesh.castShadow = fire ? false : true;
-      mesh.scale.set(w, h, w);
+      mesh.scale.set(w, h * tall, w);
       mesh.rotation.set(tilt, toward, 0, 'YXZ');
       mesh.userData.base = mesh.scale.clone();
       mesh.userData.phase = Math.random() * 10;
@@ -476,6 +498,30 @@ class PillarStrike extends Effect {
       const h = THREE.MathUtils.randFloat(0.14, 0.3);
       const w = THREE.MathUtils.randFloat(0.06, 0.1);
       add(x + Math.sin(a) * d, z + Math.cos(a) * d, w, h, palette[i % palette.length], THREE.MathUtils.randFloat(0.02, 0.08), THREE.MathUtils.randFloat(0.15, 0.4), a);
+    }
+  }
+
+  /** The vine: curling green tendrils that whip up out of the ground, a leaf here and there, swaying while up. */
+  private buildVines() {
+    const { x, z } = this;
+    const count = THREE.MathUtils.randInt(6, 8);
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.6);
+      const d = i === 0 ? 0 : PILLAR_AREA * AREA_OF.vine * THREE.MathUtils.randFloat(0.35, 0.95);
+      const h = i === 0 ? 0.42 : THREE.MathUtils.randFloat(0.2, 0.34);
+      const geo = tendrilGeo(h, THREE.MathUtils.randFloat(0.035, 0.06), Math.random() < 0.5 ? 1 : -1, i === 0 ? 0.016 : 0.011);
+      const mesh = this.addPiece(geo, VINE[i % VINE.length], x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0, 0.08));
+      this.pieces[this.pieces.length - 1].geo = geo;
+      mesh.rotation.set(THREE.MathUtils.randFloat(0.1, 0.3), a, 0, 'YXZ'); // leaning out, away from the middle
+      mesh.userData.base = mesh.scale.clone();
+      mesh.userData.phase = Math.random() * 10;
+      for (let k = 0; k < 2; k++) {
+        const leaf = new THREE.Mesh(leafGeo, leafMaterial);
+        leaf.scale.set(0.028, 0.008, 0.05);
+        leaf.position.set(THREE.MathUtils.randFloatSpread(0.04), h * THREE.MathUtils.randFloat(0.35, 0.75), THREE.MathUtils.randFloatSpread(0.04));
+        leaf.rotation.set(THREE.MathUtils.randFloatSpread(0.8), Math.random() * Math.PI * 2, 0.5);
+        mesh.add(leaf);
+      }
     }
   }
 
@@ -536,9 +582,10 @@ class PillarStrike extends Effect {
       for (const p of this.pieces) p.mesh.visible = false;
       this.solid = false;
     }
-    if (this.element === 'fire' || this.element === 'water') {
+    const fluid = fluidOf(this.element);
+    if (fluid) {
       // Flames lick and water churns: each tongue breathes in height and width on its own beat.
-      const fast = this.element === 'fire' ? 22 : 14;
+      const fast = fluid === 'fire' ? 22 : 14;
       for (const p of this.pieces) {
         const base = p.mesh.userData.base as THREE.Vector3;
         const k = this.age * fast + (p.mesh.userData.phase as number);
@@ -547,6 +594,10 @@ class PillarStrike extends Effect {
       }
     }
     if (this.element === 'blast' && t >= 0) this.animateBlast(t);
+    if (this.element === 'vine') {
+      // The tendrils sway like something alive feeling for a leg to grab.
+      for (const p of this.pieces) p.mesh.rotation.z = Math.sin(this.age * 7 + (p.mesh.userData.phase as number)) * 0.18;
+    }
     if (t < 0) {
       // Grows and shudders during the warning so a target can still step out.
       const w = 1 + t / this.warn;
@@ -591,6 +642,98 @@ class PillarStrike extends Effect {
     super.dispose();
     this.crackMaterial.dispose();
     this.inkMaterial?.dispose();
+  }
+}
+
+/**
+ * One vine tendril, base at y = 0 and `height` tall: it climbs with a slight sway, then curls over at the tip into
+ * a hook of `curl` radius, turning one way or the other (`hand`). Low-poly tube, four sides.
+ */
+function tendrilGeo(height: number, curl: number, hand: number, thick: number) {
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const a = t * Math.PI * 2.2 * hand;
+    const r = curl * t * t;
+    pts.push(new THREE.Vector3(Math.sin(a) * r + Math.sin(t * 3) * 0.01, height * (t - 0.25 * t * t * t), (Math.cos(a) - 1) * r));
+  }
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 18, thick, 4, false);
+}
+
+/**
+ * The vine that caught someone: coils wound round their legs that climb up, hold them for ROOT_TIME and then
+ * wither back into the ground. It follows the target, which cannot walk anyway, in case it falls.
+ */
+class Snare {
+  readonly group = new THREE.Group();
+  readonly obstacles: Obstacle[] = [];
+  readonly solid = false;
+  done = false;
+  private age = 0;
+  private readonly geos: THREE.BufferGeometry[] = [];
+  private readonly material: THREE.MeshLambertMaterial;
+
+  constructor(private readonly target: THREE.Vector3, ink: string | null) {
+    this.material = new THREE.MeshLambertMaterial({ color: VINE[0], flatShading: true });
+    if (ink) this.material.emissive.set(ink).multiplyScalar(0.18);
+    const add = (pts: THREE.Vector3[], thick: number, leafAt: THREE.Vector3 | null, turn: number) => {
+      const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 36, thick, 4, false);
+      this.geos.push(geo);
+      const mesh = new THREE.Mesh(geo, this.material);
+      mesh.castShadow = true;
+      this.group.add(mesh);
+      if (!leafAt) return;
+      const leaf = new THREE.Mesh(leafGeo, leafMaterial);
+      leaf.scale.set(0.035, 0.01, 0.065);
+      leaf.position.copy(leafAt);
+      leaf.rotation.set(0.4, turn, 0.6);
+      mesh.add(leaf);
+    };
+    for (let k = 0; k < 3; k++) {
+      // A loose helix round the shins, each coil starting from its own side and winding up to the knees.
+      const phase = (k / 3) * Math.PI * 2;
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 24; i++) {
+        const t = i / 24;
+        const a = phase + t * Math.PI * 2 * 1.6 * (k % 2 ? -1 : 1);
+        const r = 0.11 - t * 0.03;
+        pts.push(new THREE.Vector3(Math.sin(a) * r, t * 0.34, Math.cos(a) * r));
+      }
+      const top = pts[pts.length - 1];
+      add(pts, 0.017, new THREE.Vector3(top.x * 1.4, top.y, top.z * 1.4), phase);
+    }
+    for (let k = 0; k < 6; k++) {
+      // Roots splayed out over the ground, so the snare reads from above too.
+      const a = (k / 6) * Math.PI * 2 + THREE.MathUtils.randFloatSpread(0.5);
+      const len = THREE.MathUtils.randFloat(0.16, 0.26);
+      const bend = THREE.MathUtils.randFloatSpread(0.6);
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 6; i++) {
+        const t = i / 6;
+        const b = a + bend * t;
+        const r = 0.08 + len * t;
+        pts.push(new THREE.Vector3(Math.sin(b) * r, 0.03 + Math.sin(t * Math.PI) * 0.03, Math.cos(b) * r));
+      }
+      add(pts, 0.013, k % 2 ? pts[4].clone().setY(0.05) : null, a);
+    }
+    this.group.scale.set(1, 0.01, 1);
+    this.group.position.copy(target);
+  }
+
+  update(dt: number) {
+    this.age += dt;
+    this.group.position.copy(this.target);
+    const grow = Math.min(1, this.age / SNARE_GROW);
+    const wither = THREE.MathUtils.clamp((this.age - ROOT_TIME) / SNARE_WITHER, 0, 1);
+    const up = easeOutBack(grow) * (1 - easeIn(wither));
+    this.group.scale.set(1 + (1 - up) * 0.3, Math.max(0.01, up), 1 + (1 - up) * 0.3);
+    this.group.rotation.y = Math.sin(this.age * 3) * 0.05;
+    if (wither >= 1) this.done = true;
+  }
+
+  dispose() {
+    for (const g of this.geos) g.dispose();
+    this.material.dispose();
   }
 }
 
@@ -765,7 +908,7 @@ class DeniedMark {
   }
 }
 
-type Active = EarthWall | PillarStrike | Channel | DeniedMark | HealGlow;
+type Active = EarthWall | PillarStrike | Channel | DeniedMark | HealGlow | Snare;
 
 /** What each transmutation circle does once it is spent on the map. */
 export class Spells {
@@ -808,6 +951,11 @@ export class Spells {
   /** Rising lines of light on someone being healed (followed while it lasts); a dashed ring when boosted by runes. */
   heal(target: THREE.Vector3, ink: string | null = null, boosted = false) {
     this.start(new HealGlow(target, ink, boosted));
+  }
+
+  /** Vine coiled round someone's legs (followed while it lasts), holding them for ROOT_TIME. */
+  snare(target: THREE.Vector3, ink: string | null = null) {
+    this.start(new Snare(target, ink));
   }
 
   /** Drops every effect at once, e.g. when a new meadow replaces the terrain they were built on. */

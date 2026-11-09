@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chargedInHand, recognize, type ShapeKind } from '../src/gestures';
-import { circle, regular, rng, squareCorners, trace, type Sloppy } from './strokes';
+import { idealPath, mergedInHand, recognize, type ShapeKind } from '../src/gestures';
+import { circle, regular, rng, spiral, squareCorners, trace, type Sloppy } from './strokes';
 
 /** Draws `count` random strokes and tallies what they read as. */
 function tally(count: number, seed: number, draw: (r: () => number) => ReturnType<typeof trace>) {
@@ -74,16 +74,80 @@ describe('circles stay circles', () => {
   });
 });
 
-describe('chargedInHand', () => {
+describe('mergedInHand', () => {
   it('merges fire and water, in either order, into the hourglass', () => {
-    expect(chargedInHand('triangle', 'triangleDown')).toBe('hourglass');
-    expect(chargedInHand('triangleDown', 'triangle')).toBe('hourglass');
+    expect(mergedInHand('triangle', 'triangleDown')).toBe('hourglass');
+    expect(mergedInHand('triangleDown', 'triangle')).toBe('hourglass');
+  });
+
+  it('merges the star with fire or water, in either order, into a fire or water star', () => {
+    expect(mergedInHand('pentagram', 'triangle')).toBe('fireStar');
+    expect(mergedInHand('triangle', 'pentagram')).toBe('fireStar');
+    expect(mergedInHand('pentagram', 'triangleDown')).toBe('waterStar');
+    expect(mergedInHand('triangleDown', 'pentagram')).toBe('waterStar');
   });
 
   it('just replaces anything else in hand', () => {
-    expect(chargedInHand(null, 'triangle')).toBe('triangle');
-    expect(chargedInHand('triangle', 'triangle')).toBe('triangle');
-    expect(chargedInHand('square', 'triangleDown')).toBe('triangleDown');
-    expect(chargedInHand('hourglass', 'triangle')).toBe('triangle');
+    expect(mergedInHand(null, 'triangle')).toBe('triangle');
+    expect(mergedInHand(null, 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('triangle', 'triangle')).toBe('triangle');
+    expect(mergedInHand('pentagram', 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('square', 'triangleDown')).toBe('triangleDown');
+    expect(mergedInHand('hourglass', 'triangle')).toBe('triangle');
+    expect(mergedInHand('hourglass', 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('fireStar', 'triangleDown')).toBe('triangleDown');
+    expect(mergedInHand('waterStar', 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('triangle', 'square')).toBe('square');
+  });
+});
+
+describe('spiral (vine)', () => {
+  it('reads everyday spirals, either way round, inside out or outside in', () => {
+    const t = tally(300, 21, (r) =>
+      spiral(1.6 + r() * 1.6, 60 + r() * 80, {
+        start: r(),
+        clockwise: r() < 0.5,
+        outsideIn: r() < 0.4,
+        jitter: r() * 5,
+        squash: 0.8 + r() * 0.35,
+        inner: r() * 12,
+      }, r),
+    );
+    expect(t.spiral ?? 0).toBeGreaterThanOrEqual(290);
+  });
+
+  it('a circle traced over twice, even drifting inward, stays a circle', () => {
+    const t = tally(300, 23, (r) => {
+      const pts = circle(50 + r() * 60, { start: r(), clockwise: r() < 0.5, jitter: r() * 5, over: 0.2 + r() * 0.9 }, r);
+      // The hand drifts in a little as it goes round again.
+      const drift = r() * 0.15;
+      return pts.map((p, i) => {
+        const k = 1 - (drift * i) / pts.length;
+        return { x: 200 + (p.x - 200) * k, y: 300 + (p.y - 300) * k };
+      });
+    });
+    expect(t.spiral ?? 0).toBe(0);
+    expect(t.circle ?? 0).toBeGreaterThanOrEqual(290);
+  });
+
+  it('a single loose coil is not a spiral', () => {
+    expect(recognize(spiral(1, 100, {}, rng(3)))?.kind).not.toBe('spiral');
+  });
+
+  it('squares and stars traced over twice never read as a spiral', () => {
+    const r = rng(29);
+    for (let i = 0; i < 100; i++) {
+      expect(recognize(trace(squareCorners(80 + r() * 100), { start: r(), over: 1, jitter: 4 }, r))?.kind).not.toBe('spiral');
+    }
+  });
+
+  it('snaps onto an open curve that starts and ends where the stroke does', () => {
+    const stroke = spiral(2.5, 100, { jitter: 3 }, rng(5));
+    const shape = recognize(stroke)!;
+    expect(shape.kind).toBe('spiral');
+    const ideal = idealPath(shape, stroke);
+    const end = stroke[stroke.length - 1];
+    const last = ideal[ideal.length - 1];
+    expect(Math.hypot(end.x - last.x, end.y - last.y)).toBeLessThan(6);
   });
 });

@@ -94,19 +94,21 @@ const padOverlay = (rand: () => number) =>
 
 /** A teardrop: the tip, down one side, round the belly and back up. */
 
-const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; source?: 'fire' | 'water' }> = [
+const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal' | 'root'; value: string; source?: 'fire' | 'water' }> = [
   { kind: 'circle', value: t.help.defence },
   { kind: 'square', effect: 'dmg', value: '20' },
   { kind: 'triangle', effect: 'dmg', value: '35', source: 'fire' },
   { kind: 'triangleDown', effect: 'dmg', value: '35', source: 'water' },
   { kind: 'rhombus', effect: 'heal', value: '25' },
   { kind: 'pentagram', effect: 'dmg', value: '5×10' },
+  // The vine's point is holding the target still, not its 5 damage.
+  { kind: 'spiral', effect: 'root', value: '2 s' },
 ];
-const EFFECT = { dmg: t.help.damage, heal: t.help.healing };
+const EFFECT = { dmg: t.help.damage, heal: t.help.healing, root: t.help.rooting };
 
 /** What training asks the player to try on the scarecrow: each attack, and any of them from a rune circle. */
-export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'hourglass' | 'rune';
-export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'hourglass', 'rune'];
+export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
+export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'spiral', 'hourglass', 'fireStar', 'waterStar', 'rune'];
 /** The drills tried in this training session, shown ticked in the symbols book; null outside training. */
 let practice: ReadonlySet<Drill> | null = null;
 export function showPractice(done: ReadonlySet<Drill> | null) {
@@ -155,14 +157,14 @@ function guide() {
 /** The symbols manual: every shape and what it does, then where fire and water get charged, then what they make together. */
 function symbols() {
   // An index, like the contents of an old grimoire: numeral, the symbol in a fine nib, its name, a dotted leader, its value.
-  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
   const shapes = SHAPES.map(
     (s, i) =>
       `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}><span class="rn">${ROMAN[i]}</span>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.names[s.kind]}</b>` +
       (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>` : '') +
       `<span class="lead"></span><span class="val${s.effect ? ` val-${s.effect}` : ' val-def'}">${s.effect === 'heal' ? '+' : ''}${s.value}</span></li>`,
   ).join('');
-  const legend = `<p class="legend"><span class="val-dmg">${EFFECT.dmg}</span> · <span class="val-heal">${EFFECT.heal}</span></p>`;
+  const legend = `<p class="legend"><span class="val-dmg">${EFFECT.dmg}</span> · <span class="val-heal">${EFFECT.heal}</span> · <span class="val-root">${EFFECT.root}</span></p>`;
   const notes =
     `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
     `<li><span class="src">${flameIcon()}</span><span>${t.help.fireNote}</span></li>` +
@@ -172,13 +174,17 @@ function symbols() {
   const progress = practice
     ? `<p class="training">${tried === DRILLS.length ? t.practice.allDone : t.practice.progress(tried, DRILLS.length)}</p>`
     : '';
-  // Fire + water = the hourglass: the two charged triangles merge in hand into the blast.
+  // Two symbols merged in hand: fire + water = the hourglass (blast), the star + fire or water = a fire or water star.
+  const part = (kind: ShapeKind) => fig(kind === 'pentagram' ? kind : `${kind} charged`, shapeIcon(kind, true));
+  const merge = (a: ShapeKind, b: ShapeKind, out: 'hourglass' | 'fireStar' | 'waterStar', value: string) =>
+    `<div class="combo"${drillClass(out)}>${part(a)}<span class="op">+</span>${part(b)}<span class="op">=</span>` +
+    `<span class="out">${fig(out, shapeIcon(out, true))}<b>${t.help.names[out]}</b>` +
+    `<span class="val val-dmg"><small>${EFFECT.dmg}</small> ${value}</span></span></div>`;
   const combo =
     `<h3>${t.help.comboTitle}</h3>` +
-    `<div class="combo"${drillClass('hourglass')}>` +
-    `${fig('triangle charged', shapeIcon('triangle', true))}<span class="op">+</span>${fig('triangleDown charged', shapeIcon('triangleDown', true))}<span class="op">=</span>` +
-    `<span class="out">${fig('hourglass', shapeIcon('hourglass', true))}<b>${t.help.names.hourglass}</b>` +
-    `<span class="val val-dmg"><small>${EFFECT.dmg}</small> 45</span></span></div>` +
+    merge('triangle', 'triangleDown', 'hourglass', '45') +
+    merge('pentagram', 'triangle', 'fireStar', '5×20') +
+    merge('pentagram', 'triangleDown', 'waterStar', '5×20') +
     `<p class="combo-note">${t.help.comboNote}</p>`;
   return bookCard('manual', t.help.shapesTitle, [`${progress}<ol class="shapes">${shapes}</ol>${legend}`, notes, combo], t.help.pageOf);
 }

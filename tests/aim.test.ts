@@ -39,6 +39,11 @@ describe('aimMarks', () => {
     expect(AREA_OF.blast).toBeLessThan(1);
   });
 
+  it('is the star\'s five marks for the fire and water stars', () => {
+    expect(aimMarks('fireStar', false)).toEqual(aimMarks('pentagram', false));
+    expect(aimMarks('waterStar', true)).toEqual(aimMarks('pentagram', true));
+  });
+
   it('has nothing for shapes that need no target', () => {
     expect(aimMarks('circle', false)).toEqual([]);
     expect(aimMarks('rhombus', true)).toEqual([]);
