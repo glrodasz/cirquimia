@@ -25,13 +25,14 @@ The board shows only Mobile / Tablet / Desktop; each row also stores OS, device 
 phone/tablet, Mac, PC…), browser, model and OS version where the browser offers them, screen, language,
 country and the user agent. Addresses are stored only as a salted hash (`SCORE_SALT`, optional).
 
-## Setup (once, in the Cloudflare dashboard)
+## Setup
 
-1. **Storage & Databases → D1 → Create database**, name `cirquimia`.
-2. **Workers & Pages → cirquimia → Settings → Bindings → Add → D1 database**: variable name `DB`,
-   database `cirquimia`. Do it for **Production** and **Preview**.
-3. Optional: **Settings → Variables and secrets → Add** `SCORE_SALT` (any random text), as a secret.
-4. Redeploy (push to the branch or re-run the Deploy workflow); bindings apply to new deployments.
+The database binding lives in `wrangler.toml` (D1 `cirquimia` bound as `DB` for production and every
+preview), so Pages picks it up on each deploy and the dashboard's bindings are read-only. To recreate it:
+
+1. `npx wrangler d1 create cirquimia` and put the printed `database_id` in `wrangler.toml`.
+2. Optional: `npx wrangler pages secret put SCORE_SALT --project-name cirquimia` (any random text).
+3. Deploy (push or re-run the Deploy workflow).
 
 Without the binding the game still works and the victory card says the leaderboard is unavailable.
 
