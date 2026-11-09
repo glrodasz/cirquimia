@@ -3,6 +3,7 @@
  * with the score, the time, the match and the place on the board. Phones open the system share sheet
  * with the image; elsewhere the image downloads and the text is copied.
  */
+import '@fontsource-variable/alegreya/wght.css'; // the card's title face, whatever the rest of the UI loads
 import { brushPath, ensoLine } from '../ammo';
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
