@@ -1,4 +1,4 @@
-import { brushPath, type Pt } from './ammo';
+import { downArrow } from './icons';
 import { DRILLS, showPractice, type Drill } from './help';
 import type { Element } from './spells';
 import { t } from './i18n';
@@ -14,14 +14,6 @@ const DRILL_OF: Record<Element, Drill> = {
   vine: 'spiral',
 };
 
-function downArrow() {
-  let seed = 3;
-  const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
-  const line = (a: Pt, b: Pt): Pt[] => Array.from({ length: 13 }, (_, i): Pt => [a[0] + ((b[0] - a[0]) * i) / 12, a[1] + ((b[1] - a[1]) * i) / 12]);
-  const shaft = brushPath(line([24, 6], [24, 38]), 5, rand);
-  const head = brushPath([...line([12, 26], [24, 40]), ...line([24, 40], [36, 26]).slice(1)], 5, rand, [12]);
-  return `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="${shaft.ink}${head.ink}"/></svg>`;
-}
 
 /**
  * Training progress, kept in the symbols book: the book wears a gold ring while there are attacks left to try,

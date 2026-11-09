@@ -1,3 +1,4 @@
+import { gearIcon } from './icons';
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
 import { LOOK, setLook } from './look';
@@ -62,7 +63,6 @@ export const DEV = (() => {
   }
 })();
 
-const GEAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, text = '') {
   const node = document.createElement(tag);
@@ -82,7 +82,7 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
   world.params = { ...DEFAULT_PARAMS, ...saved.params };
 
   const gear = el('button', { id: 'dev-gear', type: 'button', 'aria-label': t.dev.title, 'aria-expanded': 'false' });
-  gear.innerHTML = GEAR;
+  gear.innerHTML = gearIcon();
   // Modal: a scrim over the paused game, with the panel scrolling inside it.
   const modal = el('div', { id: 'dev-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': t.dev.title });
   modal.hidden = true;

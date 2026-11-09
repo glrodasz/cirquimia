@@ -2,37 +2,14 @@
  * The ranking on screen: a trophy button beside the book, a board with today's and all-time scores,
  * and the score block on the victory card (points, initials, place, share).
  */
-import { brushPath, type Pt } from '../ammo';
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
-import { arc, random, segment, svg } from '../match';
+import { trophyIcon } from '../icons';
 import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, type Entry, type Period, type Runs } from './client';
 import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, type ShareData } from './share';
 import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-
-function stroke(line: Pt[], width: number, rand: () => number) {
-  const b = brushPath(line, width, rand);
-  return { ink: `<path class="glyph" d="${b.ink}"/>`, dry: b.dry };
-}
-
-/** A cup: the bowl, two handles, the stem and the foot. */
-function trophyIcon() {
-  const rand = random();
-  const bowl = [[16, 14], [32, 14]] as Pt[];
-  const cup = segment(bowl[0], bowl[1]).concat(arc(24, 14, 8, 0, Math.PI).slice(1));
-  return svg(
-    [
-      stroke(cup, 3.4, rand),
-      stroke(arc(15.5, 17.5, 3.2, Math.PI * 0.55, Math.PI * 1.55), 2.2, rand),
-      stroke(arc(32.5, 17.5, 3.2, Math.PI * 1.45, Math.PI * 2.45), 2.2, rand),
-      stroke(segment([24, 22.5], [24, 29]), 3, rand),
-      stroke(segment([18.5, 32], [29.5, 32]), 3.4, rand),
-    ],
-    rand,
-  );
-}
 
 const stop = (node: HTMLElement) => {
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) node.addEventListener(type, (e) => e.stopPropagation());
