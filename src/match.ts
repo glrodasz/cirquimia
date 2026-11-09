@@ -136,7 +136,28 @@ export function mountMatchControls(match: MatchControls) {
     // Training has no difficulty: the scarecrow never strikes back.
     levelBtn.hidden = n === 0;
     save({ rivals: n, difficulty: level });
+    fit();
   };
+
+  // Narrow phones: the pills give up the ↻ hint first, then shrink a little, then drop the level's name (its bars still show it),
+  // so they never run under the buttons on the right.
+  const fit = () => {
+    box.classList.remove('snug', 'small', 'tight');
+    const right = () => {
+      const lefts = ['rank-btn', 'book-btn', 'help-btn', 'dev-gear']
+        .map((id) => document.getElementById(id)?.getBoundingClientRect().left ?? Infinity)
+        .filter((x) => x > 0);
+      return Math.min(innerWidth, ...lefts) - 8;
+    };
+    for (const step of ['snug', 'small', 'tight']) {
+      if (box.getBoundingClientRect().right <= right()) return;
+      box.classList.add(step);
+    }
+  };
+  addEventListener('resize', fit);
+  // The buttons on the right mount after the pills.
+  requestAnimationFrame(fit);
+  void document.fonts?.ready.then(fit);
 
   let toastTimer = 0;
   const restarted = (b: HTMLElement) => {
@@ -189,11 +210,12 @@ export function mountMatchControls(match: MatchControls) {
   end.setAttribute('role', 'dialog');
   end.setAttribute('aria-modal', 'true');
   end.innerHTML =
-    '<div class="card"><h2></h2><p></p>' +
+    '<div class="card"><h2></h2><p></p><div class="scored" hidden></div>' +
     `<button type="button" class="match-btn again"><span class="cap">${t.match.again}</span></button></div>`;
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) end.addEventListener(type, (e) => e.stopPropagation());
   document.body.append(end);
   const again = end.querySelector<HTMLButtonElement>('.again')!;
+  const scored = end.querySelector<HTMLElement>('.scored')!;
   again.addEventListener('click', () => {
     closeEnd();
     match.restart();
@@ -201,7 +223,11 @@ export function mountMatchControls(match: MatchControls) {
   });
 
   return {
+    /** The victory card's score block, filled by the ranking for a match that counts. */
+    scoreSlot: scored,
     showEnd(outcome: Outcome) {
+      scored.hidden = true;
+      scored.innerHTML = '';
       const n = match.rivals;
       const level = DIFFICULTY_LABEL[match.difficulty];
       const won = outcome === 'victory';
