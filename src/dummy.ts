@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { downArrow } from './icons';
+import { brushPath, type Pt } from './ammo';
 
 /** Built at the alchemist's 1.8 units and scaled a touch bigger, so the target reads well on a phone. */
 const MODEL_SCALE = 0.34;
@@ -182,7 +182,19 @@ export class Scarecrow {
   }
 }
 
+function line(a: Pt, b: Pt): Pt[] {
+  const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.7);
+  return Array.from({ length: n + 1 }, (_, i): Pt => [a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
+}
 
+/** A brush arrow pointing down, like the tutorial's. */
+function arrowSvg() {
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
+  const shaft = brushPath(line([24, 4], [24, 40]), 4.6, rand);
+  const head = brushPath([...line([12, 27], [24, 41]), ...line([24, 41], [36, 27]).slice(1)], 4.6, rand, [18]);
+  return `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="${shaft.ink}${head.ink}"/></svg>`;
+}
 
 /** "Hit me!" over the scarecrow's head: a label and a bobbing brush arrow pointing down at it. */
 export class HitMeLabel {
@@ -190,7 +202,7 @@ export class HitMeLabel {
 
   constructor(text: string) {
     this.el.className = 'hitme';
-    this.el.innerHTML = `<span>${text}</span>${downArrow()}`;
+    this.el.innerHTML = `<span>${text}</span>${arrowSvg()}`;
     this.el.hidden = true;
     document.body.append(this.el);
   }

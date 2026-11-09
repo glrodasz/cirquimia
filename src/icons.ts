@@ -70,10 +70,6 @@ export const runeIcon = () => solid('M12 2.8A9.2 9.2 0 1 1 12 21.2A9.2 9.2 0 1 1
 export const downArrow = () => solid('M9.6 2H14.4V12.6H19.6L12 22 4.4 12.6H9.6Z', 'ink');
 /** A long arrow pointing right, for the book's page-turn buttons (the back button mirrors it). */
 export const turnArrowIcon = () => `<svg class="arrow" viewBox="0 0 40 20" aria-hidden="true"><path fill-rule="evenodd" d="M2 8.4H29.5V3L38 10 29.5 17V11.6H2Z"/></svg>`;
-/** The alchemist standing (victory) or lying on the ground (defeat). */
-export const standingIcon = () => box(figure(0, 1, 'hero'));
-export const fallenIcon = () =>
-  box('<g class="down"><circle cx="5.6" cy="14.6" r="3.3"/><path d="M10.4 11.6H19.2A3.4 3.4 0 0 1 19.2 18.4H10.4Z"/><rect class="faint" x="1.5" y="20" width="21" height="1.4"/></g>');
 /** The transmutation seal on the graphics-card notice: a ring around a triangle with a circle cut in it. */
 export const sealIcon = () =>
   `<svg class="gpu-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill-rule="evenodd" d="M24 4.5A19.5 19.5 0 1 1 24 43.5A19.5 19.5 0 1 1 24 4.5ZM24 7.2A16.8 16.8 0 1 0 24 40.8A16.8 16.8 0 1 0 24 7.2ZM24 11 37.2 34.4H10.8ZM24 20.2A5 5 0 1 0 24 30.2A5 5 0 1 0 24 20.2Z"/></svg>`;

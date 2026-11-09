@@ -1,7 +1,7 @@
 import type { Pt } from './ammo';
 import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
 import { t } from './i18n';
-import { fallenIcon, levelIcon, rivalsIcon, standingIcon } from './icons';
+import { levelIcon, rivalsIcon } from './icons';
 
 const STORE = 'cirquimia.match';
 const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before they moved to the HUD
@@ -189,7 +189,7 @@ export function mountMatchControls(match: MatchControls) {
   end.setAttribute('role', 'dialog');
   end.setAttribute('aria-modal', 'true');
   end.innerHTML =
-    '<div class="card"><div class="disc"></div><h2></h2><p></p>' +
+    '<div class="card"><h2></h2><p></p>' +
     `<button type="button" class="match-btn again"><span class="cap">${t.match.again}</span></button></div>`;
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) end.addEventListener(type, (e) => e.stopPropagation());
   document.body.append(end);
@@ -206,7 +206,6 @@ export function mountMatchControls(match: MatchControls) {
       const level = DIFFICULTY_LABEL[match.difficulty];
       const won = outcome === 'victory';
       end.className = won ? 'victory' : 'defeat';
-      end.querySelector('.disc')!.innerHTML = won ? standingIcon() : fallenIcon();
       end.querySelector('h2')!.textContent = won ? t.match.victory : t.match.defeat;
       end.querySelector('p')!.textContent = won
         ? t.match.won(n, level)
