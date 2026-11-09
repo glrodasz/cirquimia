@@ -489,7 +489,8 @@
       #help .shapes .val-def { font-style: italic; font-size: 18px; color: var(--g-soft); }
       #help .legend { margin: 8px 0 0; font: italic 400 16px/1 var(--g-font); color: var(--g-soft); }
       #help .legend::before { content: none !important; }
-      #help .shapes li:is(.tried, .todo) { padding-left: 26px; }
+      #help .shapes:has(li.tried, li.todo) li { padding-left: 26px; }
+      #help .shapes li.todo::after { content: ''; position: absolute; top: 50%; left: 0; width: 18px; height: 18px; margin-top: -9px; box-sizing: border-box; border: 1.5px solid var(--g-green); background: none; }
       #help .shapes li.tried::after { top: 50%; right: auto; left: 0; width: 18px; height: 18px; margin-top: -9px; border-radius: 0; background: var(--g-green); font: 600 12px/18px var(--g-font); box-shadow: none; }
       #help .shapes li.todo .fig { opacity: .45; }
       #help .training { margin: 0 0 8px; font: italic 500 17px/1.2 var(--g-font); color: var(--g-green); }
