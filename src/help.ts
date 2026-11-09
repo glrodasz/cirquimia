@@ -1,10 +1,10 @@
 import { brushPath, shapeIcon, type Pt } from './ammo';
-import { arc, random, segment, svg } from './match';
+import { random, segment } from './match';
 import type { ShapeKind } from './gestures';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
-import { bookIcon, questionIcon } from './hudIcons';
+import { bookIcon, dropIcon, flameIcon, questionIcon, runeIcon, turnArrowIcon } from './icons';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
@@ -93,18 +93,6 @@ const padOverlay = (rand: () => number) =>
   hand(72, 164, 1.3, false);
 
 /** A teardrop: the tip, down one side, round the belly and back up. */
-function drop(tipY: number, cls: string, rand: () => number) {
-  const belly = arc(24, 29, 8, Math.PI + 0.45, -0.45);
-  return stroke(poly([[24, tipY], belly[0]]).concat(belly, poly([belly[belly.length - 1], [24, tipY]])), 3.4, cls, rand);
-}
-
-export function flameIcon(rand: () => number) {
-  return svg([drop(10, 'fire', rand), stroke(poly([[24, 23], [21.5, 30], [24, 33.5], [26.5, 30], [24, 23]]), 2.4, 'fire', rand)], rand);
-}
-
-export function waterIcon(rand: () => number) {
-  return svg([drop(12, 'water', rand), stroke(arc(24, 29, 4.5, Math.PI * 0.6, Math.PI * 0.95), 2, 'water', rand)], rand);
-}
 
 const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal'; value: string; source?: 'fire' | 'water' }> = [
   { kind: 'circle', value: t.help.defence },
@@ -128,24 +116,19 @@ const drillClass = (id: Drill) => (practice ? ` class="${practice.has(id) ? 'tri
 
 const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</span>`;
 
-/** A brush arrow pointing right, for the page-turn buttons; the back button mirrors it. */
-function turnArrow(rand: () => number) {
-  return `<svg class="arrow" viewBox="0 0 48 24" aria-hidden="true"><path d="${arrowLine([[6, 13], [24, 11], [41, 12]], 0, rand)}"/></svg>`;
-}
 
 /**
- * An alchemist's book: a gold title stamped on the leather, parchment pages stacked on top of each
+ * An alchemist's book: one sheet of grimoire paper with a red title, its pages stacked on top of each
  * other and two big page-turn buttons along the bottom edge, with the page number between them.
  */
 function bookCard(cls: string, title: string, pages: string[], label: (n: number, total: number) => string) {
-  const rand = random();
   return (
     `<div class="book ${cls}" tabindex="-1"><button type="button" class="x" aria-label="${t.help.close}">×</button>` +
     `<h2 id="help-title">${title}</h2>` +
     `<div class="pages">${pages.map((page, i) => `<section class="page" aria-label="${label(i + 1, pages.length)}">${page}</section>`).join('')}</div>` +
-    `<div class="turn"><button type="button" class="back">${turnArrow(rand)}<span class="cap"></span></button>` +
+    `<div class="turn"><button type="button" class="back">${turnArrowIcon()}<span class="cap"></span></button>` +
     `<span class="folio" aria-live="polite"><span aria-hidden="true"></span><span class="sr"></span></span>` +
-    `<button type="button" class="go"><span class="cap"></span>${turnArrow(rand)}</button></div></div>`
+    `<button type="button" class="go"><span class="cap"></span>${turnArrowIcon()}</button></div></div>`
   );
 }
 
@@ -171,21 +154,20 @@ function guide() {
 
 /** The symbols manual: every shape and what it does, then where fire and water get charged, then what they make together. */
 function symbols() {
-  const rand = random();
   // An index, like the contents of an old grimoire: numeral, the symbol in a fine nib, its name, a dotted leader, its value.
   const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
   const shapes = SHAPES.map(
     (s, i) =>
       `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}><span class="rn">${ROMAN[i]}</span>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.names[s.kind]}</b>` +
-      (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon(rand) : waterIcon(rand)}</span>` : '') +
+      (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>` : '') +
       `<span class="lead"></span><span class="val${s.effect ? ` val-${s.effect}` : ' val-def'}">${s.effect === 'heal' ? '+' : ''}${s.value}</span></li>`,
   ).join('');
   const legend = `<p class="legend"><span class="val-dmg">${EFFECT.dmg}</span> · <span class="val-heal">${EFFECT.heal}</span></p>`;
   const notes =
     `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
-    `<li><span class="src">${flameIcon(rand)}</span><span>${t.help.fireNote}</span></li>` +
-    `<li><span class="src">${waterIcon(rand)}</span><span>${t.help.waterNote}</span></li>` +
-    `<li${drillClass('rune')}><span class="src rune">✦</span><span>${t.help.runesNote}</span></li></ul>`;
+    `<li><span class="src">${flameIcon()}</span><span>${t.help.fireNote}</span></li>` +
+    `<li><span class="src">${dropIcon()}</span><span>${t.help.waterNote}</span></li>` +
+    `<li${drillClass('rune')}><span class="src rune">${runeIcon()}</span><span>${t.help.runesNote}</span></li></ul>`;
   const tried = practice ? DRILLS.filter((d) => practice!.has(d)).length : 0;
   const progress = practice
     ? `<p class="training">${tried === DRILLS.length ? t.practice.allDone : t.practice.progress(tried, DRILLS.length)}</p>`

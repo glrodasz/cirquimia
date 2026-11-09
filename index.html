@@ -376,7 +376,31 @@
       /* Small notes: one hairline frame. */
       :is(#device-hint, #match-toast, #keys-hint, #fps) { border: 1px solid rgba(31,26,21,.7); box-shadow: 0 2px 6px rgba(20,28,24,.18); }
       #device-hint { font: italic 500 15px/1.25 var(--g-font); padding: 6px 14px; }
-      #device-hint svg { width: 17px; height: 17px; stroke-width: 1.5; }
+      /* Level with the HUD: same top edge and height as the pills and buttons. */
+      #device-hint { top: var(--edge-top); height: 40px; box-sizing: border-box; padding: 0 14px 0 10px; gap: 8px; }
+      #device-hint svg { width: 22px; height: 22px; fill: currentColor; stroke: none; }
+      #device-hint .phone.turn { animation: phone-turn 1.5s ease-in-out .3s 3 both; }
+      @keyframes phone-turn { 0%, 12% { transform: rotate(-90deg); } 55%, 100% { transform: rotate(0); } }
+      @media (prefers-reduced-motion: reduce) { #device-hint .phone.turn { animation: none; } }
+      /* Solid icons across the UI. */
+      #match-end .disc { width: 56px; height: 56px; margin-top: 2px; }
+      #match-end .hero, #match-end .down { fill: var(--g-ink); opacity: 1; }
+      #match-end.victory .hero { fill: var(--g-red); }
+      #match-end .faint { fill: var(--g-ink); opacity: .3; }
+      #help .turn .arrow { width: 34px; height: 17px; }
+      #help .src svg path.fire, .nosource .fire { fill: var(--g-red); }
+      #help .src svg path.water, .nosource .water { fill: #2f5f7a; }
+      #help .shapes .src { width: 18px; height: 18px; }
+      #help .notes .src { display: grid; place-items: center; padding: 8px; box-sizing: border-box; }
+      #help .notes .rune svg path { fill: var(--g-red); }
+      .nosource { border-radius: 0; background: var(--g-paper); box-shadow: var(--g-rule), 0 2px 10px rgba(20,28,24,.25); }
+      .nosource svg { inset: 14px; width: calc(100% - 28px); height: calc(100% - 28px); }
+      .nosource .cross { fill: var(--g-red); opacity: .9; }
+      .nosource.wall svg:first-child { inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
+      .nosource.wall .glyph { fill: var(--g-ink); } .nosource.wall .ring { fill: var(--g-ink); opacity: .25; }
+      #gpu-notice .gpu-icon { fill: var(--g-red); stroke: none; }
+      #dev-gear svg path { fill: var(--hud-ink); stroke: none; }
+      :is(.hitme, .book-got, #tutorial .arrow) svg path { fill: inherit; }
       #match-toast { font: 500 17px/1.2 var(--g-font); font-variant-caps: small-caps; letter-spacing: .04em; padding: 7px 16px; }
       #fps { font: 500 15px/1.2 var(--g-font); font-variant-numeric: lining-nums tabular-nums; }
       #keys-hint { font: italic 500 15px/1.25 var(--g-font); }

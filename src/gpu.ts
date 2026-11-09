@@ -1,3 +1,4 @@
+import { sealIcon } from './icons';
 import { t } from './i18n';
 import { SOFTWARE } from './quality';
 
@@ -54,7 +55,7 @@ export function showGpuNotice(status: Exclude<GpuStatus, 'ok'>): Promise<void> {
   const steps = s.steps[b];
   card.innerHTML = `
     <div class="gpu-card">
-      <svg class="gpu-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19"/><path d="M24 7 39 33H9Z"/><circle cx="24" cy="24" r="6"/></svg>
+      ${sealIcon()}
       <h2 id="gpu-title"></h2>
       <p class="gpu-lead"></p>
       <h3></h3>

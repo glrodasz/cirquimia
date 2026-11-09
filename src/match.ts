@@ -1,7 +1,7 @@
-import { brushPath, ensoLine, type Pt } from './ammo';
+import type { Pt } from './ammo';
 import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
 import { t } from './i18n';
-import { levelIcon, rivalsIcon } from './hudIcons';
+import { fallenIcon, levelIcon, rivalsIcon, standingIcon } from './icons';
 
 const STORE = 'cirquimia.match';
 const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before they moved to the HUD
@@ -87,33 +87,8 @@ export function segment(a: Pt, b: Pt): Pt[] {
   return Array.from({ length: n + 1 }, (_, i): Pt => [a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
 }
 
-/** A little figure in two strokes: head loop and shoulders. */
-export function person(cx: number, s: number, cls: string, rand: () => number) {
-  const head = brushPath(arc(cx, 24 - 8 * s, 5 * s, -2 + rand(), -2 + rand() + Math.PI * 2.1), 3.4 * s, rand);
-  const body = brushPath(arc(cx, 24 + 12 * s, 9.5 * s, Math.PI * 1.02, Math.PI * 1.98), 4.4 * s, rand);
-  return { ink: `<path class="${cls}" d="${head.ink}${body.ink}"/>`, dry: head.dry + body.dry };
-}
 
-/** The same figure fallen: head loop and a long body stroke lying on a line of ground. */
-function fallen(cls: string, rand: () => number) {
-  const head = brushPath(arc(14, 25.5, 4.4, -2 + rand(), -2 + rand() + Math.PI * 2.1), 3.2, rand);
-  const body = brushPath(segment([20.5, 26.5], [36, 27.5 + (rand() - 0.5)]), 5.4, rand);
-  const ground = brushPath(segment([10, 33], [39, 33.5]), 2, rand);
-  return { ink: `<path class="${cls}" d="${head.ink}${body.ink}"/><path class="faint" d="${ground.ink}"/>`, dry: head.dry + body.dry };
-}
 
-let svgId = 0;
-export function svg(parts: Array<{ ink: string; dry: string }>, rand: () => number) {
-  const ring = brushPath(ensoLine(rand), 2.2, rand);
-  const id = `hudbrush${++svgId}`;
-  const dry = parts.map((p) => p.dry).join('') + ring.dry;
-  return (
-    `<svg viewBox="0 0 48 48" aria-hidden="true">` +
-    `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">` +
-    `<rect width="48" height="48" fill="#fff"/><path d="${dry}" fill="#000"/></mask>` +
-    `<g mask="url(#${id})"><path class="ring" d="${ring.ink}"/>${parts.map((p) => p.ink).join('')}</g></svg>`
-  );
-}
 
 /**
  * Player-facing match controls, bottom left (the gear on the right is for developers):
@@ -229,12 +204,9 @@ export function mountMatchControls(match: MatchControls) {
     showEnd(outcome: Outcome) {
       const n = match.rivals;
       const level = DIFFICULTY_LABEL[match.difficulty];
-      const rand = random();
       const won = outcome === 'victory';
       end.className = won ? 'victory' : 'defeat';
-      end.querySelector('.disc')!.innerHTML = won
-        ? svg([person(24, 1, 'hero', rand)], rand)
-        : svg([fallen('down', rand)], rand);
+      end.querySelector('.disc')!.innerHTML = won ? standingIcon() : fallenIcon();
       end.querySelector('h2')!.textContent = won ? t.match.victory : t.match.defeat;
       end.querySelector('p')!.textContent = won
         ? t.match.won(n, level)

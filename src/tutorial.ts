@@ -1,3 +1,4 @@
+import { downArrow } from './icons';
 import type * as THREE from 'three';
 import { brushPath, type Pt } from './ammo';
 import { arc, segment } from './match';
@@ -69,12 +70,6 @@ function demoLine(kind: Lesson): Pt[] {
 }
 
 /** A brush arrow pointing down. */
-function arrowSvg() {
-  const rand = seeded(7);
-  const shaft = brushPath(segment([24, 4], [24, 40]), 4.6, rand);
-  const head = brushPath([...segment([12, 27], [24, 41]), ...segment([24, 41], [36, 27]).slice(1)], 4.6, rand, [18]);
-  return `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="${shaft.ink}${head.ink}"/></svg>`;
-}
 
 /**
  * The first match, walked through: draw a square, which arrives in hand, then tap the rival (a sure hit).
@@ -110,7 +105,7 @@ export class Tutorial {
     this.dim.className = 'dim';
     this.demo.className = 'demo';
     this.arrow.className = 'arrow';
-    this.arrow.innerHTML = arrowSvg();
+    this.arrow.innerHTML = downArrow();
     this.card.className = 'tip';
     this.card.setAttribute('role', 'status');
     this.card.append(this.title, this.body);

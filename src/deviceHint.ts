@@ -1,7 +1,5 @@
 import { t } from './i18n';
-
-const PHONE = '<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>';
-const ROTATE = '<rect x="7" y="2.5" width="10" height="19" rx="2" transform="rotate(-90 12 12)" opacity=".4"/><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M19.5 5.5a8 8 0 0 1 1 4.5l-1.6-1.4"/>';
+import { phoneIcon } from './icons';
 
 /**
  * A small watermark at the top that says where the game plays best: on a touch screen, held upright.
@@ -25,7 +23,8 @@ export function mountDeviceHint() {
     shown = hint;
     el.hidden = !hint;
     if (!hint) return;
-    el.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${hint === 'touch' ? PHONE : ROTATE}</svg><span></span>`;
+    // Held sideways, the phone turns upright a few times to show what to do, then rests upright.
+    el.innerHTML = `${phoneIcon(hint === 'portrait' ? 'turn' : '')}<span></span>`;
     el.querySelector('span')!.textContent = t.device[hint];
     // Restart the fade so a new hint is read clearly before it settles into a watermark.
     el.style.animation = 'none';
