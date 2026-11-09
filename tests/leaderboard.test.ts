@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cleanInitials, formatTime, plausible, scoreFor, validInitials } from '../src/leaderboard/score';
 import { classifyDevice } from '../src/leaderboard/device';
+import { composeUrl, mastodonHost } from '../src/leaderboard/share';
 
 describe('score', () => {
   it('scores the damage the alchemist dealt, by difficulty and speed', () => {
@@ -55,5 +56,22 @@ describe('device', () => {
     expect(classifyDevice(PIXEL)).toMatchObject({ category: 'mobile', device: 'android-phone', browser: 'chrome' });
     expect(classifyDevice(TAB)).toMatchObject({ category: 'tablet', device: 'android-tablet' });
     expect(classifyDevice(WIN)).toMatchObject({ category: 'desktop', device: 'windows-pc', browser: 'edge' });
+  });
+});
+
+describe('share', () => {
+  it('reads a Mastodon server from what people type', () => {
+    expect(mastodonHost('mastodon.social')).toBe('mastodon.social');
+    expect(mastodonHost('https://Fosstodon.org/home')).toBe('fosstodon.org');
+    expect(mastodonHost('@guille@hachyderm.io')).toBe('hachyderm.io');
+    expect(mastodonHost('not a server')).toBeNull();
+    expect(mastodonHost('')).toBeNull();
+  });
+
+  it('builds each network compose link with the text', () => {
+    expect(composeUrl('x', 'hola & adiós')).toBe('https://x.com/intent/post?text=hola%20%26%20adi%C3%B3s');
+    expect(composeUrl('bluesky', 'a')).toBe('https://bsky.app/intent/compose?text=a');
+    expect(composeUrl('threads', 'a')).toBe('https://www.threads.net/intent/post?text=a');
+    expect(composeUrl('mastodon', 'a', 'mas.to')).toBe('https://mas.to/share?text=a');
   });
 });

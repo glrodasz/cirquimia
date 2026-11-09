@@ -7,7 +7,7 @@ import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
 import { arc, random, segment, svg } from '../match';
 import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, type Entry, type Period, type Runs } from './client';
-import { renderShareCard, shareCard, type ShareData } from './share';
+import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, type ShareData } from './share';
 import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -156,13 +156,29 @@ export function mountLeaderboard(): Leaderboard {
       `<input name="initials" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="ABCD" required></label>` +
       `<button type="submit" class="match-btn save"><span class="cap">${t.rank.save}</span></button></form>` +
       `<p class="note" role="status"></p>` +
-      `<div class="acts"><button type="button" class="match-btn share"><span class="cap">${t.rank.share}</span></button>` +
-      `<button type="button" class="match-btn view"><span class="cap">${t.rank.view}</span></button></div>`;
+      `<div class="acts" role="group" aria-label="${t.rank.share}">` +
+      `<button type="button" class="match-btn net" data-to="x"><span class="cap">𝕏</span></button>` +
+      `<button type="button" class="match-btn net" data-to="discord"><span class="cap">Discord</span></button>` +
+      `<button type="button" class="match-btn more" aria-expanded="false"><span class="cap">${t.rank.more}</span></button></div>` +
+      `<div class="more-menu" hidden>` +
+      `<button type="button" class="match-btn net" data-to="bluesky"><span class="cap">Bluesky</span></button>` +
+      `<button type="button" class="match-btn net" data-to="threads"><span class="cap">Threads</span></button>` +
+      `<button type="button" class="match-btn net" data-to="mastodon"><span class="cap">Mastodon</span></button>` +
+      `<button type="button" class="match-btn net" data-to="image"><span class="cap">${t.rank.saveImage}</span></button>` +
+      `<form class="masto" hidden novalidate><input name="host" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" enterkeyhint="go" placeholder="${t.rank.mastodonHost}" aria-label="${t.rank.mastodonHost}">` +
+      `<button type="submit" class="match-btn"><span class="cap">${t.rank.go}</span></button></form></div>` +
+      `<button type="button" class="match-btn view"><span class="cap">${t.rank.view}</span></button>`;
     const form = slot.querySelector<HTMLFormElement>('.sign')!;
     const input = form.querySelector<HTMLInputElement>('input')!;
     const save = form.querySelector<HTMLButtonElement>('.save')!;
     const note = slot.querySelector<HTMLElement>('.note')!;
-    const shareBtn = slot.querySelector<HTMLButtonElement>('.share')!;
+    const say = (text: string) => {
+      note.innerHTML = text;
+    };
+    const moreBtn = slot.querySelector<HTMLButtonElement>('.more')!;
+    const menu = slot.querySelector<HTMLElement>('.more-menu')!;
+    const masto = slot.querySelector<HTMLFormElement>('.masto')!;
+    const mastoInput = masto.querySelector<HTMLInputElement>('input')!;
     let newId: number | null = null;
     input.value = savedInitials();
     input.addEventListener('input', () => {
@@ -170,17 +186,40 @@ export function mountLeaderboard(): Leaderboard {
       if (clean !== input.value) input.value = clean;
     });
 
-    // Rendered ahead, so the share sheet opens straight from the tap (iOS wants it inside the gesture).
+    // Rendered ahead, so Discord's share sheet opens straight from the tap (iOS wants it inside the gesture).
     let card = renderShareCard(data);
-    shareBtn.addEventListener('click', async () => {
-      const result = await shareCard(await card, data);
-      if (result === 'saved') note.textContent = t.rank.saved;
+    moreBtn.addEventListener('click', () => {
+      menu.hidden = !menu.hidden;
+      moreBtn.setAttribute('aria-expanded', String(!menu.hidden));
     });
-    slot.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
-
-    const say = (text: string) => {
-      note.innerHTML = text;
+    const mastodon = (raw: string) => {
+      const host = mastodonHost(raw);
+      if (!host) {
+        masto.hidden = false;
+        mastoInput.focus();
+        return;
+      }
+      masto.hidden = true;
+      openComposer('mastodon', data, host);
     };
+    masto.addEventListener('submit', (e) => {
+      e.preventDefault();
+      mastodon(mastoInput.value);
+    });
+    for (const btn of slot.querySelectorAll<HTMLButtonElement>('.net')) {
+      btn.addEventListener('click', async () => {
+        const to = btn.dataset.to;
+        if (to === 'x' || to === 'bluesky' || to === 'threads') openComposer(to, data);
+        else if (to === 'mastodon') mastodon(savedMastodon());
+        else if (to === 'image') await saveImage(card, data);
+        else if (to === 'discord') {
+          const result = await shareDiscord(card, data);
+          if (result === 'copied') say(t.rank.discordCopied);
+          if (result === 'saved') say(t.rank.discordSaved);
+        }
+      });
+    }
+    slot.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
 
     void runs.current().then((id) => {
       if (!id && slot.isConnected) {
@@ -216,7 +255,7 @@ export function mountLeaderboard(): Leaderboard {
       say(t.rank.placed(res.rank.today, res.rank.all));
       Object.assign(data, { score: res.score, initials, rank: res.rank });
       card = renderShareCard(data);
-      shareBtn.focus({ preventScroll: true });
+      slot.querySelector<HTMLElement>('.net')!.focus({ preventScroll: true });
     });
   };
 

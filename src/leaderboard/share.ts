@@ -132,30 +132,91 @@ export function shareText(d: ShareData) {
   return t.rank.shareText(d.score.toLocaleString(LANG), formatTime(d.durationMs), d.rivals, DIFFICULTY_LABEL[d.difficulty], shareUrl());
 }
 
-/** Shares the card; falls back to downloading it and copying the text. */
-export async function shareCard(blob: Blob, d: ShareData): Promise<'shared' | 'saved' | 'cancelled'> {
-  const text = shareText(d);
-  const file = new File([blob], `cirquimia-${d.score}.png`, { type: 'image/png' });
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], text, title: 'Cirquimia' });
-      return 'shared';
-    } catch (e) {
-      if ((e as DOMException)?.name === 'AbortError') return 'cancelled';
-      // Some browsers claim they can share files and then refuse: save it instead.
-    }
+export type Target = 'x' | 'discord' | 'bluesky' | 'threads' | 'mastodon' | 'image';
+
+const MASTODON_STORE = 'cirquimia.mastodon';
+
+/** The Mastodon server the player gave last time, if any. */
+export function savedMastodon(): string {
+  try {
+    return localStorage.getItem(MASTODON_STORE) ?? '';
+  } catch {
+    return '';
   }
+}
+
+/** "@me@mastodon.social", "https://mastodon.social/" or "mastodon.social" → "mastodon.social"; null when it is not a host. */
+export function mastodonHost(raw: string): string | null {
+  const host = raw.trim().replace(/^https?:\/\//i, '').replace(/^@?[^@\s]*@/, '').split(/[/?#\s]/)[0].toLowerCase();
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : null;
+}
+
+const enc = encodeURIComponent;
+
+/** Where each network takes a prepared post. Discord has no such page: it gets the image instead. */
+export function composeUrl(target: 'x' | 'bluesky' | 'threads' | 'mastodon', text: string, host = 'mastodon.social') {
+  switch (target) {
+    case 'x':
+      return `https://x.com/intent/post?text=${enc(text)}`;
+    case 'bluesky':
+      return `https://bsky.app/intent/compose?text=${enc(text)}`;
+    case 'threads':
+      return `https://www.threads.net/intent/post?text=${enc(text)}`;
+    case 'mastodon':
+      return `https://${host}/share?text=${enc(text)}`;
+  }
+}
+
+function download(blob: Blob, name: string) {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = file.name;
+  link.download = name;
   document.body.append(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
-  try {
-    await navigator.clipboard?.writeText(text);
-  } catch {
-    // No clipboard: the image is still saved.
+}
+
+/**
+ * Opens a network's composer with the text and link. Called straight from the tap so the new tab is not blocked;
+ * the networks' compose pages take text only, so the image goes to Discord and "Save image".
+ */
+export function openComposer(target: 'x' | 'bluesky' | 'threads' | 'mastodon', d: ShareData, host?: string) {
+  if (target === 'mastodon' && host) {
+    try {
+      localStorage.setItem(MASTODON_STORE, host);
+    } catch {
+      // Asked again next time.
+    }
   }
-  return 'saved';
+  window.open(composeUrl(target, shareText(d), host), '_blank', 'noopener');
+}
+
+/**
+ * Discord: phones open the share sheet with the image (Discord is in it); elsewhere the image is copied
+ * to paste into a channel, or saved if the browser cannot copy images.
+ */
+export async function shareDiscord(card: Promise<Blob>, d: ShareData): Promise<'shared' | 'copied' | 'saved' | 'cancelled'> {
+  const blob = await card;
+  const file = new File([blob], `cirquimia-${d.score}.png`, { type: 'image/png' });
+  const touch = matchMedia('(pointer: coarse)').matches;
+  if (touch && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: shareText(d) });
+      return 'shared';
+    } catch (e) {
+      if ((e as DOMException)?.name === 'AbortError') return 'cancelled';
+    }
+  }
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    return 'copied';
+  } catch {
+    download(blob, file.name);
+    return 'saved';
+  }
+}
+
+export async function saveImage(card: Promise<Blob>, d: ShareData) {
+  download(await card, `cirquimia-${d.score}.png`);
 }
