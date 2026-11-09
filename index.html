@@ -585,6 +585,50 @@
       #help .fire { fill: var(--g-red); } #help .water { fill: #2f5f7a; }
       #help .notes li.tried > span:last-child::after { color: var(--g-green); font-weight: 600; }
       @media (max-height: 700px) { #help h2 { padding: 14px 40px 8px; font-size: 22px; } #help .page h3 { font-size: 21px; } #help .page p { font-size: 17px; } #help .fig { width: 34px; height: 34px; } #help .shapes b { font-size: 19px; } }
+      /* HUD compaction (narrow phones, four buttons on the right): the grimoire pills shrink the same way. */
+      #match.snug .match-btn { padding-right: 8px; }
+      #match.snug .match-btn .cap::after { content: none; }
+      #match.small .match-btn { gap: 2px; padding: 0 6px 0 4px; font-size: 14px; letter-spacing: 0; }
+      #match.small .match-btn .disc { width: 22px; height: 22px; }
+      #match.tight .level { padding-right: 4px; }
+      /* The ranking as a page of the grimoire: a register of names, places in red, scores in old-style figures. */
+      #rank .card { max-height: min(640px, calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); border-radius: 0; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), var(--g-lift); padding: 20px 18px 14px; font-family: var(--g-font); backdrop-filter: none; -webkit-backdrop-filter: none; }
+      #rank .card > h2#rank-title { margin: 2px 36px 12px; padding-bottom: 10px; border-bottom: 3px double var(--g-ink); font: 500 25px/1.1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .14em; color: var(--g-red); }
+      #rank .x { top: 10px; right: 10px; border-radius: 0; color: var(--g-ink); font: 300 30px/1 var(--g-font); opacity: .75; }
+      #rank .tabs { gap: 18px; padding: 0; margin: 0 auto 10px; border-radius: 0; background: none; }
+      #rank .tabs button { height: 30px; padding: 0 2px; border-radius: 0; background: none; color: var(--g-soft); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .08em; border-bottom: 1px solid transparent; }
+      #rank .tabs [aria-selected="true"] { background: none; box-shadow: none; color: var(--g-ink); border-bottom-color: var(--g-red); }
+      #rank li { grid-template-columns: 30px 1fr auto; column-gap: 10px; padding: 7px 4px; border-radius: 0; border-bottom: 1px dotted rgba(31,26,21,.35); }
+      #rank li + li { margin-top: 0; }
+      #rank li:nth-child(odd) { background: none; }
+      #rank li.mine { background: rgba(163,39,28,.07); }
+      #rank li.new { box-shadow: inset 0 0 0 1px var(--g-red); }
+      #rank .pos { width: auto; height: auto; border-radius: 0; background: none; font: 500 18px/1 var(--g-font); font-variant-numeric: oldstyle-nums; color: var(--g-soft); opacity: 1; }
+      #rank .medal { background: none; color: var(--g-red); font-weight: 600; }
+      #rank .who { font: 600 19px/1.1 var(--g-font); letter-spacing: .14em; }
+      #rank .who i { padding: 0 0 0 4px; border-radius: 0; background: none; color: var(--g-red); font: italic 500 14px/1 var(--g-font); letter-spacing: 0; vertical-align: 0; }
+      #rank .pts { font: 500 21px/1 var(--g-font); font-variant-numeric: oldstyle-nums tabular-nums; }
+      #rank .meta { font: italic 400 13.5px/1.3 var(--g-font); color: var(--g-soft); opacity: 1; }
+      #rank .empty { font-style: italic; color: var(--g-soft); opacity: 1; }
+      #rank .rule { margin-top: 10px; font: italic 400 12px/1.3 var(--g-font); color: var(--g-soft); opacity: .9; }
+      /* The score block on the victory card. */
+      #match-end .scored { gap: 10px; margin: 0 0 14px; }
+      #match-end .scored .pts { font: 500 16px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .08em; color: var(--g-soft); }
+      #match-end .scored .pts b { margin-bottom: 4px; font: 500 50px/1 var(--g-font); font-variant-numeric: oldstyle-nums tabular-nums; letter-spacing: 0; color: var(--g-red) !important; }
+      #match-end .scored .meta { font: italic 400 14px/1.3 var(--g-font); color: var(--g-soft); opacity: 1; }
+      #match-end .sign label { font: 500 14px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .06em; opacity: 1; color: var(--g-soft); }
+      #match-end :is(.sign, .masto) input { border: 1px solid var(--g-ink); border-radius: 0; background: rgba(255,255,255,.5); color: var(--g-ink); font: 600 20px/1 var(--g-font); letter-spacing: .18em; }
+      #match-end .masto input { font: 400 15px/1 var(--g-font); letter-spacing: 0; }
+      #match-end :is(.sign, .masto) input:focus { outline: 1px solid var(--g-red); outline-offset: 2px; }
+      #match-end .scored .match-btn { height: 40px; padding: 0 14px; border: 1px solid var(--g-ink); border-radius: 0; background: var(--g-paper); color: var(--g-ink); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .06em; }
+      #match-end .scored .save { border-color: var(--g-ink); background: var(--g-ink); color: var(--g-paper); }
+      #match-end .acts [data-to="x"] .cap { font: 600 17px/1 system-ui, -apple-system, sans-serif; }
+      #match-end .more-menu { gap: 6px; padding: 10px 0 0; border-radius: 0; background: none; border-top: 1px dotted rgba(31,26,21,.4); }
+      #match-end .scored .more-menu .match-btn { height: 34px; padding: 0 12px; font-size: 15px; }
+      #match-end .note { font: italic 400 15px/1.3 var(--g-font); color: var(--g-ink); opacity: 1; }
+      #match-end .note b { color: var(--g-red) !important; font-style: normal; font-weight: 600; }
+      #match-end .scored .view { border: 0; background: none; color: var(--g-red); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+      #match-end .scored .match-btn:focus-visible, #rank button:focus-visible { outline: 1px solid var(--g-red); outline-offset: 2px; }
     </style>
   </head>
   <body>
