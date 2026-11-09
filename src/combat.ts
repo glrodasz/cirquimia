@@ -639,6 +639,8 @@ export class Combat {
   private endTimer = 0;
   /** Called once when the match is decided, after the falling body has landed. */
   onEnd: (outcome: Outcome) => void = () => {};
+  /** Called whenever a fresh match is set up (new rivals, everyone at full health). */
+  onStart: () => void = () => {};
   /** Called whenever a strike hurts the alchemist. */
   onHeroHit: () => void = () => {};
   /** Called whenever the alchemist's strike hits the training scarecrow, and whether it came from a rune circle. */
@@ -649,6 +651,10 @@ export class Combat {
   private held = false;
   /** Seconds since the match started, and when the last rival strike booked against the alchemist starts and stops landing. */
   private clock = 0;
+  /** Seconds of play in this match until it was decided (the game holds still while a card is open). */
+  private played = 0;
+  /** Health the alchemist's own strikes took off the rivals this match (what the ranking scores). */
+  private dealt = 0;
   private heroStrikeFrom = -Infinity;
   private heroStrikeTo = -Infinity;
 
@@ -691,6 +697,16 @@ export class Combat {
   /** True from the moment the match is decided until the next one starts. */
   get over() {
     return this.outcome !== null;
+  }
+
+  /** Milliseconds of play from the start of the match until it was decided (or until now). */
+  get elapsedMs() {
+    return Math.round(this.played * 1000);
+  }
+
+  /** Damage the alchemist dealt to rivals this match; rivals hurting each other does not count. */
+  get heroDamage() {
+    return Math.round(this.dealt);
   }
 
   setRivals(count: number) {
@@ -820,6 +836,8 @@ export class Combat {
     this.hero.reset();
     this.outcome = null;
     this.endTimer = 0;
+    this.played = 0;
+    this.dealt = 0;
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
@@ -841,6 +859,7 @@ export class Combat {
       this.root.add(rival.body.root);
     }
     if (this.count === 0) this.spawnDummy();
+    this.onStart();
   }
 
   /** Training: the scarecrow standing now, if any. */
@@ -909,7 +928,9 @@ export class Combat {
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
       if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+      const before = f.hp;
       f.hit(DAMAGE[element], element, this.camera);
+      if (caster === this.hero) this.dealt += before - f.hp;
       if (element === 'vine') this.snare(f, caster);
       if (f === this.hero) {
         for (const r of this.rivals) r.ambush = false;
@@ -937,6 +958,7 @@ export class Combat {
     this.clock += dt;
     // Decide the match before anyone acts, so nobody picks a fallen foe this frame.
     if (!this.outcome) {
+      this.played += dt;
       if (this.hero.down) this.outcome = 'defeat';
       else if (this.rivals.length > 0 && this.rivals.every((r) => r.down)) this.outcome = 'victory';
       if (this.outcome) this.endTimer = END_DELAY;
