@@ -2,7 +2,6 @@ import { brushPath, ensoLine, type Pt } from './ammo';
 import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
 import { t } from './i18n';
 import { levelIcon, rivalsIcon } from './hudIcons';
-import '@fontsource-variable/eb-garamond/wght.css';
 
 const STORE = 'cirquimia.match';
 const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before they moved to the HUD

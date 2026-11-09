@@ -5,7 +5,6 @@ import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
 import { bookIcon, questionIcon } from './hudIcons';
-import '@fontsource-variable/alegreya/wght.css';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
@@ -173,12 +172,15 @@ function guide() {
 /** The symbols manual: every shape and what it does, then where fire and water get charged, then what they make together. */
 function symbols() {
   const rand = random();
+  // An index, like the contents of an old grimoire: numeral, the symbol in a fine nib, its name, a dotted leader, its value.
+  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
   const shapes = SHAPES.map(
-    (s) =>
-      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}>${fig(s.kind, shapeIcon(s.kind))}<b>${t.help.names[s.kind]}</b><span class="val${s.effect ? ` val-${s.effect}` : ''}">${s.effect ? `<small>${EFFECT[s.effect]}</small> ` : ''}${s.value}</span>` +
+    (s, i) =>
+      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}><span class="rn">${ROMAN[i]}</span>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.names[s.kind]}</b>` +
       (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon(rand) : waterIcon(rand)}</span>` : '') +
-      '</li>',
+      `<span class="lead"></span><span class="val${s.effect ? ` val-${s.effect}` : ' val-def'}">${s.effect === 'heal' ? '+' : ''}${s.value}</span></li>`,
   ).join('');
+  const legend = `<p class="legend"><span class="val-dmg">${EFFECT.dmg}</span> · <span class="val-heal">${EFFECT.heal}</span></p>`;
   const notes =
     `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
     `<li><span class="src">${flameIcon(rand)}</span><span>${t.help.fireNote}</span></li>` +
@@ -192,11 +194,11 @@ function symbols() {
   const combo =
     `<h3>${t.help.comboTitle}</h3>` +
     `<div class="combo"${drillClass('hourglass')}>` +
-    `${fig('triangle charged', shapeIcon('triangle'))}<span class="op">+</span>${fig('triangleDown charged', shapeIcon('triangleDown'))}<span class="op">=</span>` +
-    `<span class="out">${fig('hourglass', shapeIcon('hourglass'))}<b>${t.help.names.hourglass}</b>` +
+    `${fig('triangle charged', shapeIcon('triangle', true))}<span class="op">+</span>${fig('triangleDown charged', shapeIcon('triangleDown', true))}<span class="op">=</span>` +
+    `<span class="out">${fig('hourglass', shapeIcon('hourglass', true))}<b>${t.help.names.hourglass}</b>` +
     `<span class="val val-dmg"><small>${EFFECT.dmg}</small> 45</span></span></div>` +
     `<p class="combo-note">${t.help.comboNote}</p>`;
-  return bookCard('manual', t.help.shapesTitle, [`${progress}<ul class="shapes">${shapes}</ul>`, notes, combo], t.help.pageOf);
+  return bookCard('manual', t.help.shapesTitle, [`${progress}<ol class="shapes">${shapes}</ol>${legend}`, notes, combo], t.help.pageOf);
 }
 
 /**

@@ -1,3 +1,5 @@
+import '@fontsource-variable/eb-garamond/wght.css';
+import '@fontsource-variable/eb-garamond/wght-italic.css';
 import { gpuStatus, showGpuNotice, softwareAccepted } from './gpu';
 
 /**

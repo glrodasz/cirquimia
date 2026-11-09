@@ -144,12 +144,14 @@ export function ensoLine(rand: () => number): Pt[] {
   return line;
 }
 
-export function shapeIcon(kind: ShapeKind): string {
+/** A shape as one brush stroke inside an enso; `fine` draws it with a thin nib and no ring, like a pen-brush in a notebook. */
+export function shapeIcon(kind: ShapeKind, fine = false): string {
   let seed = (Math.random() * 2 ** 31) | 0;
   const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
   const id = `brush${++iconId}`;
   const { line, corners } = strokeLine(kind, rand);
-  const glyph = brushPath(line, kind === 'pentagram' || kind === 'hourglass' ? 3.2 : 3.9, rand, corners);
+  const glyph = brushPath(line, (kind === 'pentagram' || kind === 'hourglass' ? 3.2 : 3.9) * (fine ? 0.5 : 1), rand, corners);
+  if (fine) return `<svg viewBox="0 0 48 48" aria-hidden="true"><path class="glyph" d="${glyph.ink}"/></svg>`;
 
   const ring = brushPath(ensoLine(rand), 2.2, rand);
   return (
