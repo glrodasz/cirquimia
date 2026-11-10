@@ -432,7 +432,39 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   else impact.show(at.x, at.z);
 }
 
-const HERO_TAP = 48; // px: a tap this close to the alchemist drops the shape in hand
+const HERO_TAP = 30; // px: a tap this close to the alchemist (and nearer it than any rival) drops the shape in hand
+// A tap on a fighter's body means that fighter: the strike goes to its feet, a little ahead if it is walking, rather
+// than to the ground the tap happens to cover (behind its feet, since the body stands up out of the ground).
+const BODY_TOP = 0.75; // world units: head height of a fighter, for its silhouette on screen
+const BODY_SLACK = 16; // px of forgiveness around the silhouette
+const LEAD = 0.25; // s: about the ground's warning before a strike erupts
+const snapAhead = new THREE.Vector3();
+
+/** px from (x, y) to a fighter's silhouette on screen (0 inside it): a thick segment from its feet to its head. */
+function toBody(p: THREE.Vector3, x: number, y: number) {
+  const feet = toScreen(p, 0);
+  const head = toScreen(p, BODY_TOP);
+  const half = Math.max(14, (feet.y - head.y) * 0.3);
+  const t = THREE.MathUtils.clamp((y - head.y) / Math.max(1, feet.y - head.y), 0, 1);
+  const cx = head.x + (feet.x - head.x) * t;
+  const cy = head.y + (feet.y - head.y) * t;
+  return Math.max(0, Math.hypot(x - cx, y - cy) - half);
+}
+
+/** The ground point to strike when the tap lands on a rival (or the scarecrow): where it will stand by the eruption. */
+function snapToTarget(x: number, y: number, out: THREE.Vector3): boolean {
+  let best = BODY_SLACK;
+  let found = false;
+  for (const target of combat.targets()) {
+    const d = toBody(target.at, x, y);
+    if (d > best) continue;
+    best = d;
+    target.ahead(LEAD, out);
+    out.y = heightAt(out.x, out.z);
+    found = true;
+  }
+  return found;
+}
 
 /** Walks there and nothing else, whatever is in hand (a tap made with a second finger while drawing). */
 function walkTo(clientX: number, clientY: number) {
@@ -453,12 +485,13 @@ function tapAt(clientX: number, clientY: number) {
   }
   if (held) {
     if (!lesson) {
-      const self = hero.root.position.clone().setY(hero.root.position.y + 0.3).project(camera);
-      const sx = ((self.x + 1) / 2) * innerWidth;
-      const sy = ((1 - self.y) / 2) * innerHeight;
-      if (Math.hypot(clientX - sx, clientY - sy) < HERO_TAP) {
-        hold(null);
-        return;
+      if (snapToTarget(clientX, clientY, snapAhead)) hit.copy(snapAhead);
+      else {
+        const self = toScreen(hero.root.position, 0.3);
+        if (Math.hypot(clientX - self.x, clientY - self.y) < HERO_TAP) {
+          hold(null);
+          return;
+        }
       }
     }
     const kind = held;
@@ -589,7 +622,7 @@ const aimAt = new THREE.Vector3();
 function aimReticle(dt: number) {
   const free = held && mouse.over && !combat.over && !router.isDrawing && !help.open && !dev.open;
   const lesson = free ? tutorial.aim() : null;
-  if (!free || !(lesson ? aimAt.copy(lesson) : groundAt(mouse.x, mouse.y, aimAt))) {
+  if (!free || !(lesson ? aimAt.copy(lesson) : snapToTarget(mouse.x, mouse.y, aimAt) || groundAt(mouse.x, mouse.y, aimAt))) {
     reticle.hide();
     return;
   }

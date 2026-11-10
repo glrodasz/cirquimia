@@ -862,6 +862,15 @@ export class Combat {
     this.onStart();
   }
 
+  /** Everyone the alchemist can strike, standing: each rival (with where it will be in `seconds`) and the scarecrow. */
+  targets(): Array<{ at: THREE.Vector3; ahead(seconds: number, out: THREE.Vector3): THREE.Vector3 }> {
+    const still = (p: THREE.Vector3) => (_: number, out: THREE.Vector3) => out.copy(p);
+    return [
+      ...this.rivals.filter((r) => !r.down).map((r) => ({ at: r.position, ahead: (s: number, out: THREE.Vector3) => r.body.ahead(s, out) })),
+      ...this.dummies.filter((d) => !d.down).map((d) => ({ at: d.position, ahead: still(d.position) })),
+    ];
+  }
+
   /** Training: the scarecrow standing now, if any. */
   dummy(): THREE.Vector3 | null {
     const d = this.dummies[this.dummies.length - 1];
