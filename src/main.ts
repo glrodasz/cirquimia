@@ -183,11 +183,12 @@ function walkGoal(): THREE.Vector3 | null {
   return null;
 }
 
-// Fire and water, pointed out over their sources after the first match's wall lesson until each is charged once.
+// Fire, then water: the triangle traced over its source after the first match's wall lesson, until each is charged once.
 const sourceHints = new SourceHints({
   find: (element) => findSource(element, hero.root.position),
   toScreen,
-  covered: () => help.open || dev.open || board.open || combat.over || !tutorial.done,
+  // Waits for the tutorial's card to fade, so the demo is never under it and comes one thing at a time.
+  covered: () => help.open || dev.open || board.open || combat.over || !tutorial.done || tutorial.showing,
 });
 
 // Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow; so do
@@ -505,8 +506,8 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
     hero.face(source);
     spells.channel(source, hero.root.position, element);
     if (sourceHints.charged(element)) {
-      const [title, body] = sourceHints.active ? t.sources[element] : t.sources.both;
-      tutorial.note(title, body);
+      // The last one also tells what the two make together.
+      tutorial.note(t.sources[element][0], sourceHints.active ? t.sources[element][1] : t.sources.both);
     }
   }
   return true;
@@ -723,7 +724,7 @@ renderer.setAnimationLoop((time) => {
     combat.update(dt);
   }
   practice.set(combat.rivalCount === 0);
-  sourceHints.update();
+  sourceHints.update(dt);
   aimReticle(dt);
   ink.update(dt);
 

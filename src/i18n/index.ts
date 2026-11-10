@@ -184,10 +184,9 @@ const es = {
     },
   } as { move: MoveLesson; square: Lesson; circle: Lesson; wrong: Record<'square' | 'circle', string> },
   sources: {
-    drawHere: 'Dibuja aquí',
     fire: ['¡Fuego cargado!', 'Toca al rival para lanzarlo.'],
     water: ['¡Agua cargada!', 'Toca al rival para lanzarla.'],
-    both: ['Fuego y agua', 'Carga uno y luego el otro: se unen en una explosión.'],
+    both: 'Carga fuego y luego agua: se unen en una explosión.',
   },
   practice: {
     hitMe: '¡Golpéame!',
@@ -427,10 +426,9 @@ const en: Strings = {
     },
   },
   sources: {
-    drawHere: 'Draw here',
     fire: ['Fire charged!', 'Tap the rival to cast it.'],
     water: ['Water charged!', 'Tap the rival to cast it.'],
-    both: ['Fire and water', 'Charge one, then the other: they merge into a blast.'],
+    both: 'Charge fire, then water: they merge into a blast.',
   },
   practice: {
     hitMe: 'Hit me!',

@@ -64,7 +64,7 @@ Drawing a new symbol replaces the one in hand, so a square followed by a triangl
 
 **Runes.** Cast from inside a rune circle on the ground and your power grows: +25% strike area, and heals restore 33 instead of 25. Walls cannot be raised inside one, so nobody can turtle up there.
 
-A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the bottom left set the number of rivals (0 to 2, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard); the book at the bottom right reopens the guide. A first visit goes straight into the first match, which teaches by playing: walk to a mark, draw a square, raise a wall, then hints over the campfire and the lagoon until fire and water have been charged once. The "?" opens a three-page guide (move, draw, cast).
+A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the bottom left set the number of rivals (0 to 2, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard); the book at the bottom right reopens the guide. A first visit goes straight into the first match, which teaches by playing: walk to a mark, draw a square, raise a wall, then a hand tracing the triangle over the campfire, and then the lagoon, until each has been charged once. The "?" opens a three-page guide (move, draw, cast).
 
 ## How it works
 
@@ -167,7 +167,7 @@ docs/           diagrams
 | `match.ts` | Match HUD (rivals, difficulty), end-of-match cards, restart on a new meadow |
 | `help.ts` | "How to play" guide |
 | `tutorial.ts` | Interactive first-match tutorial |
-| `sourceHints.ts` | Fire and water hints over the campfire and the lagoon after the tutorial |
+| `sourceHints.ts` | After the tutorial: the fire, then the water triangle traced over its source |
 | `gpu.ts` | WebGL 2 probe and the hardware-acceleration notice |
 | `deviceHint.ts` | Watermark that says where the game plays best (touch screen, held upright) |
 | `devtools.ts` | Gear button with the developer panel |

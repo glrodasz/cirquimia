@@ -137,6 +137,11 @@ export class Tutorial {
     document.body.append(this.root);
   }
 
+  /** A lesson or a note is on screen. */
+  get showing() {
+    return !this.root.hidden && this.root.classList.contains('show');
+  }
+
   /** Both lessons are behind the player. */
   get done() {
     return this.stage === 'done';
