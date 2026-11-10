@@ -64,7 +64,7 @@ Drawing a new symbol replaces the one in hand, so a square followed by a triangl
 
 **Runes.** Cast from inside a rune circle on the ground and your power grows: +25% strike area, and heals restore 33 instead of 25. Walls cannot be raised inside one, so nobody can turtle up there.
 
-A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the bottom left set the number of rivals (0 to 2, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard); the book at the bottom right reopens the guide. A first visit shows the visual guide and a short interactive tutorial during the first match.
+A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the bottom left set the number of rivals (0 to 2, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard); the book at the bottom right reopens the guide. A first visit goes straight into the first match, which teaches by playing: walk to a mark, draw a square, raise a wall, then hints over the campfire and the lagoon until fire and water have been charged once. The "?" opens a three-page guide (move, draw, cast).
 
 ## How it works
 
@@ -100,7 +100,7 @@ Handy URL parameters:
 | --- | --- |
 | `?seed=anything` | Reproduces a meadow |
 | `?look=glade` | Switches to the warm Glade look (Bruma is the default) |
-| `?tutorial` | Replays the first-match tutorial |
+| `?tutorial` | Replays the first-match tutorial and the fire and water hints |
 | `?dev` | Shows the gear with the developer panel: new meadow, seed, generator sliders, tilt-shift and FPS toggles, look switch |
 | `?gpu=none` / `?gpu=software` | Forces the hardware-acceleration notice, for testing |
 
@@ -167,6 +167,7 @@ docs/           diagrams
 | `match.ts` | Match HUD (rivals, difficulty), end-of-match cards, restart on a new meadow |
 | `help.ts` | "How to play" guide |
 | `tutorial.ts` | Interactive first-match tutorial |
+| `sourceHints.ts` | Fire and water hints over the campfire and the lagoon after the tutorial |
 | `gpu.ts` | WebGL 2 probe and the hardware-acceleration notice |
 | `deviceHint.ts` | Watermark that says where the game plays best (touch screen, held upright) |
 | `devtools.ts` | Gear button with the developer panel |

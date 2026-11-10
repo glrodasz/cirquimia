@@ -61,6 +61,13 @@ interface Lesson {
   done: string;
 }
 
+interface MoveLesson {
+  walk: Line;
+  pad: Line;
+  keys: Line;
+  done: string;
+}
+
 const es = {
   title: 'Cirquimia',
   switchLanguage: 'Cambiar a español',
@@ -128,10 +135,8 @@ const es = {
       ['Muévete', 'Toca el suelo y el alquimista <b>camina</b> hasta allí.'],
       ['Dibuja un símbolo', 'Traza la forma con el dedo: queda <b>lista en tu mano</b>. Solo uno a la vez: uno nuevo reemplaza al anterior. El muro y la cura salen al instante.'],
       ['Lánzalo', 'Toca al <b>rival</b> y el ataque sale ahí. Toca al alquimista para soltarlo.'],
-      ['Fuego y agua', 'Dibuja el triángulo sobre una <b>fogata</b>, o el triángulo invertido sobre una <b>laguna</b>, para cargarlos. Carga uno y luego el otro: se unen en una <b>explosión</b>. Con la estrella, en una <b>estrella de fuego</b> o <b>de agua</b>.'],
-      ['Runas', 'Lanza desde un <b>círculo de runas</b> y tu poder aumenta: +25% de área, curación 33. Dentro no puedes levantar muros.'],
     ],
-    pad: ['Mando opcional', 'Si prefieres, deja el dedo quieto un instante en el <b>aro de abajo a la izquierda</b> y deslízalo hacia donde quieras ir.'],
+    pad: 'Toca el suelo y el alquimista <b>camina</b> hasta allí, o deja el dedo quieto en el <b>aro de abajo a la izquierda</b> y deslízalo.',
     slideOf: (n: number, total: number) => `Paso ${n} de ${total}`,
     pageOf: (n: number, total: number) => `Página ${n} de ${total}`,
     back: 'Atrás',
@@ -155,6 +160,12 @@ const es = {
     go: '¡A jugar!',
   },
   tutorial: {
+    move: {
+      walk: ['Muévete hasta la marca', 'Toca el suelo donde brilla.'],
+      pad: ['Muévete hasta la marca', 'Toca el suelo donde brilla, o deja el dedo en el aro y deslízalo.'],
+      keys: ['Muévete hasta la marca', 'Usa WASD o las flechas, o haz clic donde brilla.'],
+      done: '¡Bien! Ahora a pelear.',
+    },
     square: {
       draw: ['Dibuja un cuadrado', 'Un cuadrado crea un ataque de tierra.'],
       aim: ['Toca al rival', 'El ataque de tierra sale justo donde toques.'],
@@ -171,7 +182,13 @@ const es = {
       square: 'Eso no fue un cuadrado. Sigue la guía e inténtalo otra vez.',
       circle: 'Eso no fue un círculo. Sigue la guía e inténtalo otra vez.',
     },
-  } as { square: Lesson; circle: Lesson; wrong: Record<'square' | 'circle', string> },
+  } as { move: MoveLesson; square: Lesson; circle: Lesson; wrong: Record<'square' | 'circle', string> },
+  sources: {
+    drawHere: 'Dibuja aquí',
+    fire: ['¡Fuego cargado!', 'Toca al rival para lanzarlo.'],
+    water: ['¡Agua cargada!', 'Toca al rival para lanzarla.'],
+    both: ['Fuego y agua', 'Carga uno y luego el otro: se unen en una explosión.'],
+  },
   practice: {
     hitMe: '¡Golpéame!',
     progress: (n: number, total: number) => `Entrenamiento · ${n} de ${total} ataques probados`,
@@ -361,10 +378,8 @@ const en: Strings = {
       ['Move', 'Tap the ground and the alchemist <b>walks</b> there.'],
       ['Draw a symbol', 'Trace the shape with your finger: it is <b>ready in your hand</b>. Only one at a time: a new one replaces the last. Walls and heals go off at once.'],
       ['Cast it', 'Tap the <b>rival</b> and the attack lands there. Tap the alchemist to drop it.'],
-      ['Fire and water', 'Draw the triangle over a <b>campfire</b>, or the inverted triangle over a <b>lagoon</b>, to charge them. Charge one, then the other: they merge into a <b>blast</b>. With the star, into a <b>fire star</b> or <b>water star</b>.'],
-      ['Runes', 'Cast from a <b>rune circle</b> and your power grows: +25% area, healing 33. You cannot raise walls inside it.'],
     ],
-    pad: ['Optional stick', 'If you like, rest your finger a moment on the <b>ring at the bottom left</b>, then slide it where you want to go.'],
+    pad: 'Tap the ground and the alchemist <b>walks</b> there, or rest your finger on the <b>ring at the bottom left</b> and slide it.',
     slideOf: (n: number, total: number) => `Step ${n} of ${total}`,
     pageOf: (n: number, total: number) => `Page ${n} of ${total}`,
     back: 'Back',
@@ -388,6 +403,12 @@ const en: Strings = {
     go: "Let's play!",
   },
   tutorial: {
+    move: {
+      walk: ['Walk to the mark', 'Tap the ground where it glows.'],
+      pad: ['Walk to the mark', 'Tap the ground where it glows, or rest your finger on the ring and slide it.'],
+      keys: ['Walk to the mark', 'Use WASD or the arrow keys, or click where it glows.'],
+      done: 'Nice! Now, to battle.',
+    },
     square: {
       draw: ['Draw a square', 'A square makes an earth attack.'],
       aim: ['Tap the rival', 'The earth attack bursts out right where you tap.'],
@@ -404,6 +425,12 @@ const en: Strings = {
       square: "That wasn't a square. Follow the guide and try again.",
       circle: "That wasn't a circle. Follow the guide and try again.",
     },
+  },
+  sources: {
+    drawHere: 'Draw here',
+    fire: ['Fire charged!', 'Tap the rival to cast it.'],
+    water: ['Water charged!', 'Tap the rival to cast it.'],
+    both: ['Fire and water', 'Charge one, then the other: they merge into a blast.'],
   },
   practice: {
     hitMe: 'Hit me!',

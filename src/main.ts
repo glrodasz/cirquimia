@@ -26,6 +26,7 @@ import { mountKeysHint } from './keysHint';
 import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 import { mountPad } from './pad';
 import { Practice } from './practice';
+import { SourceHints } from './sourceHints';
 import { mountLeaderboard } from './leaderboard/ui';
 import { Runs } from './leaderboard/client';
 
@@ -135,28 +136,66 @@ function hold(kind: ShapeKind | null) {
 const help = mountHelp();
 // Mouse-only screens and sideways phones get a quiet note on where the game plays best.
 mountDeviceHint();
+/** Screen pixels of a world point, `lift` world units above it. */
+function toScreen(p: THREE.Vector3, lift: number) {
+  const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
+  return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
+}
 // The first match walks through the square (attack) and, after the first hit taken, the circle (wall).
 const tutorial = new Tutorial({
   covered: () => help.open || dev.open || combat.over,
   foe: () => combat.foe(),
-  toScreen: (p, lift) => {
-    const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
-    return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
-  },
+  toScreen: (p, lift) => toScreen(p, lift),
   selected: () => held,
   deselect: () => hold(null),
   hold: (on) => combat.hold(on),
   provoke: () => combat.provoke(),
   ambush: () => combat.ambush(),
+  hero: () => hero.root.position,
+  walkGoal: () => walkGoal(),
+  finished: () => sourceHints.start(),
 });
 combat.onHeroHit = () => tutorial.hurt();
 // The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
 world.noRunes = () => !tutorial.done;
 
-// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow.
+/** A clear spot a short walk from the alchemist, on screen and away from props and water, for the walking lesson. */
+function walkGoal(): THREE.Vector3 | null {
+  const from = hero.root.position;
+  const clear = (x: number, z: number) =>
+    world.obstacles.every((o) => Math.hypot(x - o.x, z - o.z) > o.r + 0.3) &&
+    world.layout.features.every((f) => Math.hypot(x - f.x, z - f.z) > f.r + 0.3);
+  // Sideways and towards the camera first: the walk reads best across the screen.
+  for (const reach of [1.3, 1, 1.6, 0.8]) {
+    // Angles on screen: 0 = right, π/2 = towards the camera (down the screen).
+    for (const a of [0.4, Math.PI - 0.4, 0, Math.PI, 0.9, Math.PI - 0.9, -0.5, Math.PI + 0.5]) {
+      const right = Math.cos(a) * reach;
+      const down = Math.sin(a) * reach;
+      const p = new THREE.Vector3(
+        from.x + Math.cos(AZIMUTH) * right + Math.sin(AZIMUTH) * down,
+        0,
+        from.z - Math.sin(AZIMUTH) * right + Math.cos(AZIMUTH) * down,
+      );
+      p.y = heightAt(p.x, p.z);
+      if (onScreen(p) && clear(p.x, p.z)) return p;
+    }
+  }
+  return null;
+}
+
+// Fire and water, pointed out over their sources after the first match's wall lesson until each is charged once.
+const sourceHints = new SourceHints({
+  find: (element) => findSource(element, hero.root.position),
+  toScreen,
+  covered: () => help.open || dev.open || board.open || combat.over || !tutorial.done,
+});
+
+// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow; so do
+// the first matches, for the fire and water hints that follow the tutorial.
 // The first meadow is built before the HUD restores the match, so it reads the saved setting.
 let hudReady = false;
-world.required = () => ((hudReady ? combat.rivalCount : savedRivals()) === 0 ? ['fogata', 'estanque'] : []);
+world.required = () =>
+  (hudReady ? combat.rivalCount : savedRivals()) === 0 || !tutorial.done || sourceHints.active ? ['fogata', 'estanque'] : [];
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(
@@ -465,6 +504,10 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   if (source) {
     hero.face(source);
     spells.channel(source, hero.root.position, element);
+    if (sourceHints.charged(element)) {
+      const [title, body] = sourceHints.active ? t.sources[element] : t.sources.both;
+      tutorial.note(title, body);
+    }
   }
   return true;
 }
@@ -680,6 +723,7 @@ renderer.setAnimationLoop((time) => {
     combat.update(dt);
   }
   practice.set(combat.rivalCount === 0);
+  sourceHints.update();
   aimReticle(dt);
   ink.update(dt);
 
