@@ -9,20 +9,24 @@ const LEVELS = Object.keys(DIFFICULTY_LABEL) as Difficulty[];
 const STEP = 0.7;
 /** A first-time player gets one easy rival to learn against; returning players keep their own choice. */
 const FIRST_MATCH: Saved = { rivals: 1, difficulty: 'facil' };
-/** Set once the first victory has pointed out the rivals and difficulty pills. */
+/**
+ * The rivals and difficulty pills are pointed out once, at the start of the match after the first victory
+ * (on the end card they covered the score): 'next' after that victory, '1' once shown.
+ */
 const SPOT_STORE = 'cirquimia.hudspot';
+const SPOT_MS = 5000;
 
-function spotSeen() {
+function spotState(): string | null {
   try {
-    return localStorage.getItem(SPOT_STORE) === '1';
+    return localStorage.getItem(SPOT_STORE);
   } catch {
-    return true; // blocked storage: never nag on every win
+    return '1'; // blocked storage: never nag on every win
   }
 }
 
-function markSpotSeen() {
+function setSpot(value: 'next' | '1') {
   try {
-    localStorage.setItem(SPOT_STORE, '1');
+    localStorage.setItem(SPOT_STORE, value);
   } catch {
     // Blocked storage: nothing to remember it in.
   }
@@ -178,9 +182,19 @@ export function mountMatchControls(match: MatchControls) {
   spotTip.hidden = true;
   spotTip.innerHTML = `<b>${t.match.spotTitle}</b><span>${t.match.spotBody}</span>`;
   document.body.append(spotTip);
+  let spotTimer = 0;
   const unspot = () => {
+    clearTimeout(spotTimer);
     box.classList.remove('spot');
     spotTip.hidden = true;
+  };
+  /** A few seconds at the start of the next match, then it fades by itself. */
+  const spotNext = () => {
+    if (spotState() !== 'next') return;
+    setSpot('1');
+    box.classList.add('spot');
+    spotTip.hidden = false;
+    spotTimer = window.setTimeout(unspot, SPOT_MS);
   };
   const closeEnd = () => {
     end.hidden = true;
@@ -220,7 +234,10 @@ export function mountMatchControls(match: MatchControls) {
     closeEnd();
     match.restart();
     restarted(again);
+    spotNext();
   });
+  // Won and left before playing again: the next visit's first match shows it.
+  if (spotState() === 'next') window.setTimeout(spotNext, 1200);
 
   return {
     /** The victory card's score block, filled by the ranking for a match that counts. */
@@ -241,11 +258,7 @@ export function mountMatchControls(match: MatchControls) {
       void end.offsetWidth; // let the fade-in start from hidden
       end.classList.add('show');
       again.focus({ preventScroll: true });
-      if (won && !spotSeen()) {
-        markSpotSeen();
-        box.classList.add('spot');
-        spotTip.hidden = false;
-      }
+      if (won && spotState() === null) setSpot('next');
     },
   };
 }

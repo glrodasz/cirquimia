@@ -637,6 +637,44 @@
       #match-end .note b { color: var(--g-red) !important; font-style: normal; font-weight: 600; }
       #match-end .scored .view { border: 0; background: none; color: var(--g-red); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
       #match-end .scored .match-btn:focus-visible, #rank button:focus-visible { outline: 1px solid var(--g-red); outline-offset: 2px; }
+      /* Sharing: the dare, the card itself as a print pinned to the page, and the networks in their own colours. */
+      #match-end .card:has(.scored:not([hidden])) { width: min(360px, 100%); }
+      #match-end .share { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 4px; padding-top: 12px; border-top: 1px solid rgba(31,26,21,.45); }
+      #match-end .dare { margin: 0; font: italic 500 17px/1.25 var(--g-font); color: var(--g-red); }
+      #match-end .share .row { display: flex; align-items: center; gap: 14px; }
+      #match-end .preview { flex: 0 0 clamp(104px, 36vw, 132px); aspect-ratio: 1; padding: 0; border: 0; background: #e9e0cc; box-shadow: 0 0 0 1px var(--g-ink), 0 0 0 4px var(--g-paper), 0 0 0 4.6px rgba(31,26,21,.5), 0 8px 16px rgba(0,0,0,.28); transform: rotate(-3deg); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .2s; }
+      #match-end .preview img { display: block; width: 100%; height: 100%; opacity: 0; transition: opacity .45s; }
+      #match-end .preview.ready img { opacity: 1; }
+      #match-end .preview.ready { animation: share-print .6s cubic-bezier(.2,1.4,.4,1); }
+      @keyframes share-print { from { transform: rotate(-9deg) scale(.86); } }
+      @media (hover: hover) { #match-end .preview:hover { transform: rotate(-1deg) scale(1.04); } }
+      #match-end .preview:focus-visible { outline: 1px solid var(--g-red); outline-offset: 6px; }
+      #match-end .share .acts { flex: 1; min-width: 0; flex-direction: column; flex-wrap: nowrap; gap: 8px; }
+      #match-end .scored .acts .match-btn { width: 100%; justify-content: center; }
+      #match-end .scored .acts .brand { gap: 8px; padding: 0 10px; border: 0; font: 600 14.5px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-variant-caps: normal; letter-spacing: 0; color: #fff; transition: filter .15s, transform .15s; }
+      #match-end .scored .acts .brand .cap { font: inherit; overflow: hidden; text-overflow: ellipsis; }
+      #match-end .scored .acts [data-to="x"] { background: #000; }
+      #match-end .scored .acts [data-to="discord"] { background: #5865f2; }
+      #match-end .scored .acts .brand:active { transform: scale(.97); }
+      @media (hover: hover) { #match-end .scored .acts .brand:hover { filter: brightness(1.15); } }
+      #match-end .brand-mark { flex: none; width: 17px; height: 17px; fill: currentColor; }
+      #match-end .scored .acts [data-to="discord"] .brand-mark { width: 20px; height: 20px; }
+      #match-end .more-menu { width: 100%; }
+      #match-end .nets { display: flex; gap: 5px; width: 100%; }
+      #match-end .card > * { flex-shrink: 0; } /* a tall card scrolls instead of squashing its buttons */
+      #match-end .scored .nets .match-btn { flex: 1 1 auto; min-width: 0; justify-content: center; height: 36px; padding: 0 6px; }
+      #match-end .scored .nets .brand { gap: 4px; border: 0; font: 600 12px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-variant-caps: normal; letter-spacing: 0; color: #fff; transition: filter .15s, transform .15s; }
+      #match-end .scored .nets .brand .cap { font: inherit; overflow: hidden; text-overflow: ellipsis; }
+      #match-end .scored .nets [data-to="bluesky"] { background: #0285ff; }
+      #match-end .scored .nets [data-to="threads"] { background: #000; }
+      #match-end .scored .nets [data-to="mastodon"] { background: #6364ff; }
+      #match-end .scored .nets .save-img { flex: 0 0 34px; padding: 0; }
+      #match-end .nets .brand-mark { width: 14px; height: 14px; }
+      #match-end .nets .save-img .brand-mark { width: 19px; height: 19px; }
+      #match-end .scored .nets .brand:active { transform: scale(.97); }
+      @media (hover: hover) { #match-end .scored .nets .brand:hover { filter: brightness(1.15); } }
+      @media (max-width: 359px) { #match-end .scored .nets .brand .cap { display: none; } }
+      @media (max-width: 359px) { #match-end .scored .acts .brand .verb, #match-end .scored .acts [data-to="x"] .cap { display: none; } }
     </style>
   </head>
   <body>
