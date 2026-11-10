@@ -208,7 +208,7 @@ combat.onEnd = (outcome) => {
   const ranked = outcome === 'victory' && combat.rivalCount > 0;
   const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs, damage: combat.heroDamage };
   matchHud.showEnd(outcome);
-  if (ranked && tutorial.done && !DEV) board.fillEnd(matchHud.scoreSlot, runs, match);
+  if (ranked && tutorial.done && !DEV) board.fillEnd(matchHud.scoreSlot, runs, match, snapshotMeadow());
 };
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
 const practice = new Practice();
@@ -230,6 +230,29 @@ if (bloom) {
 const hQuad = new FullScreenQuad(hBlur);
 const vQuad = new FullScreenQuad(vBlur);
 const BLUR_STRENGTH = vBlur.uniforms.strength.value;
+
+// The share card shows the meadow the match was won in: a square around the alchemist, copied from the
+// canvas right after a frame is drawn (the drawing buffer is not kept, so it must be read in that same task).
+let snapWanted: ((shot: HTMLCanvasElement | null) => void) | null = null;
+function snapshotMeadow(): Promise<HTMLCanvasElement | null> {
+  return new Promise((resolve) => (snapWanted = resolve));
+}
+function takeSnapshot() {
+  const src = renderer.domElement;
+  const side = Math.round(Math.min(src.width, src.height) * 0.75); // a little closer than the screen, so the figures read
+  if (!side) return null;
+  const at = hero.root.position.clone().project(camera);
+  const cx = THREE.MathUtils.clamp(((at.x + 1) / 2) * src.width, side / 2, src.width - side / 2);
+  const cy = THREE.MathUtils.clamp(((1 - at.y) / 2) * src.height, side / 2, src.height - side / 2);
+  const out = document.createElement('canvas');
+  out.width = out.height = Math.min(side, 900);
+  try {
+    out.getContext('2d')!.drawImage(src, cx - side / 2, cy - side / 2, side, side, 0, 0, out.width, out.height);
+    return out;
+  } catch {
+    return null;
+  }
+}
 // The toggle says what the player wants; the low tier turns the blur off regardless.
 let tiltWanted = true;
 let tiltShift = initial.tiltShift;
@@ -676,6 +699,10 @@ renderer.setAnimationLoop((time) => {
   vBlur.uniforms.tDiffuse.value = tiltShift ? blurTarget.texture : sceneTarget.texture;
   renderer.setRenderTarget(null);
   vQuad.render(renderer);
+  if (snapWanted) {
+    snapWanted(takeSnapshot());
+    snapWanted = null;
+  }
 
   frames++;
   fpsTime += dt;

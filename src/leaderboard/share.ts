@@ -1,15 +1,15 @@
 /**
- * The share card: a 1080×1350 PNG (fits a feed post, a chat and a story) in the game's brush look,
- * with the score, the time, the match and the place on the board. Phones open the system share sheet
- * with the image; elsewhere the image downloads and the text is copied.
+ * The share card: a 1080×1080 PNG (whole in a feed, a chat and a story) on grimoire paper, with the meadow
+ * the match was won in seen through a transmutation circle, the score in red ink and a challenge at the foot.
+ * Phones open the system share sheet with the image; elsewhere the image is copied or downloaded.
  */
-import '@fontsource-variable/alegreya/wght.css'; // the card's title face, whatever the rest of the UI loads
-import { brushPath, ensoLine } from '../ammo';
+import { shapeIcon } from '../ammo';
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
+import type { ShapeKind } from '../gestures';
 import { LANG, t } from '../i18n';
 import { SITE_URL } from '../i18n/seo';
 import { localizePath } from '../i18n/locale';
-import { arc, random, segment } from '../match';
+import meadowFallback from '../assets/share/meadow.jpg';
 import { formatTime } from './score';
 
 export interface ShareData {
@@ -22,109 +22,217 @@ export interface ShareData {
   rank?: { today: number; all: number };
 }
 
-const W = 1080;
-const H = 1350;
-const FONT = "'Alegreya Variable', Georgia, serif";
-const SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+export const CARD_SIZE = 1080;
+const W = CARD_SIZE;
+const H = CARD_SIZE;
+const FONT = "'EB Garamond Variable', Garamond, Georgia, serif";
+const PAPER = '#f5efe0';
+const INK = '#1f1a15';
+const SOFT = '#6b6258';
+const RED = '#a3271c';
+// The circle sits past the top right corner, as on the link preview, so the meadow reads as a glimpse.
+const DISC = { x: 830, y: 270, r: 370 };
+const SYMBOLS: ShapeKind[] = ['circle', 'square', 'triangle', 'triangleDown', 'rhombus', 'pentagram'];
 
 export const shareUrl = () => new URL(localizePath('/', LANG), SITE_URL).href;
 
-/** The enso and the standing alchemist from the end card, drawn with the brush's dry gaps. */
-function emblem(size: number) {
-  const rand = random();
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const g = c.getContext('2d')!;
-  g.scale(size / 48, size / 48);
-  const ring = brushPath(ensoLine(rand), 2.2, rand);
-  const head = brushPath(arc(24, 16, 5, -2 + rand(), -2 + rand() + Math.PI * 2.1), 3.4, rand);
-  const body = brushPath(arc(24, 36, 9.5, Math.PI * 1.02, Math.PI * 1.98), 4.4, rand);
-  g.fillStyle = '#e0a23c';
-  g.fill(new Path2D(ring.ink));
-  g.fillStyle = '#3d7fd6';
-  g.fill(new Path2D(head.ink + body.ink));
-  g.globalCompositeOperation = 'destination-out';
-  g.fill(new Path2D(ring.dry + head.dry + body.dry));
-  return c;
+let fallback: Promise<HTMLImageElement | null> | null = null;
+/** The bundled meadow, for when the frame of the match could not be read. */
+function fallbackMeadow() {
+  return (fallback ??= new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = meadowFallback;
+  }));
 }
 
-/** A brush underline, like the HUD's strokes. */
-function underline(g: CanvasRenderingContext2D, cx: number, y: number, width: number) {
-  const rand = random();
-  const k = width / 40;
-  const b = brushPath(segment([0, 0], [40, 0.6]), 2.6, rand);
+/** The paper: warm cream, a little darker towards the edges, with a faint grain. */
+function paper(g: CanvasRenderingContext2D) {
+  g.fillStyle = PAPER;
+  g.fillRect(0, 0, W, H);
+  const edge = g.createRadialGradient(W * 0.35, H * 0.62, 200, W * 0.45, H * 0.55, W * 0.85);
+  edge.addColorStop(0, 'rgba(120,90,50,0)');
+  edge.addColorStop(1, 'rgba(120,90,50,.16)');
+  g.fillStyle = edge;
+  g.fillRect(0, 0, W, H);
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
+  for (let i = 0; i < 2600; i++) {
+    g.fillStyle = rand() < 0.5 ? 'rgba(70,50,30,.05)' : 'rgba(255,255,255,.18)';
+    g.fillRect(rand() * W, rand() * H, 1.5 + rand() * 1.5, 1.5 + rand() * 1.5);
+  }
+}
+
+/** The meadow through the circle, with the rings, ticks and the six symbols of a transmutation circle around it. */
+function circle(g: CanvasRenderingContext2D, meadow: CanvasImageSource | null) {
+  const { x, y, r } = DISC;
   g.save();
-  g.translate(cx - width / 2, y);
-  g.scale(k, k);
-  g.fillStyle = '#e0a23c';
-  g.fill(new Path2D(b.ink));
+  g.shadowColor = 'rgba(31,26,21,.35)';
+  g.shadowBlur = 40;
+  g.shadowOffsetX = -10;
+  g.shadowOffsetY = 12;
+  g.beginPath();
+  g.arc(x, y, r, 0, Math.PI * 2);
+  g.fillStyle = '#7f9a90';
+  g.fill();
   g.restore();
+  if (meadow) {
+    g.save();
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.clip();
+    g.drawImage(meadow, x - r, y - r, r * 2, r * 2);
+    // A breath of paper over the edge, so the scene sinks into the page rather than sitting on it.
+    const veil = g.createRadialGradient(x, y, r * 0.7, x, y, r);
+    veil.addColorStop(0, 'rgba(245,239,224,0)');
+    veil.addColorStop(1, 'rgba(245,239,224,.28)');
+    g.fillStyle = veil;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
+    g.restore();
+  }
+
+  g.lineCap = 'round';
+  const ring = (radius: number, width: number, color: string, dash: number[] = []) => {
+    g.beginPath();
+    g.setLineDash(dash);
+    g.arc(x, y, radius, 0, Math.PI * 2);
+    g.lineWidth = width;
+    g.strokeStyle = color;
+    g.stroke();
+  };
+  ring(r, 10, PAPER);
+  ring(r + 22, 2, INK);
+  ring(r + 96, 1.5, INK);
+  ring(r + 108, 1.5, RED, [2, 12]);
+  g.setLineDash([]);
+  // Ticks between the inner and outer ring, like the graduations of an astrolabe.
+  g.strokeStyle = INK;
+  for (let i = 0; i < 120; i++) {
+    const a = (i / 120) * Math.PI * 2;
+    const long = i % 10 === 0;
+    const r0 = r + 22;
+    const r1 = r0 + (long ? 18 : 9);
+    g.lineWidth = long ? 2 : 1;
+    g.beginPath();
+    g.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0);
+    g.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1);
+    g.stroke();
+  }
+  // The six symbols on the visible arc, fine nib like the book's index.
+  const ringR = r + 62;
+  const from = Math.PI * 0.52;
+  const to = Math.PI * 1.0;
+  SYMBOLS.forEach((kind, i) => {
+    const a = from + ((to - from) * i) / (SYMBOLS.length - 1);
+    const d = /d="([^"]+)"/.exec(shapeIcon(kind, true))?.[1];
+    if (!d) return;
+    const size = 48;
+    g.save();
+    g.translate(x + Math.cos(a) * ringR - size / 2, y + Math.sin(a) * ringR - size / 2);
+    g.scale(size / 48, size / 48);
+    g.fillStyle = i === 2 || i === 5 ? RED : INK;
+    g.fill(new Path2D(d));
+    g.restore();
+  });
 }
 
-export async function renderShareCard(d: ShareData): Promise<Blob> {
+/** Text that shrinks until it fits `width`. */
+function fit(g: CanvasRenderingContext2D, text: string, weight: string, size: number, width: number, min = 20) {
+  do g.font = `${weight} ${size}px ${FONT}`;
+  while (g.measureText(text).width > width && --size > min);
+}
+
+/** Text with a halo of paper, so the circle's rings pass behind the letters instead of through them. */
+function inked(g: CanvasRenderingContext2D, text: string, x: number, y: number) {
+  g.save();
+  g.strokeStyle = '#eee5d2'; // the paper where the edges start to darken
+  g.lineWidth = 14;
+  g.lineJoin = 'round';
+  g.strokeText(text, x, y);
+  g.restore();
+  g.fillText(text, x, y);
+}
+
+/** Two thin rules, the grimoire's frame around the page. */
+function frame(g: CanvasRenderingContext2D) {
+  g.strokeStyle = INK;
+  g.lineWidth = 2;
+  g.strokeRect(36, 36, W - 72, H - 72);
+  g.lineWidth = 1;
+  g.globalAlpha = 0.5;
+  g.strokeRect(46, 46, W - 92, H - 92);
+  g.globalAlpha = 1;
+}
+
+export async function renderShareCard(d: ShareData, meadow?: CanvasImageSource | null): Promise<Blob> {
   try {
-    await Promise.all([document.fonts.load(`700 64px ${FONT}`), document.fonts.load(`800 64px ${FONT}`)]);
+    await Promise.all([
+      document.fonts.load(`500 64px ${FONT}`),
+      document.fonts.load(`600 64px ${FONT}`),
+      document.fonts.load(`italic 400 64px ${FONT}`),
+    ]);
   } catch {
     // The fallback serif will do.
   }
+  const scene = meadow ?? (await fallbackMeadow());
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
+  paper(g);
+  frame(g);
+  circle(g, scene);
 
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#dfe6e3');
-  sky.addColorStop(0.55, '#b9c9c3');
-  sky.addColorStop(1, '#7f9a90');
-  g.fillStyle = sky;
-  g.fillRect(0, 0, W, H);
-  const glow = g.createRadialGradient(W / 2, 520, 60, W / 2, 520, 700);
-  glow.addColorStop(0, 'rgba(255,255,255,.55)');
-  glow.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = glow;
-  g.fillRect(0, 0, W, H);
-
-  g.textAlign = 'center';
+  const left = 96;
+  g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
-  g.fillStyle = '#23322a';
-  g.font = `700 64px ${FONT}`;
-  g.letterSpacing = '12px';
-  g.fillText('CIRQUIMIA', W / 2 + 6, 140);
+
+  // The name, in spaced small capitals.
+  g.fillStyle = INK;
+  g.font = `500 54px ${FONT}`;
+  g.letterSpacing = '14px';
+  inked(g, 'CIRQUIMIA', left, 150);
+  g.letterSpacing = '0px';
+  g.fillStyle = RED;
+  g.fillRect(left, 176, 120, 3);
+
+  // What happened, then the score in red ink.
+  g.fillStyle = RED;
+  g.font = `500 36px ${FONT}`;
+  g.letterSpacing = '6px';
+  inked(g, `${t.match.victory.replace(/[¡!]/g, '')} · ${DIFFICULTY_LABEL[d.difficulty]}`.toUpperCase(), left, 690);
   g.letterSpacing = '0px';
 
-  g.drawImage(emblem(340), W / 2 - 170, 190);
+  const score = d.score.toLocaleString(LANG);
+  fit(g, score, '500', 250, 640, 120);
+  g.fillStyle = INK;
+  g.fillText(score, left - 8, 880);
+  const scoreW = g.measureText(score).width;
+  g.fillStyle = SOFT;
+  g.font = `italic 400 54px ${FONT}`;
+  g.fillText(t.rank.points(d.score), left + scoreW + 10, 880);
 
-  g.fillStyle = '#9a6418';
-  g.font = `800 84px ${FONT}`;
-  g.fillText(t.match.victory, W / 2, 640);
+  const stats = `${formatTime(d.durationMs)}  ·  ${t.rank.damage(d.damage)}  ·  ${t.rank.rivals(d.rivals)}`;
+  fit(g, stats, 'italic 400', 40, W - left * 2);
+  g.fillStyle = SOFT;
+  g.fillText(stats, left, 944);
 
-  g.fillStyle = '#23322a';
-  g.font = `800 210px ${FONT}`;
-  g.fillText(d.score.toLocaleString(LANG), W / 2, 850);
-  underline(g, W / 2, 880, 420);
-  g.font = `600 46px ${SANS}`;
-  g.globalAlpha = 0.75;
-  g.fillText(t.rank.points(d.score), W / 2, 950);
-  g.globalAlpha = 1;
-
-  const stats = `⏱ ${formatTime(d.durationMs)}  ·  ${t.rank.damage(d.damage)}  ·  ${t.rank.rivals(d.rivals)}  ·  ${DIFFICULTY_LABEL[d.difficulty]}`;
-  let size = 44;
-  do g.font = `600 ${size}px ${SANS}`;
-  while (g.measureText(stats).width > W - 140 && --size > 28);
-  g.fillText(stats, W / 2, 1060);
-
-  if (d.initials) {
-    g.font = `800 60px ${SANS}`;
-    const rank = d.rank ? `   ·   ${t.rank.placeToday(d.rank.today)}` : '';
-    g.fillText(`${d.initials}${rank}`, W / 2, 1160);
-  }
-
-  g.font = `600 38px ${SANS}`;
-  g.globalAlpha = 0.85;
-  g.fillText(t.rank.beatMe, W / 2, 1265);
-  g.font = `700 38px ${SANS}`;
-  g.fillText(SITE_URL.replace(/^https:\/\//, ''), W / 2, 1315);
-  g.globalAlpha = 1;
+  // The foot: a double rule, the player and their place, and the dare.
+  g.fillStyle = INK;
+  g.fillRect(left, 978, W - left * 2, 2);
+  g.fillRect(left, 985, W - left * 2, 1);
+  const who = d.initials ? `${d.initials}${d.rank ? `  ·  ${t.rank.placeToday(d.rank.today)}` : ''}` : '';
+  g.font = `600 36px ${FONT}`;
+  g.letterSpacing = '4px';
+  g.fillText(who, left, 1030);
+  const whoW = who ? g.measureText(who).width + 40 : 0;
+  g.letterSpacing = '0px';
+  g.textAlign = 'right';
+  g.fillStyle = RED;
+  const dare = `${t.rank.beatMe}  ${SITE_URL.replace(/^https:\/\//, '')}`;
+  fit(g, dare, 'italic 500', 38, W - left * 2 - whoW);
+  g.fillText(dare, W - left, 1030);
 
   return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/png'));
 }
@@ -220,4 +328,34 @@ export async function shareDiscord(card: Promise<Blob>, d: ShareData): Promise<'
 
 export async function saveImage(card: Promise<Blob>, d: ShareData) {
   download(await card, `cirquimia-${d.score}.png`);
+}
+
+/**
+ * The card on the clipboard, for pasting into the X composer on a computer (its compose page takes text only).
+ * Started straight from the tap, before the composer's tab takes the focus; false when the browser refuses.
+ */
+export function copyImage(card: Promise<Blob>): Promise<boolean> {
+  try {
+    return navigator.clipboard.write([new ClipboardItem({ 'image/png': card })]).then(
+      () => true,
+      () => false,
+    );
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+/** The preview's tap: the share sheet with the image on phones, a download elsewhere. */
+export async function shareImage(card: Promise<Blob>, d: ShareData) {
+  const blob = await card;
+  const file = new File([blob], `cirquimia-${d.score}.png`, { type: 'image/png' });
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: shareText(d) });
+      return;
+    } catch (e) {
+      if ((e as DOMException)?.name === 'AbortError') return;
+    }
+  }
+  download(blob, file.name);
 }

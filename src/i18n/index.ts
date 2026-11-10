@@ -100,6 +100,11 @@ const es = {
     share: 'Compartir',
     more: 'Más',
     saveImage: 'Guardar imagen',
+    dare: (score: string, points: string) => `¿Quién supera tus ${score} ${points}?`,
+    postOnX: 'Publicar en', // + X
+    sendDiscord: 'Enviar a', // + Discord
+    preview: 'Tu tarjeta: toca para guardarla',
+    xCopied: 'Imagen copiada: pégala en tu post de X.',
     discordCopied: 'Imagen copiada: pégala en Discord.',
     discordSaved: 'Imagen guardada: súbela a Discord.',
     mastodonHost: 'Tu servidor (ej. mastodon.social)',
@@ -328,6 +333,11 @@ const en: Strings = {
     share: 'Share',
     more: 'More',
     saveImage: 'Save image',
+    dare: (score, points) => `Who can beat your ${score} ${points}?`,
+    postOnX: 'Post on',
+    sendDiscord: 'Send to',
+    preview: 'Your card: tap to save it',
+    xCopied: 'Image copied: paste it into your X post.',
     discordCopied: 'Image copied: paste it in Discord.',
     discordSaved: 'Image saved: upload it to Discord.',
     mastodonHost: 'Your server (e.g. mastodon.social)',
