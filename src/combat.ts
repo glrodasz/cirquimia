@@ -74,16 +74,23 @@ interface Tuning {
   wallCooldown: number;
   /** Strikes right away from inside a fresh wall, while it protects its caster. */
   counter: boolean;
+  /**
+   * How restless it gets while the alchemist holds an attack aimed its way (it can read the symbol over its head):
+   * 0 keeps wandering as usual, 1 changes direction every half second or so, so a strike has to be timed.
+   */
+  evade: number;
+  /** Speed multiplier of the sidestep out of a strike (1 = plain walk, too slow to clear the warning). */
+  rush: number;
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, star: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.15, lead: 0, dodge: 0.4, reaction: 0.12, elemental: 0.3, blast: 0.15, star: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, star: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false, evade: 0, rush: 1 },
+  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.12, lead: 0.3, dodge: 0.3, reaction: 0.06, elemental: 0.3, blast: 0.15, star: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false, evade: 0, rush: 2},
   // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
-  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.12, lead: 0.4, dodge: 0.5, reaction: 0.12, elemental: 0.5, blast: 0.5, star: 0.3, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true },
+  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.08, lead: 0.6, dodge: 0.6, reaction: 0.12, elemental: 0.5, blast: 0.5, star: 0.3, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true, evade: 0.6, rush: 2 },
   // Hard pushed well further: relentless, sharp aim well ahead, dodges and walls most strikes, loves the blast;
   // the warning still leaves time to step out.
-  experto: { speed: 1.65, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.06, lead: 0.75, dodge: 0.75, reaction: 0.08, elemental: 0.7, blast: 0.75, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.6, fortress: 0.45, wallCooldown: 3.5, counter: true },
+  experto: { speed: 1.65, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.42, reaction: 0.08, elemental: 0.7, blast: 0.75, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.6, fortress: 0.45, wallCooldown: 3.5, counter: true, evade: 1, rush: 2},
 };
 // The tutorial's ambush keeps the pace 'experto' had when it was tuned, so making the top level harder leaves it alone.
 const AMBUSH_PACE: Tuning = { ...TUNING.experto, cooldown: [2.3, 3], draw: 0.6, lead: 0.55 };
@@ -320,6 +327,7 @@ class Rival extends Fighter<Character> {
   private moveTimer = 0;
   private dodgeTimer = -1;
   private dodgeFrom = new THREE.Vector3();
+  private dodgeAhead = new THREE.Vector3();
   private foe: Fighter | null = null;
   /** Fire or water already drawn from a source (or both, merged into the blast), kept until the next attack. */
   private charged: Fluid | 'blast' | null = null;
@@ -344,7 +352,10 @@ class Rival extends Fighter<Character> {
 
   /** A strike is coming down near this rival; maybe raise a wall against it, or step out of it after a short reaction. */
   threatened(at: THREE.Vector3, from: THREE.Vector3, combat: Combat) {
-    if (Math.hypot(at.x - this.position.x, at.z - this.position.z) > HIT_RADIUS + 0.1) return;
+    // Near where it stands or where it is walking to: a strike aimed ahead along its route counts too.
+    const next = this.body.ahead(PILLAR_WARN, this.dodgeAhead);
+    const near = Math.min(Math.hypot(at.x - this.position.x, at.z - this.position.z), Math.hypot(at.x - next.x, at.z - next.z));
+    if (near > HIT_RADIUS + 0.1) return;
     // Fallen, or already inside its own wall where nothing reaches it.
     if (this.down || this.walled > 0) return;
     // Hands free (not halfway through drawing another spell): a quick circle stops it where it stands.
@@ -392,15 +403,20 @@ class Rival extends Fighter<Character> {
         dx /= d;
         dz /= d;
       }
-      const spot = new THREE.Vector3(this.dodgeFrom.x + dx * (HIT_RADIUS + 0.2), 0, this.dodgeFrom.z + dz * (HIT_RADIUS + 0.2));
-      if (onScreen(spot)) this.body.setTarget(spot);
+      const spot = new THREE.Vector3(this.dodgeFrom.x + dx * (HIT_RADIUS + 0.3), 0, this.dodgeFrom.z + dz * (HIT_RADIUS + 0.3));
+      if (onScreen(spot)) {
+        this.body.setTarget(spot);
+        this.body.dash(this.tuning.rush, 0.45);
+      }
       this.moveTimer = 1;
     }
 
-    // Wander around its foe at mid range, re-picking a spot every few seconds.
+    // Wander around its foe at mid range, re-picking a spot every few seconds; with the alchemist holding an attack,
+    // a restless rival keeps changing course instead, so the strike's aim ahead along its route goes stale.
     this.moveTimer -= dt;
-    if (this.moveTimer <= 0 && !this.body.moving && this.walled <= 0) {
-      this.moveTimer = THREE.MathUtils.randFloat(2.5, 4);
+    const evading = this.tuning.evade > 0 && combat.heroArmed && !this.ambush;
+    if (this.moveTimer <= 0 && (!this.body.moving || evading) && this.walled <= 0) {
+      this.moveTimer = evading ? THREE.MathUtils.randFloat(0.45, 0.9) / this.tuning.evade : THREE.MathUtils.randFloat(2.5, 4);
       for (let i = 0; i < 8; i++) {
         const a = Math.random() * Math.PI * 2;
         const r = THREE.MathUtils.randFloat(1.3, 2.2);
@@ -633,6 +649,8 @@ export class Combat {
   private rivals: Rival[] = [];
   /** Training (no rivals): the standing scarecrow last in the list, fallen ones before it until they fade. */
   private dummies: Dummy[] = [];
+  /** The alchemist holds a symbol to cast: the rivals can read it over its head. */
+  heroArmed = false;
   private count = 1;
   private level: Difficulty = 'normal';
   private outcome: Outcome | null = null;
@@ -737,11 +755,13 @@ export class Combat {
   /** The player finished a stroke and stored `shape`: it shows over the alchemist's head for everyone to read, and stays while held. */
   stored(shape: Sketch, held: boolean) {
     this.hero.drawSketch(shape, HERO_SKETCH, held);
+    this.heroArmed = held;
   }
 
   /** The symbol in the alchemist's hand was cast or dropped. */
   dropped() {
     this.hero.hideSketch();
+    this.heroArmed = false;
   }
 
   /** The first rival still standing, or null. */
