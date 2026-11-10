@@ -4,7 +4,7 @@
  */
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
-import { discordLogo, trophyIcon, xLogo } from '../icons';
+import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, threadsLogo, trophyIcon, xLogo } from '../icons';
 import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, type Entry, type Period, type Runs } from './client';
 import { copyImage, mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData } from './share';
 import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
@@ -150,10 +150,11 @@ export function mountLeaderboard(): Leaderboard {
       `<button type="button" class="match-btn net brand" data-to="discord">${discordLogo()}<span class="cap"><span class="verb">${t.rank.sendDiscord} </span>Discord</span></button>` +
       `<button type="button" class="match-btn more" aria-expanded="false"><span class="cap">${t.rank.more}</span></button></div></div></div>` +
       `<div class="more-menu" hidden>` +
-      `<button type="button" class="match-btn net" data-to="bluesky"><span class="cap">Bluesky</span></button>` +
-      `<button type="button" class="match-btn net" data-to="threads"><span class="cap">Threads</span></button>` +
-      `<button type="button" class="match-btn net" data-to="mastodon"><span class="cap">Mastodon</span></button>` +
-      `<button type="button" class="match-btn net" data-to="image"><span class="cap">${t.rank.saveImage}</span></button>` +
+      `<div class="nets">` +
+      `<button type="button" class="match-btn net brand" data-to="bluesky" aria-label="Bluesky">${blueskyLogo()}<span class="cap">Bluesky</span></button>` +
+      `<button type="button" class="match-btn net brand" data-to="threads" aria-label="Threads">${threadsLogo()}<span class="cap">Threads</span></button>` +
+      `<button type="button" class="match-btn net brand" data-to="mastodon" aria-label="Mastodon">${mastodonLogo()}<span class="cap">Mastodon</span></button>` +
+      `<button type="button" class="match-btn net save-img" data-to="image" aria-label="${t.rank.saveImage}" title="${t.rank.saveImage}">${saveIcon()}</button></div>` +
       `<form class="masto" hidden novalidate><input name="host" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" enterkeyhint="go" placeholder="${t.rank.mastodonHost}" aria-label="${t.rank.mastodonHost}">` +
       `<button type="submit" class="match-btn"><span class="cap">${t.rank.go}</span></button></form></div>` +
       `<button type="button" class="match-btn view"><span class="cap">${t.rank.view}</span></button>`;

@@ -659,6 +659,21 @@
       @media (hover: hover) { #match-end .scored .acts .brand:hover { filter: brightness(1.15); } }
       #match-end .brand-mark { flex: none; width: 17px; height: 17px; fill: currentColor; }
       #match-end .scored .acts [data-to="discord"] .brand-mark { width: 20px; height: 20px; }
+      #match-end .more-menu { width: 100%; }
+      #match-end .nets { display: flex; gap: 5px; width: 100%; }
+      #match-end .card > * { flex-shrink: 0; } /* a tall card scrolls instead of squashing its buttons */
+      #match-end .scored .nets .match-btn { flex: 1 1 auto; min-width: 0; justify-content: center; height: 36px; padding: 0 6px; }
+      #match-end .scored .nets .brand { gap: 4px; border: 0; font: 600 12px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-variant-caps: normal; letter-spacing: 0; color: #fff; transition: filter .15s, transform .15s; }
+      #match-end .scored .nets .brand .cap { font: inherit; overflow: hidden; text-overflow: ellipsis; }
+      #match-end .scored .nets [data-to="bluesky"] { background: #0285ff; }
+      #match-end .scored .nets [data-to="threads"] { background: #000; }
+      #match-end .scored .nets [data-to="mastodon"] { background: #6364ff; }
+      #match-end .scored .nets .save-img { flex: 0 0 34px; padding: 0; }
+      #match-end .nets .brand-mark { width: 14px; height: 14px; }
+      #match-end .nets .save-img .brand-mark { width: 19px; height: 19px; }
+      #match-end .scored .nets .brand:active { transform: scale(.97); }
+      @media (hover: hover) { #match-end .scored .nets .brand:hover { filter: brightness(1.15); } }
+      @media (max-width: 359px) { #match-end .scored .nets .brand .cap { display: none; } }
       @media (max-width: 359px) { #match-end .scored .acts .brand .verb, #match-end .scored .acts [data-to="x"] .cap { display: none; } }
     </style>
   </head>
