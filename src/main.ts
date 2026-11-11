@@ -29,6 +29,8 @@ import { Practice } from './practice';
 import { SourceHints } from './sourceHints';
 import { mountLeaderboard } from './leaderboard/ui';
 import { Runs } from './leaderboard/client';
+import { chime, fizzle, inkSound, sound } from './audio';
+import { mountSoundButton } from './soundButton';
 
 // Camera framing: a raised three-quarter view, deliberately softer than true isometric.
 const FOV = 32;
@@ -134,6 +136,7 @@ function hold(kind: ShapeKind | null) {
 
 // How to play: full screen on the first visit, then behind the "?" next to the gear. The match waits while it is open.
 const help = mountHelp();
+mountSoundButton();
 // Mouse-only screens and sideways phones get a quiet note on where the game plays best.
 mountDeviceHint();
 /** Screen pixels of a world point, `lift` world units above it. */
@@ -566,15 +569,30 @@ const router = new PointerRouter(() => tutorial.canDraw);
 const pad = mountPad();
 const sample = (e: PointerEvent) => ({ id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, primary: e.isPrimary });
 
+let penAt = { x: 0, y: 0, t: 0 };
+
 function onGesture(g: GestureEvent) {
   if (g.type === 'tap') {
     if (!tutorial.canTap) return;
     if (g.second) walkTo(g.x, g.y);
     else tapAt(g.x, g.y);
-  } else if (g.type === 'drawStart') ink.begin(g.points);
-  else if (g.type === 'drawPoint') ink.add(g.point);
-  else if (g.type === 'drawCancel') ink.end(null);
-  else finishStroke(g.stroke, g.tapLike);
+  } else if (g.type === 'drawStart') {
+    ink.begin(g.points);
+    inkSound.begin();
+    penAt = { ...g.points[g.points.length - 1], t: performance.now() };
+  } else if (g.type === 'drawPoint') {
+    ink.add(g.point);
+    const now = performance.now();
+    const dt = Math.max(1, now - penAt.t) / 1000;
+    inkSound.move(Math.hypot(g.point.x - penAt.x, g.point.y - penAt.y) / dt);
+    penAt = { ...g.point, t: now };
+  } else if (g.type === 'drawCancel') {
+    ink.end(null);
+    inkSound.end();
+  } else {
+    inkSound.end();
+    finishStroke(g.stroke, g.tapLike);
+  }
 }
 
 function finishStroke(stroke: Point[], tapLike: boolean) {
@@ -585,13 +603,18 @@ function finishStroke(stroke: Point[], tapLike: boolean) {
   }
   if (shape) {
     if (useDrawn(shape.kind, shape.cx, shape.cy)) {
+      chime(shape.kind);
       ink.end(shape);
       // What ends up in hand can differ from what was drawn: a merge (hourglass, fire or water star).
       combat.stored(held ?? shape.kind, held !== null);
-    } else ink.end(null);
+    } else {
+      ink.end(null);
+      fizzle();
+    }
     return;
   }
   ink.end(null);
+  if (!tapLike) fizzle();
   // A fingertip that rolled a little past the draw threshold made no shape: it was a tap, so walk (or cast) there.
   if (tapLike && tutorial.canTap) tapAt(stroke[0].x, stroke[0].y);
 }
@@ -757,6 +780,14 @@ const clock = new THREE.Timer();
 const projected = new THREE.Vector3();
 
 let lastFrame = 0;
+
+// Sounds sit where they happen: panned by their place on screen, quieter the farther they are from the alchemist.
+const heard = new THREE.Vector3();
+sound.locator = (at) => {
+  heard.set(at.x, heightAt(at.x, at.z), at.z).project(camera);
+  const d = Math.hypot(at.x - hero.root.position.x, at.z - hero.root.position.z);
+  return { pan: heard.x, near: 1 / (1 + d * 0.18) };
+};
 
 renderer.setAnimationLoop((time) => {
   clock.update(time);

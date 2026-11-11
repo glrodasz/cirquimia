@@ -188,6 +188,7 @@ const es = {
     water: ['¡Agua cargada!', 'Toca al rival para lanzarla.'],
     both: 'Carga fuego y luego agua: se unen en una explosión.',
   },
+  sound: { mute: 'Silenciar sonido', unmute: 'Activar sonido' },
   practice: {
     hitMe: '¡Golpéame!',
     progress: (n: number, total: number) => `Entrenamiento · ${n} de ${total} ataques probados`,
@@ -430,6 +431,7 @@ const en: Strings = {
     water: ['Water charged!', 'Tap the rival to cast it.'],
     both: 'Charge fire, then water: they merge into a blast.',
   },
+  sound: { mute: 'Mute sound', unmute: 'Turn sound on' },
   practice: {
     hitMe: 'Hit me!',
     progress: (n, total) => `Training · ${n} of ${total} attacks tried`,

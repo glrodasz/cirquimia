@@ -1,5 +1,6 @@
 import type { Pt } from './ammo';
 import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
+import { ending } from './audio';
 import { t } from './i18n';
 import { levelIcon, rivalsIcon } from './icons';
 
@@ -148,7 +149,7 @@ export function mountMatchControls(match: MatchControls) {
   const fit = () => {
     box.classList.remove('snug', 'small', 'tight');
     const right = () => {
-      const lefts = ['rank-btn', 'book-btn', 'help-btn', 'dev-gear']
+      const lefts = ['sound-btn', 'rank-btn', 'book-btn', 'help-btn', 'dev-gear']
         .map((id) => document.getElementById(id)?.getBoundingClientRect().left ?? Infinity)
         .filter((x) => x > 0);
       return Math.min(innerWidth, ...lefts) - 8;
@@ -248,6 +249,7 @@ export function mountMatchControls(match: MatchControls) {
       const n = match.rivals;
       const level = DIFFICULTY_LABEL[match.difficulty];
       const won = outcome === 'victory';
+      ending(won);
       end.className = won ? 'victory' : 'defeat';
       end.querySelector('h2')!.textContent = won ? t.match.victory : t.match.defeat;
       end.querySelector('p')!.textContent = won
