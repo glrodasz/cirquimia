@@ -57,11 +57,30 @@ function unlock() {
     chalk = chalkGrain(ctx);
     startMeadow();
   }
-  if (ctx.state === 'suspended' && enabled && !document.hidden) void ctx.resume();
+  wake();
 }
 
+/**
+ * Resumes a context the browser is holding back. Browsers accept different events as the gesture that allows sound
+ * (Safari and iOS only a tap's touchend, a click or a key, not pointerdown, and not the end of a drag), so this runs
+ * on all of them until one works; on iOS a silent one-sample buffer played inside the gesture is what unlocks output.
+ */
+function wake() {
+  if (!ctx || !enabled || document.hidden || ctx.state === 'running') return;
+  void ctx.resume();
+  const blank = ctx.createBufferSource();
+  blank.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+  blank.connect(ctx.destination);
+  blank.start();
+}
+
+const GESTURES = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'click', 'keydown'];
+
 if (typeof window !== 'undefined') {
-  for (const type of ['pointerdown', 'keydown', 'touchend']) addEventListener(type, unlock, { capture: true, passive: true });
+  // Respects the phone's silent switch and mixes with the player's own music instead of stopping it.
+  const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+  if (session) session.type = 'ambient';
+  for (const type of GESTURES) addEventListener(type, unlock, { capture: true, passive: true });
   // A hidden tab goes quiet, the meadow included, and picks up again when it comes back.
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return;
@@ -83,7 +102,7 @@ export const sound = {
     }
     if (!ctx) return;
     master.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.05);
-    if (on) void ctx.resume();
+    wake();
   },
   /** How loud and where on screen a point is; the scene supplies it from the camera and the alchemist. */
   set locator(fn: Locate) {
