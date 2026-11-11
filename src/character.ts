@@ -142,6 +142,7 @@ export class Character {
   /** A short burst of speed (a rival's sidestep out of a strike): multiplier and seconds left. */
   private dashBoost = 1;
   private dashFor = 0;
+  private dashTotal = 1;
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -308,10 +309,10 @@ export class Character {
    * Where it will be in `seconds` if it keeps doing what it is doing: along its route to the target,
    * or straight on while the keys are held.
    */
-  /** Walks `boost` times faster for the next `seconds`. */
+  /** Starts `boost` times faster, easing back to a walk over the next `seconds`. */
   dash(boost: number, seconds: number) {
     this.dashBoost = boost;
-    this.dashFor = seconds;
+    this.dashFor = this.dashTotal = seconds;
   }
 
   ahead(seconds: number, out = new THREE.Vector3()) {
@@ -388,8 +389,9 @@ export class Character {
   update(dt: number) {
     this.time += dt;
     this.rootedFor = Math.max(0, this.rootedFor - dt);
-    if (this.dashFor > 0 && (this.dashFor -= dt) <= 0) this.dashBoost = 1;
-    const speed = this.speed * this.dashBoost;
+    // The burst eases off as it ends, so a sidestep reads as a push off one foot rather than a jump cut.
+    this.dashFor = Math.max(0, this.dashFor - dt);
+    const speed = this.speed * (1 + (this.dashBoost - 1) * (this.dashFor / this.dashTotal));
     const pos = this.root.position;
     // Drop corners already reached; the last waypoint is the target.
     while (this.path.length > 1 && Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < WAYPOINT_RADIUS) this.path.shift();

@@ -438,7 +438,13 @@ const HERO_TAP = 30; // px: a tap this close to the alchemist (and nearer it tha
 const BODY_TOP = 0.75; // world units: head height of a fighter, for its silhouette on screen
 const BODY_SLACK = 16; // px of forgiveness around the silhouette
 const LEAD = 0.25; // s: about the ground's warning before a strike erupts
+// A mouse is precise, so on desktop the help is a quiet pull instead of a lock: only over the body itself, and only
+// part of the way from the pointed ground to the feet ahead, so the reticle drifts a little rather than jumping.
+const MOUSE_SLACK = 6; // px
+const MOUSE_PULL = 0.65; // share of the way to the snapped point, inside the silhouette
+let usingMouse = false;
 const snapAhead = new THREE.Vector3();
+const pointed = new THREE.Vector3();
 
 /** px from (x, y) to a fighter's silhouette on screen (0 inside it): a thick segment from its feet to its head. */
 function toBody(p: THREE.Vector3, x: number, y: number) {
@@ -453,7 +459,7 @@ function toBody(p: THREE.Vector3, x: number, y: number) {
 
 /** The ground point to strike when the tap lands on a rival (or the scarecrow): where it will stand by the eruption. */
 function snapToTarget(x: number, y: number, out: THREE.Vector3): boolean {
-  let best = BODY_SLACK;
+  let best = usingMouse ? MOUSE_SLACK : BODY_SLACK;
   let found = false;
   for (const target of combat.targets()) {
     const d = toBody(target.at, x, y);
@@ -462,6 +468,11 @@ function snapToTarget(x: number, y: number, out: THREE.Vector3): boolean {
     target.ahead(LEAD, out);
     out.y = heightAt(out.x, out.z);
     found = true;
+  }
+  if (found && usingMouse && groundAt(x, y, pointed)) {
+    const pull = MOUSE_PULL * (1 - best / MOUSE_SLACK);
+    out.lerp(pointed, 1 - pull);
+    out.y = heightAt(out.x, out.z);
   }
   return found;
 }
@@ -590,6 +601,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (combat.over) return;
   // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
   e.preventDefault();
+  usingMouse = e.pointerType === 'mouse';
   const onPad = e.pointerType !== 'mouse' && pad.down(e.pointerId, e.clientX, e.clientY, performance.now());
   if (router.down(sample(e), onGesture) || onPad) canvas.setPointerCapture(e.pointerId);
 });
@@ -609,6 +621,7 @@ scene.add(reticle.root);
 const mouse = { x: 0, y: 0, over: false };
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse') return;
+  usingMouse = true;
   mouse.x = e.clientX;
   mouse.y = e.clientY;
   mouse.over = true;
@@ -617,6 +630,8 @@ canvas.addEventListener('pointerleave', (e) => {
   if (e.pointerType === 'mouse') mouse.over = false;
 });
 const aimAt = new THREE.Vector3();
+const aimShown = new THREE.Vector3();
+let aimVisible = false;
 
 /** Each frame: the reticle follows the mouse (or the tutorial's rival, where the tap snaps) and the alchemist's runes. */
 function aimReticle(dt: number) {
@@ -624,9 +639,14 @@ function aimReticle(dt: number) {
   const lesson = free ? tutorial.aim() : null;
   if (!free || !(lesson ? aimAt.copy(lesson) : snapToTarget(mouse.x, mouse.y, aimAt) || groundAt(mouse.x, mouse.y, aimAt))) {
     reticle.hide();
+    aimVisible = false;
     return;
   }
-  reticle.show(held, aimAt, onRunes(hero.root.position), dt);
+  // Glides to where it points instead of hopping, so the pull onto a rival reads as the hand's own aim.
+  if (aimVisible) aimShown.lerp(aimAt, 1 - Math.exp(-dt * 22));
+  else aimShown.copy(aimAt);
+  aimVisible = true;
+  reticle.show(held, aimShown, onRunes(hero.root.position), dt);
 }
 const dropPointer = (e: PointerEvent) => {
   pad.up(e.pointerId);
