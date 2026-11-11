@@ -8,6 +8,11 @@ export interface Obstacle {
   x: number;
   z: number;
   r: number;
+  /**
+   * Rises out of the ground under people (a spell's pillar or wall): whoever stands in it when it appears is not
+   * shoved out, it just walks off through it; anyone outside still has to go around.
+   */
+  rises?: boolean;
 }
 
 const WORLD_SIZE = 90;

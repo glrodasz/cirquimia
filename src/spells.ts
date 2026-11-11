@@ -235,7 +235,7 @@ class EarthWall extends Effect {
       this.addSegment(wallSegment(cx, cz, a, b, j === 0, j === count - 1), tmpColor, cx, cz, height, Math.abs(u - 0.5) * 2 * WALL_RISE * 0.7);
       // Blockers along the arc so the alchemist walks around the wall, not through it.
       const mid = (a.angle + b.angle) / 2;
-      if (j % 2 === 0) this.obstacles.push({ x: cx + Math.sin(mid) * reach, z: cz + Math.cos(mid) * reach, r: base * 0.6 });
+      if (j % 2 === 0) this.obstacles.push({ x: cx + Math.sin(mid) * reach, z: cz + Math.cos(mid) * reach, r: base * 0.6, rises: true });
     }
 
     // Chunks of rock bedded into the flanks, more of them on rockier casts.
@@ -454,7 +454,7 @@ class PillarStrike extends Effect {
     const main = this.addPiece(pillarGeo, ROCK[Math.floor(Math.random() * ROCK.length)], x, z, 0.46 * tall, 0);
     main.scale.set(0.17, 0.46 * tall, 0.17);
     main.rotation.set(lean, away + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
-    this.obstacles.push({ x, z, r: 0.1 });
+    this.obstacles.push({ x, z, r: 0.1, rises: true });
 
     const small = THREE.MathUtils.randInt(4, 6);
     for (let i = 0; i < small; i++) {
