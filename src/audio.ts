@@ -164,24 +164,23 @@ function tone(dest: AudioNode, t: number, length: number, type: OscillatorType, 
 // ---------------------------------------------------------------- the ink
 
 /**
- * Chalk on a slate: not a smooth hiss but a dense run of tiny dry grains, each a few milliseconds of bright noise
- * at its own loudness, over a thin rasp, with the odd skip where the chalk catches the grain of the board.
+ * Chalk on a slate: a firm stroke rather than sand. Fewer, longer strokes of grain (5–14 ms each, close together)
+ * with almost no hiss underneath; the filters below give it a solid, resonant body around 1.5–2.5 kHz.
  */
 function chalkGrain(c: BaseAudioContext) {
   const rate = c.sampleRate;
   const buffer = c.createBuffer(1, rate * 2, rate);
   const data = buffer.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.12;
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.03;
   let at = 0;
   while (at < data.length) {
-    const length = Math.floor(rate * (0.0015 + Math.random() * 0.005));
-    const peak = 0.25 + Math.random() * 0.75;
+    const length = Math.floor(rate * (0.005 + Math.random() * 0.009));
+    const peak = 0.6 + Math.random() * 0.4;
     for (let k = 0; k < length && at + k < data.length; k++) {
-      const env = Math.sin((Math.PI * k) / length);
+      const env = Math.sin((Math.PI * k) / length) ** 0.5;
       data[at + k] += (Math.random() * 2 - 1) * peak * env;
     }
-    // Mostly packed tight, now and then a catch: a short gap, then a harder grain.
-    at += Math.random() < 0.06 ? Math.floor(rate * (0.012 + Math.random() * 0.02)) : Math.floor(length * (0.4 + Math.random() * 0.8));
+    at += Math.floor(length * (0.8 + Math.random() * 0.4));
   }
   return buffer;
 }
@@ -190,7 +189,7 @@ let inkGain: GainNode | null = null;
 let inkFilter: BiquadFilterNode | null = null;
 let inkSource: AudioBufferSourceNode | null = null;
 
-/** Chalk scratching on a slate while drawing: louder, brighter and grittier the faster the stroke moves. */
+/** Chalk on a slate while drawing: louder and a little brighter the faster the stroke moves. */
 export const inkSound = {
   begin() {
     this.end();
@@ -202,28 +201,31 @@ export const inkSound = {
     inkSource.loop = true;
     const low = c.createBiquadFilter();
     low.type = 'highpass';
-    low.frequency.value = 900;
+    low.frequency.value = 600;
+    // The body: a resonant band where chalk on slate sings, so it reads as one firm line, not grit.
     inkFilter = c.createBiquadFilter();
-    inkFilter.type = 'peaking';
-    inkFilter.frequency.value = 3200;
-    inkFilter.Q.value = 1.2;
-    inkFilter.gain.value = 8;
+    inkFilter.type = 'bandpass';
+    inkFilter.frequency.value = 1700;
+    inkFilter.Q.value = 3.5;
+    // And no sandy fizz above it.
+    const top = c.createBiquadFilter();
+    top.type = 'lowpass';
+    top.frequency.value = 4200;
     inkGain = c.createGain();
     inkGain.gain.value = 0;
-    inkSource.connect(low).connect(inkFilter).connect(inkGain).connect(sfxBus);
+    inkSource.connect(low).connect(inkFilter).connect(top).connect(inkGain).connect(sfxBus);
     inkSource.start(t, Math.random() * 1.5);
-    // The chalk touching the board: one dry tick.
-    hiss(sfxBus, t, 0.03, { type: 'bandpass', from: 2600, q: 2 }, { attack: 0.002, peak: 0.12 });
+    // The chalk touching the board: one short knock.
+    hiss(sfxBus, t, 0.035, { type: 'bandpass', from: 1500, q: 3 }, { attack: 0.002, peak: 0.25 });
   },
   /** `speed` in px/s. */
   move(speed: number) {
     if (!ctx || !inkGain || !inkFilter || !inkSource) return;
     const k = Math.min(1, speed / 1400);
     const now = ctx.currentTime;
-    inkGain.gain.setTargetAtTime(k < 0.03 ? 0.01 : 0.05 + k * 0.22, now, 0.025);
-    inkFilter.frequency.setTargetAtTime(2400 + k * 2200, now, 0.04);
-    // Faster strokes run over more grain per second.
-    inkSource.playbackRate.setTargetAtTime(0.75 + k * 0.6, now, 0.05);
+    inkGain.gain.setTargetAtTime(k < 0.03 ? 0.02 : 0.12 + k * 0.4, now, 0.025);
+    inkFilter.frequency.setTargetAtTime(1500 + k * 900, now, 0.05);
+    inkSource.playbackRate.setTargetAtTime(0.85 + k * 0.35, now, 0.05);
   },
   end() {
     if (!ctx || !inkGain || !inkSource) return;
