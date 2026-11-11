@@ -512,6 +512,7 @@
       #book-btn.train { animation-name: book-ring-g; }
       @keyframes book-ring-g { from { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 0 0 2px var(--g-red), 0 0 6px 1px rgba(163,39,28,.3); } to { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 0 0 3px var(--g-red), 0 0 16px 4px rgba(163,39,28,.5); } }
       #book-btn.got { animation-name: book-got-g; }
+      #sound-btn.call { animation: book-ring-g 1.4s ease-in-out infinite alternate; }
       @keyframes book-got-g { 0% { transform: scale(1); box-shadow: 0 0 0 3px var(--g-green), 0 0 18px 6px rgba(61,90,47,.6); } 30% { transform: scale(1.18); } 100% { transform: scale(1); box-shadow: 0 0 0 3px var(--g-green), 0 0 8px 2px rgba(61,90,47,0); } }
       /* Cards: the double rule. */
       :is(#match-spot, #match-end .card, #tutorial .tip, #gpu-notice .gpu-card) { box-shadow: var(--g-rule), var(--g-lift); }

@@ -27,12 +27,16 @@ let enabled = readEnabled();
 let ambienceTimer = 0;
 const last = new Map<string, number>();
 
+/** Off until the player turns it on: a game that starts making noise in someone's pocket or office is unwelcome. */
 function readEnabled() {
+  return stored() === '1';
+}
+
+function stored() {
   try {
-    if (typeof localStorage === 'undefined') return true;
-    return localStorage.getItem(KEY) !== '0';
+    return typeof localStorage === 'undefined' ? null : localStorage.getItem(KEY);
   } catch {
-    return true;
+    return null;
   }
 }
 
@@ -90,6 +94,10 @@ if (typeof window !== 'undefined') {
 }
 
 export const sound = {
+  /** True once the player has touched the speaker at least once, on any visit. */
+  get chosen() {
+    return stored() !== null;
+  },
   get enabled() {
     return enabled;
   },
