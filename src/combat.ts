@@ -3,7 +3,7 @@ import { BODY_RADIUS, Character } from './character';
 import { HitMeLabel, Scarecrow } from './dummy';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { AREA_OF, PILLAR_AREA, PILLAR_WARN, ROOT_TIME, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells } from './spells';
+import { AREA_OF, PILLAR_AREA, PILLAR_WARN, ROOT_TIME, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells, type StarCage } from './spells';
 import { t } from './i18n';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
@@ -327,6 +327,9 @@ class Rival extends Fighter<Character> {
   private moveTimer = 0;
   private dodgeTimer = -1;
   private dodgeFrom = new THREE.Vector3();
+  /** The last star it found itself inside, and whether it chose to hold still there. */
+  private cageSeen: StarCage | null = null;
+  private cageHold = false;
   private dodgeAhead = new THREE.Vector3();
   private foe: Fighter | null = null;
   /** Fire or water already drawn from a source (or both, merged into the blast), kept until the next attack. */
@@ -391,6 +394,19 @@ class Rival extends Fighter<Character> {
     this.wallTimer -= dt;
     this.walled -= dt;
 
+    // Caught inside someone's star: stand still in the middle until it sinks, as stepping out through it hurts.
+    // Only a sharp rival reads it (as likely as it dodges a strike); the others may blunder out through the columns.
+    const cage = combat.caged(this);
+    if (cage && cage !== this.cageSeen) {
+      this.cageSeen = cage;
+      this.cageHold = Math.random() < this.tuning.dodge;
+    }
+    const caged = cage !== null && this.cageHold;
+    if (caged) {
+      this.dodgeTimer = -1;
+      if (this.body.moving) this.body.halt();
+    }
+
     if (this.dodgeTimer >= 0 && (this.dodgeTimer -= dt) < 0 && this.walled <= 0) {
       // Step straight out of the warning, a little past its edge.
       let dx = pos.x - this.dodgeFrom.x;
@@ -414,7 +430,7 @@ class Rival extends Fighter<Character> {
     // so a strike aimed ahead along its route goes stale, as a player reading the threat would move.
     this.moveTimer -= dt;
     const evading = this.tuning.evade > 0 && (combat.heroArmed || this.tuning.restless) && !this.ambush && foe === combat.heroFighter;
-    if (this.moveTimer <= 0 && (!this.body.moving || evading) && this.walled <= 0) {
+    if (!caged && this.moveTimer <= 0 && (!this.body.moving || evading) && this.walled <= 0) {
       this.moveTimer = evading ? THREE.MathUtils.randFloat(0.4, 0.85) / this.tuning.evade : THREE.MathUtils.randFloat(2.5, 4);
       for (let i = 0; i < 8; i++) {
         let spot: THREE.Vector3;
@@ -680,6 +696,8 @@ export class Combat {
   private held = false;
   /** Seconds since the match started, and when the last rival strike booked against the alchemist starts and stops landing. */
   private clock = 0;
+  /** Stars whose columns are up or about to be: crossing their ring strikes once more. */
+  private cages: Array<StarCage & { inside: Map<Fighter, boolean>; born: number }> = [];
   /** Seconds of play in this match until it was decided (the game holds still while a card is open). */
   private played = 0;
   /** Health the alchemist's own strikes took off the rivals this match (what the ranking scores). */
@@ -697,7 +715,7 @@ export class Combat {
     readonly onRunes: (p: THREE.Vector3) => boolean,
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
-    spells.onStrike = (x, z, element, caster, area) => this.strike(x, z, element, caster, area);
+    spells.onStrike = (x, z, element, caster, area, cage) => this.strike(x, z, element, caster, area, cage);
   }
 
   /** The alchemist, as a fighter the rivals can pick. */
@@ -839,20 +857,65 @@ export class Combat {
     const scale = this.onRunes(caster.position) ? RUNE_BOOST : 1;
     if (isStar(element)) {
       // The pentagram (plain, fire or water): five separate strikes at the star's tips around the target, spread wider from the runes too.
-      for (const tip of starTips(at, STAR_REACH * scale)) this.strikeOne(caster, tip.at, element, (warn ?? PILLAR_WARN) + tip.delay, scale);
+      const cage = { x: at.x, z: at.z, reach: STAR_REACH * scale, caster, element, standing: 0, tips: 0, erupted: 0, struck: new Set<unknown>() };
+      for (const tip of starTips(at, STAR_REACH * scale)) {
+        if (this.strikeOne(caster, tip.at, element, (warn ?? PILLAR_WARN) + tip.delay, scale, false, cage)) cage.tips++;
+      }
+      if (cage.tips) this.cages.push({ ...cage, inside: new Map(), born: this.clock });
       return;
     }
     this.strikeOne(caster, at, element, warn, scale, sure);
   }
 
-  private strikeOne(caster: Fighter, at: THREE.Vector3, element: Element, warn: number | undefined, scale: number, sure = false) {
+  /** False when a standing wall stops it before it starts. */
+  private strikeOne(
+    caster: Fighter,
+    at: THREE.Vector3,
+    element: Element,
+    warn: number | undefined,
+    scale: number,
+    sure = false,
+    cage: StarCage | null = null,
+  ) {
     // Aimed into someone else's standing wall zone, it never starts: only a cross where it would have broken out.
     if (this.spells.shielded(at.x, at.z, caster)) {
       this.spells.denied(at, caster.ink, scale);
-      return;
+      return false;
     }
-    this.spells.pillars(caster.position, at, element, caster, warn, caster.ink, scale);
+    this.spells.pillars(caster.position, at, element, caster, warn, caster.ink, scale, cage);
     if (!sure) for (const r of this.rivals) if (r !== caster) r.threatened(at, caster.position, this);
+    return true;
+  }
+
+  /**
+   * Inside a star whose columns stand (someone else's): the place to stay, since stepping out through the ring hurts.
+   * Rivals hold still there instead of wandering or dodging out.
+   */
+  caged(f: Fighter): StarCage | null {
+    // From the warning on: walking out just as the columns break out is the worst moment to be on the ring.
+    return this.cages.find((c) => (c.standing > 0 || c.erupted < c.tips) && c.caster !== f && c.inside.get(f) === true && !c.struck.has(f)) ?? null;
+  }
+
+  /** Whoever crosses a standing star's ring, in or out, is struck once more by it (unless that star already hit them). */
+  private updateCages() {
+    const fighters = [this.hero, ...this.rivals];
+    for (let i = this.cages.length - 1; i >= 0; i--) {
+      const c = this.cages[i];
+      // Over once every tip has erupted and sunk; a safety age too, e.g. when a new meadow drops every effect.
+      if ((c.erupted >= c.tips && c.standing <= 0) || this.clock - c.born > 4) {
+        this.cages.splice(i, 1);
+        continue;
+      }
+      for (const f of fighters) {
+        if (f === c.caster || f.down) continue;
+        const inside = Math.hypot(f.position.x - c.x, f.position.z - c.z) < c.reach;
+        const was = c.inside.get(f);
+        c.inside.set(f, inside);
+        if (c.standing <= 0 || was === undefined || was === inside || c.struck.has(f) || this.over) continue;
+        this.hurt(f, c.element, c.caster);
+        c.struck.add(f);
+      }
+    }
   }
 
   /** Puts fresh rivals on screen around the alchemist, everyone at full health. */
@@ -862,6 +925,7 @@ export class Combat {
       r.dispose();
     }
     this.rivals = [];
+    this.cages = [];
     this.clearDummies();
     this.held = false;
     this.hero.reset();
@@ -963,19 +1027,14 @@ export class Combat {
     }
   }
 
-  private strike(x: number, z: number, element: Element, caster: unknown, area: number) {
+  private strike(x: number, z: number, element: Element, caster: unknown, area: number, cage: StarCage | null = null) {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
       if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
-      const before = f.hp;
-      f.hit(DAMAGE[element], element, this.camera);
-      if (caster === this.hero) this.dealt += before - f.hp;
-      if (element === 'vine') this.snare(f, caster);
-      if (f === this.hero) {
-        for (const r of this.rivals) r.ambush = false;
-        this.onHeroHit();
-      }
+      this.hurt(f, element, caster);
+      // Hit by a tip, it walks off that column freely: crossing the ring will not strike it again.
+      cage?.struck.add(f);
     }
     const boosted = area > PILLAR_AREA * AREA_OF[element] * 1.01;
     for (const d of this.dummies) {
@@ -984,6 +1043,17 @@ export class Combat {
       if (element === 'vine' && !d.down) this.snare(d, caster);
       if (caster === this.hero) this.onDummyHit(element, boosted);
       if (d.down) this.onDummyDown();
+    }
+  }
+
+  private hurt(f: Fighter, element: Element, caster: unknown) {
+    const before = f.hp;
+    f.hit(DAMAGE[element], element, this.camera);
+    if (caster === this.hero) this.dealt += before - f.hp;
+    if (element === 'vine') this.snare(f, caster);
+    if (f === this.hero) {
+      for (const r of this.rivals) r.ambush = false;
+      this.onHeroHit();
     }
   }
 
@@ -1016,6 +1086,7 @@ export class Combat {
       r.update(this.camera);
     }
     this.updateDummies(dt);
+    this.updateCages();
     this.hero.update(this.camera);
     for (const f of all) {
       f.empower(!f.down && this.onRunes(f.position), dt);

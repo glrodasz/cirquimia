@@ -26,6 +26,25 @@ const STAR_FLUID_SCALE = 0.75; // a fire or water star's flames and spouts again
 export const STAR_REACH = 0.5; // from the target to each tip, world units: the target itself sits between them
 export const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
 
+/**
+ * The ring of a star's five columns while they stand: whoever crosses it (in or out) is struck once more,
+ * so the safe play caught inside is to stand still in the middle until it sinks.
+ */
+export interface StarCage {
+  x: number;
+  z: number;
+  reach: number;
+  caster: unknown;
+  element: Element;
+  /** Tips standing right now (erupted and not yet sinking). */
+  standing: number;
+  /** Tips actually cast (one aimed into a wall never starts), and how many of them have erupted so far. */
+  tips: number;
+  erupted: number;
+  /** Already struck by this star, at a tip or for crossing it: never twice. */
+  readonly struck: Set<unknown>;
+}
+
 /** Strikes cast from inside a rune circle are this much bigger: area, and the star's spread. */
 export const RUNE_BOOST = 1.25;
 
@@ -236,7 +255,7 @@ class EarthWall extends Effect {
       this.addSegment(wallSegment(cx, cz, a, b, j === 0, j === count - 1), tmpColor, cx, cz, height, Math.abs(u - 0.5) * 2 * WALL_RISE * 0.7);
       // Blockers along the arc so the alchemist walks around the wall, not through it.
       const mid = (a.angle + b.angle) / 2;
-      if (j % 2 === 0) this.obstacles.push({ x: cx + Math.sin(mid) * reach, z: cz + Math.cos(mid) * reach, r: base * 0.6 });
+      if (j % 2 === 0) this.obstacles.push({ x: cx + Math.sin(mid) * reach, z: cz + Math.cos(mid) * reach, r: base * 0.6, rises: true });
     }
 
     // Chunks of rock bedded into the flanks, more of them on rockier casts.
@@ -388,6 +407,8 @@ class PillarStrike extends Effect {
     readonly ink: string | null = null,
     /** Size multiplier for the whole strike, e.g. 1.1 when cast from a rune circle. */
     readonly scale = 1,
+    /** The star this is one tip of, if any. */
+    readonly cage: StarCage | null = null,
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
@@ -455,7 +476,7 @@ class PillarStrike extends Effect {
     const main = this.addPiece(pillarGeo, ROCK[Math.floor(Math.random() * ROCK.length)], x, z, 0.46 * tall, 0);
     main.scale.set(0.17, 0.46 * tall, 0.17);
     main.rotation.set(lean, away + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
-    this.obstacles.push({ x, z, r: 0.1 });
+    this.obstacles.push({ x, z, r: 0.1, rises: true });
 
     const small = THREE.MathUtils.randInt(4, 6);
     for (let i = 0; i < small; i++) {
@@ -917,7 +938,7 @@ export class Spells {
   private readonly active: Active[] = [];
 
   /** Called when a strike breaks out (not when a wall stops it), with whoever cast it. */
-  onStrike: (x: number, z: number, element: Element, caster: unknown, area: number) => void = () => {};
+  onStrike: (x: number, z: number, element: Element, caster: unknown, area: number, cage: StarCage | null) => void = () => {};
 
   constructor(private readonly obstacles: Obstacle[]) {}
 
@@ -936,8 +957,9 @@ export class Spells {
     warn = PILLAR_WARN,
     ink: string | null = null,
     scale = 1,
+    cage: StarCage | null = null,
   ) {
-    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn, ink, scale));
+    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn, ink, scale, cage));
     rumble(at, warn);
   }
 
@@ -1005,12 +1027,18 @@ export class Spells {
         if (effect.blocked) {
           this.start(new DeniedMark(effect.x, effect.z, effect.ink, effect.area * 2.2));
           clack(effect);
-        } else strike(effect.element, effect);
-        if (!effect.blocked) this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area);
+        } else {
+          strike(effect.element, effect);
+          this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area, effect.cage);
+        }
+        if (effect.cage) effect.cage.erupted++;
       }
       const wasSolid = effect.solid;
       effect.update(dt);
-      if (effect.solid !== wasSolid) this.setBlocking(effect, effect.solid);
+      if (effect.solid !== wasSolid) {
+        this.setBlocking(effect, effect.solid);
+        if (effect instanceof PillarStrike && effect.cage) effect.cage.standing += effect.solid ? 1 : -1;
+      }
       if (!effect.done) continue;
       this.active.splice(i, 1);
       this.root.remove(effect.group);
