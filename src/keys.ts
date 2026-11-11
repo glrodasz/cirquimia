@@ -47,8 +47,8 @@ export const hasKeyboard = () => matchMedia('(pointer: fine)').matches;
 /** Which movement keys are down. Ignores typing in fields and shortcuts (Ctrl/⌘/Alt), and forgets all on blur. */
 export class KeyboardMove {
   private readonly held = new Map<string, MoveKey>();
-  /** Called with the changed key so a hint can light it up. */
-  onChange?: (key: MoveKey, down: boolean) => void;
+  /** Called with the changed key (and the physical key behind it) so a hint can light it up. */
+  onChange?: (key: MoveKey, down: boolean, code: string) => void;
 
   press(code: string, opts: { typing?: boolean; modifier?: boolean } = {}) {
     const key = moveKey(code);
@@ -56,7 +56,7 @@ export class KeyboardMove {
     if (!this.held.has(code)) {
       const fresh = ![...this.held.values()].includes(key);
       this.held.set(code, key);
-      if (fresh) this.onChange?.(key, true);
+      if (fresh) this.onChange?.(key, true, code);
     }
     return true;
   }
@@ -65,7 +65,7 @@ export class KeyboardMove {
     const key = this.held.get(code);
     if (!key) return false;
     this.held.delete(code);
-    if (![...this.held.values()].includes(key)) this.onChange?.(key, false);
+    if (![...this.held.values()].includes(key)) this.onChange?.(key, false, code);
     return true;
   }
 
