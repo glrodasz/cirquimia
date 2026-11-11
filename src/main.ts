@@ -3,6 +3,7 @@ import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { DEV, mountDevTools, savedQuality } from './devtools';
 import { mountMatchControls, savedRivals } from './match';
+import { mountMatchTimer } from './matchTimer';
 import { mountHelp } from './help';
 import { Tutorial } from './tutorial';
 import { Character } from './character';
@@ -241,6 +242,18 @@ const matchHud = mountMatchControls({
   restart: () => dev.newMeadow(),
 });
 hudReady = true;
+// The running time of a real match (not training, not the tutorial), stopped when it is decided.
+const matchTimer = mountMatchTimer({
+  get elapsedMs() {
+    return combat.elapsedMs;
+  },
+  get timed() {
+    return combat.rivalCount > 0 && tutorial.done;
+  },
+  get over() {
+    return combat.over;
+  },
+});
 // Global ranking: a won match against rivals counts, once the tutorial is behind and outside dev mode.
 const board = mountLeaderboard();
 const runs = new Runs();
@@ -819,6 +832,7 @@ renderer.setAnimationLoop((time) => {
     combat.update(dt);
   }
   practice.set(combat.rivalCount === 0);
+  matchTimer.update();
   sourceHints.update(dt);
   aimReticle(dt);
   ink.update(dt);
