@@ -139,6 +139,11 @@ export class Character {
   private down = false;
   /** Seconds left rooted to the spot by a vine: no walking until then. */
   private rootedFor = 0;
+  /** Spell blockers seen so far, and the ones that rose right under it, which it can walk out of until it leaves them. */
+  private readonly seen = new WeakSet<Obstacle>();
+  private readonly passing = new Set<Obstacle>();
+  /** The obstacles it collides with and routes around: all but the ones it is walking out of. */
+  private blocking: Obstacle[] = [];
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -354,7 +359,7 @@ export class Character {
     this.steering = false;
     this.stuckCount = 0;
     const pos = this.root.position;
-    const path = findPath(pos.x, pos.z, this.target.x, this.target.z, this.obstacles, BODY_RADIUS + 0.02);
+    const path = findPath(pos.x, pos.z, this.target.x, this.target.z, this.solidNow(), BODY_RADIUS + 0.02);
     if (path?.length) {
       this.path = path;
       const last = path[path.length - 1];
@@ -378,6 +383,7 @@ export class Character {
 
   update(dt: number) {
     this.time += dt;
+    this.noticeRising();
     this.rootedFor = Math.max(0, this.rootedFor - dt);
     const pos = this.root.position;
     // Drop corners already reached; the last waypoint is the target.
@@ -483,9 +489,33 @@ export class Character {
     this.torso.scale.y = 1;
   }
 
-  private resolveCollisions() {
+  /**
+   * A spell's pillar or wall that breaks out right where it stands does not throw it aside: it is let through and
+   * blocks it again once it has stepped clear. Runs every frame, so it sees each one as it appears.
+   */
+  private noticeRising() {
     const pos = this.root.position;
     for (const o of this.obstacles) {
+      if (!o.rises || this.seen.has(o)) continue;
+      this.seen.add(o);
+      if ((pos.x - o.x) ** 2 + (pos.z - o.z) ** 2 < (o.r + BODY_RADIUS) ** 2) this.passing.add(o);
+    }
+    for (const o of this.passing) {
+      const gone = !this.obstacles.includes(o);
+      if (gone || (pos.x - o.x) ** 2 + (pos.z - o.z) ** 2 >= (o.r + BODY_RADIUS) ** 2) this.passing.delete(o);
+    }
+  }
+
+  private solidNow() {
+    if (!this.passing.size) return this.obstacles;
+    this.blocking.length = 0;
+    for (const o of this.obstacles) if (!this.passing.has(o)) this.blocking.push(o);
+    return this.blocking;
+  }
+
+  private resolveCollisions() {
+    const pos = this.root.position;
+    for (const o of this.solidNow()) {
       const dx = pos.x - o.x;
       const dz = pos.z - o.z;
       const min = o.r + BODY_RADIUS;
