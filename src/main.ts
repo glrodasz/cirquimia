@@ -26,6 +26,7 @@ import { mountKeysHint } from './keysHint';
 import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 import { mountPad } from './pad';
 import { Practice } from './practice';
+import { SourceHints } from './sourceHints';
 import { mountLeaderboard } from './leaderboard/ui';
 import { Runs } from './leaderboard/client';
 
@@ -135,28 +136,67 @@ function hold(kind: ShapeKind | null) {
 const help = mountHelp();
 // Mouse-only screens and sideways phones get a quiet note on where the game plays best.
 mountDeviceHint();
+/** Screen pixels of a world point, `lift` world units above it. */
+function toScreen(p: THREE.Vector3, lift: number) {
+  const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
+  return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
+}
 // The first match walks through the square (attack) and, after the first hit taken, the circle (wall).
 const tutorial = new Tutorial({
   covered: () => help.open || dev.open || combat.over,
   foe: () => combat.foe(),
-  toScreen: (p, lift) => {
-    const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
-    return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
-  },
+  toScreen: (p, lift) => toScreen(p, lift),
   selected: () => held,
   deselect: () => hold(null),
   hold: (on) => combat.hold(on),
   provoke: () => combat.provoke(),
   ambush: () => combat.ambush(),
+  hero: () => hero.root.position,
+  walkGoal: () => walkGoal(),
+  finished: () => sourceHints.start(),
 });
 combat.onHeroHit = () => tutorial.hurt();
 // The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
 world.noRunes = () => !tutorial.done;
 
-// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow.
+/** A clear spot a short walk from the alchemist, on screen and away from props and water, for the walking lesson. */
+function walkGoal(): THREE.Vector3 | null {
+  const from = hero.root.position;
+  const clear = (x: number, z: number) =>
+    world.obstacles.every((o) => Math.hypot(x - o.x, z - o.z) > o.r + 0.3) &&
+    world.layout.features.every((f) => Math.hypot(x - f.x, z - f.z) > f.r + 0.3);
+  // Sideways and towards the camera first: the walk reads best across the screen.
+  for (const reach of [1.3, 1, 1.6, 0.8]) {
+    // Angles on screen: 0 = right, π/2 = towards the camera (down the screen).
+    for (const a of [0.4, Math.PI - 0.4, 0, Math.PI, 0.9, Math.PI - 0.9, -0.5, Math.PI + 0.5]) {
+      const right = Math.cos(a) * reach;
+      const down = Math.sin(a) * reach;
+      const p = new THREE.Vector3(
+        from.x + Math.cos(AZIMUTH) * right + Math.sin(AZIMUTH) * down,
+        0,
+        from.z - Math.sin(AZIMUTH) * right + Math.cos(AZIMUTH) * down,
+      );
+      p.y = heightAt(p.x, p.z);
+      if (onScreen(p) && clear(p.x, p.z)) return p;
+    }
+  }
+  return null;
+}
+
+// Fire, then water: the triangle traced over its source after the first match's wall lesson, until each is charged once.
+const sourceHints = new SourceHints({
+  find: (element) => findSource(element, hero.root.position),
+  toScreen,
+  // Waits for the tutorial's card to fade, so the demo is never under it and comes one thing at a time.
+  covered: () => help.open || dev.open || board.open || combat.over || !tutorial.done || tutorial.showing,
+});
+
+// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow; so do
+// the first matches, for the fire and water hints that follow the tutorial.
 // The first meadow is built before the HUD restores the match, so it reads the saved setting.
 let hudReady = false;
-world.required = () => ((hudReady ? combat.rivalCount : savedRivals()) === 0 ? ['fogata', 'estanque'] : []);
+world.required = () =>
+  (hudReady ? combat.rivalCount : savedRivals()) === 0 || !tutorial.done || sourceHints.active ? ['fogata', 'estanque'] : [];
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(
@@ -392,7 +432,50 @@ function castShape(kind: ShapeKind, at: THREE.Vector3, sure = false) {
   else impact.show(at.x, at.z);
 }
 
-const HERO_TAP = 48; // px: a tap this close to the alchemist drops the shape in hand
+const HERO_TAP = 30; // px: a tap this close to the alchemist (and nearer it than any rival) drops the shape in hand
+// A tap on a fighter's body means that fighter: the strike goes to its feet, a little ahead if it is walking, rather
+// than to the ground the tap happens to cover (behind its feet, since the body stands up out of the ground).
+const BODY_TOP = 0.75; // world units: head height of a fighter, for its silhouette on screen
+const BODY_SLACK = 16; // px of forgiveness around the silhouette
+const LEAD = 0.25; // s: about the ground's warning before a strike erupts
+// A mouse is precise, so on desktop the help is a quiet pull instead of a lock: only over the body itself, and only
+// part of the way from the pointed ground to the feet ahead, so the reticle drifts a little rather than jumping.
+const MOUSE_SLACK = 6; // px
+const MOUSE_PULL = 0.65; // share of the way to the snapped point, inside the silhouette
+let usingMouse = false;
+const snapAhead = new THREE.Vector3();
+const pointed = new THREE.Vector3();
+
+/** px from (x, y) to a fighter's silhouette on screen (0 inside it): a thick segment from its feet to its head. */
+function toBody(p: THREE.Vector3, x: number, y: number) {
+  const feet = toScreen(p, 0);
+  const head = toScreen(p, BODY_TOP);
+  const half = Math.max(14, (feet.y - head.y) * 0.3);
+  const t = THREE.MathUtils.clamp((y - head.y) / Math.max(1, feet.y - head.y), 0, 1);
+  const cx = head.x + (feet.x - head.x) * t;
+  const cy = head.y + (feet.y - head.y) * t;
+  return Math.max(0, Math.hypot(x - cx, y - cy) - half);
+}
+
+/** The ground point to strike when the tap lands on a rival (or the scarecrow): where it will stand by the eruption. */
+function snapToTarget(x: number, y: number, out: THREE.Vector3): boolean {
+  let best = usingMouse ? MOUSE_SLACK : BODY_SLACK;
+  let found = false;
+  for (const target of combat.targets()) {
+    const d = toBody(target.at, x, y);
+    if (d > best) continue;
+    best = d;
+    target.ahead(LEAD, out);
+    out.y = heightAt(out.x, out.z);
+    found = true;
+  }
+  if (found && usingMouse && groundAt(x, y, pointed)) {
+    const pull = MOUSE_PULL * (1 - best / MOUSE_SLACK);
+    out.lerp(pointed, 1 - pull);
+    out.y = heightAt(out.x, out.z);
+  }
+  return found;
+}
 
 /** Walks there and nothing else, whatever is in hand (a tap made with a second finger while drawing). */
 function walkTo(clientX: number, clientY: number) {
@@ -413,12 +496,13 @@ function tapAt(clientX: number, clientY: number) {
   }
   if (held) {
     if (!lesson) {
-      const self = hero.root.position.clone().setY(hero.root.position.y + 0.3).project(camera);
-      const sx = ((self.x + 1) / 2) * innerWidth;
-      const sy = ((1 - self.y) / 2) * innerHeight;
-      if (Math.hypot(clientX - sx, clientY - sy) < HERO_TAP) {
-        hold(null);
-        return;
+      if (snapToTarget(clientX, clientY, snapAhead)) hit.copy(snapAhead);
+      else {
+        const self = toScreen(hero.root.position, 0.3);
+        if (Math.hypot(clientX - self.x, clientY - self.y) < HERO_TAP) {
+          hold(null);
+          return;
+        }
       }
     }
     const kind = held;
@@ -465,6 +549,10 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   if (source) {
     hero.face(source);
     spells.channel(source, hero.root.position, element);
+    if (sourceHints.charged(element)) {
+      // The last one also tells what the two make together.
+      tutorial.note(t.sources[element][0], sourceHints.active ? t.sources[element][1] : t.sources.both);
+    }
   }
   return true;
 }
@@ -513,6 +601,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (combat.over) return;
   // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
   e.preventDefault();
+  usingMouse = e.pointerType === 'mouse';
   const onPad = e.pointerType !== 'mouse' && pad.down(e.pointerId, e.clientX, e.clientY, performance.now());
   if (router.down(sample(e), onGesture) || onPad) canvas.setPointerCapture(e.pointerId);
 });
@@ -532,6 +621,7 @@ scene.add(reticle.root);
 const mouse = { x: 0, y: 0, over: false };
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse') return;
+  usingMouse = true;
   mouse.x = e.clientX;
   mouse.y = e.clientY;
   mouse.over = true;
@@ -540,16 +630,23 @@ canvas.addEventListener('pointerleave', (e) => {
   if (e.pointerType === 'mouse') mouse.over = false;
 });
 const aimAt = new THREE.Vector3();
+const aimShown = new THREE.Vector3();
+let aimVisible = false;
 
 /** Each frame: the reticle follows the mouse (or the tutorial's rival, where the tap snaps) and the alchemist's runes. */
 function aimReticle(dt: number) {
   const free = held && mouse.over && !combat.over && !router.isDrawing && !help.open && !dev.open;
   const lesson = free ? tutorial.aim() : null;
-  if (!free || !(lesson ? aimAt.copy(lesson) : groundAt(mouse.x, mouse.y, aimAt))) {
+  if (!free || !(lesson ? aimAt.copy(lesson) : snapToTarget(mouse.x, mouse.y, aimAt) || groundAt(mouse.x, mouse.y, aimAt))) {
     reticle.hide();
+    aimVisible = false;
     return;
   }
-  reticle.show(held, aimAt, onRunes(hero.root.position), dt);
+  // Glides to where it points instead of hopping, so the pull onto a rival reads as the hand's own aim.
+  if (aimVisible) aimShown.lerp(aimAt, 1 - Math.exp(-dt * 22));
+  else aimShown.copy(aimAt);
+  aimVisible = true;
+  reticle.show(held, aimShown, onRunes(hero.root.position), dt);
 }
 const dropPointer = (e: PointerEvent) => {
   pad.up(e.pointerId);
@@ -680,6 +777,7 @@ renderer.setAnimationLoop((time) => {
     combat.update(dt);
   }
   practice.set(combat.rivalCount === 0);
+  sourceHints.update(dt);
   aimReticle(dt);
   ink.update(dt);
 

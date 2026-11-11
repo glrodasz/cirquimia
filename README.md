@@ -64,7 +64,7 @@ Drawing a new symbol replaces the one in hand, so a square followed by a triangl
 
 **Runes.** Cast from inside a rune circle on the ground and your power grows: +25% strike area, and heals restore 33 instead of 25. Walls cannot be raised inside one, so nobody can turtle up there.
 
-A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the bottom left set the number of rivals (0 to 2, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard); the book at the bottom right reopens the guide. A first visit shows the visual guide and a short interactive tutorial during the first match.
+A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the bottom left set the number of rivals (0 to 2, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard); the book at the bottom right reopens the guide. A first visit goes straight into the first match, which teaches by playing: walk to a mark, draw a square, raise a wall, then a hand tracing the triangle over the campfire, and then the lagoon, until each has been charged once. The "?" opens a three-page guide (move, draw, cast).
 
 ## How it works
 
@@ -74,7 +74,7 @@ The game is plain TypeScript on top of Three.js, with no game engine. Four piece
 | --- | --- |
 | **Strokes** (`src/pointer.ts`, `src/gestures.ts`, `src/ink.ts`) | The pointer router tells taps from drawings finger by finger (a press that wanders less than 40 px is a tap). A finished stroke is resampled, smoothed, trimmed where it runs past its start, then classified with plain geometry: radius spread and sweep for a circle, corner angles and side ratios for triangles, squares and rhombi, tip angles for the pentagram. No templates, no training. The ink then snaps to the ideal shape. |
 | **Meadow** (`src/generator.ts`, `src/features.ts`, `src/world.ts`) | From a seed the generator picks and places features per material (stone, earth, water, fire, magic, ruins) plus a trail. The world flood-fills from the spawn to measure what is walkable and drops the most blocking feature until enough of the meadow is reachable. |
-| **Combat** (`src/combat.ts`, `src/spells.ts`, `src/match.ts`) | HP, damage, the rune bonus and the rival AI. Rivals walk, dodge, heal, raise walls and draw their own symbols; each difficulty tunes their speed, cooldowns, aim error and reaction time. |
+| **Combat** (`src/combat.ts`, `src/spells.ts`, `src/match.ts`) | HP, damage, the rune bonus and the rival AI. Rivals walk, dodge, heal, raise walls and draw their own symbols; each difficulty tunes their speed, cooldowns, aim error and lead, how restless they are and how often they step out of or wall off a strike; they never walk faster than the alchemist (tuned so a player aiming at the body lands about 90 / 65 / 45 / 30 % from Fácil to Muy difícil). |
 | **Rendering** (`src/main.ts`, `src/meadow.ts`, `src/tiltShift.ts`) | A fixed camera at a 54° pitch and 24° yaw, flat-shaded Lambert materials, and a tilt-shift blur that makes the meadow read as a tabletop model. |
 
 Before the game loads, `src/gpu.ts` probes WebGL 2 and explains how to turn on hardware acceleration when the browser falls back to a software renderer.
@@ -100,7 +100,7 @@ Handy URL parameters:
 | --- | --- |
 | `?seed=anything` | Reproduces a meadow |
 | `?look=glade` | Switches to the warm Glade look (Bruma is the default) |
-| `?tutorial` | Replays the first-match tutorial |
+| `?tutorial` | Replays the first-match tutorial and the fire and water hints |
 | `?dev` | Shows the gear with the developer panel: new meadow, seed, generator sliders, tilt-shift and FPS toggles, look switch |
 | `?gpu=none` / `?gpu=software` | Forces the hardware-acceleration notice, for testing |
 
@@ -167,6 +167,7 @@ docs/           diagrams
 | `match.ts` | Match HUD (rivals, difficulty), end-of-match cards, restart on a new meadow |
 | `help.ts` | "How to play" guide |
 | `tutorial.ts` | Interactive first-match tutorial |
+| `sourceHints.ts` | After the tutorial: the fire, then the water triangle traced over its source |
 | `gpu.ts` | WebGL 2 probe and the hardware-acceleration notice |
 | `deviceHint.ts` | Watermark that says where the game plays best (touch screen, held upright) |
 | `devtools.ts` | Gear button with the developer panel |
