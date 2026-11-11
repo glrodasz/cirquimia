@@ -1,7 +1,7 @@
 /**
  * Every sound in the game, synthesized with Web Audio at play time: no files to load and no licences to track.
- * Effects are short shaped noise and tones (ink scratch, stone, flame, splash, chimes); the music is a soft
- * kalimba-like pentatonic loop over a low drone. Nothing plays until the first touch or key (browsers require a
+ * Effects are short shaped noise and tones (chalk, stone, flame, splash, chimes); underneath, a very quiet meadow:
+ * wind in gusts and a bird now and then. Nothing plays until the first touch or key (browsers require a
  * gesture), and the on/off choice is kept between visits.
  */
 
@@ -9,7 +9,7 @@ import type { Element } from './spells';
 
 const KEY = 'cirquimia.sound';
 const SFX_LEVEL = 0.8;
-const MUSIC_LEVEL = 0.16;
+const AMBIENCE_LEVEL = 0.5;
 
 type Where = { x: number; z: number };
 /** Screen pan (-1 left … 1 right) and loudness (0 … 1) for a point in the meadow, set by the scene. */
@@ -19,12 +19,12 @@ type Locate = (at: Where) => { pan: number; near: number };
 let ctx: AudioContext | null = null;
 let master: GainNode;
 let sfxBus: GainNode;
-let musicBus: GainNode;
+let ambienceBus: GainNode;
 let noise: AudioBuffer;
 let chalk: AudioBuffer;
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
-let musicTimer = 0;
+let ambienceTimer = 0;
 const last = new Map<string, number>();
 
 function readEnabled() {
@@ -48,21 +48,21 @@ function unlock() {
     sfxBus = ctx.createGain();
     sfxBus.gain.value = SFX_LEVEL;
     sfxBus.connect(master);
-    musicBus = ctx.createGain();
-    musicBus.gain.value = MUSIC_LEVEL;
-    musicBus.connect(master);
+    ambienceBus = ctx.createGain();
+    ambienceBus.gain.value = AMBIENCE_LEVEL;
+    ambienceBus.connect(master);
     noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     chalk = chalkGrain(ctx);
-    startMusic();
+    startMeadow();
   }
   if (ctx.state === 'suspended' && enabled && !document.hidden) void ctx.resume();
 }
 
 if (typeof window !== 'undefined') {
   for (const type of ['pointerdown', 'keydown', 'touchend']) addEventListener(type, unlock, { capture: true, passive: true });
-  // A hidden tab goes quiet, music included, and picks up again when it comes back.
+  // A hidden tab goes quiet, the meadow included, and picks up again when it comes back.
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return;
     if (document.hidden) void ctx.suspend();
@@ -235,7 +235,7 @@ export const inkSound = {
 
 // ---------------------------------------------------------------- effects
 
-// A major pentatonic on D: every chime and the music share it, so nothing clashes.
+// A major pentatonic on D: every chime and the fanfare share it, so nothing clashes.
 const SCALE = [293.66, 329.63, 369.99, 440, 493.88];
 const note = (i: number) => SCALE[((i % 5) + 5) % 5] * 2 ** Math.floor(i / 5);
 
@@ -374,69 +374,80 @@ export function ending(won: boolean) {
     });
 }
 
-// ---------------------------------------------------------------- music
+// ---------------------------------------------------------------- the meadow
 
-// Sixty-four steps of a slow pentatonic tune (scale steps, null = rest), looped over a soft drone: about 35 s.
-const TUNE: (number | null)[] = [
-  5, null, 7, null, 6, null, 4, null, 5, null, null, 2, 4, null, null, null,
-  7, null, 9, null, 8, null, 7, 5, 6, null, null, null, 4, null, 5, null,
-  5, null, 7, null, 10, null, 9, null, 7, null, 6, 5, 4, null, null, null,
-  2, null, 4, null, 5, null, 4, 2, 0, null, null, null, null, null, null, null,
-];
-const BEAT = 0.55; // s per step
-const ROOTS = [0, 0, -2, -1]; // drone root (scale step, two octaves down) per quarter of the tune
+// Barely there on purpose: a breeze that rises and falls in slow gusts, and a bird every several seconds,
+// somewhere off to one side. It should be missed when muted more than noticed when playing.
 
-function pluck(t: number, freq: number, peak: number) {
-  // Kalimba: a sine with a short bright overtone, a fast attack and a long ring.
-  tone(musicBus, t, 2.2, 'sine', freq, freq, peak, 0.004);
-  tone(musicBus, t, 0.18, 'sine', freq * 4.2, freq * 4.2, peak * 0.15, 0.002);
+/** A gust: the wind's loudness and brightness drift to a new level over a few seconds. */
+function gust(level: GainNode, color: BiquadFilterNode, t: number) {
+  const length = 3 + Math.random() * 5;
+  const strength = Math.random();
+  level.gain.setTargetAtTime(0.02 + strength * 0.07, t, length / 3);
+  color.frequency.setTargetAtTime(250 + strength * 650, t, length / 3);
+  return length;
 }
 
-function drone(t: number, freq: number, length: number) {
+/** One bird: a few quick whistled notes sliding up or down, at its own pitch, placed left or right. */
+function bird(t: number) {
   const c = ctx!;
-  for (const detune of [-4, 4]) {
-    const o = c.createOscillator();
-    o.type = 'sine';
-    o.frequency.value = freq;
-    o.detune.value = detune;
-    const g = c.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.12, t + 2);
-    g.gain.setValueAtTime(0.12, t + length - 2);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + length);
-    o.connect(g).connect(musicBus);
-    o.start(t);
-    o.stop(t + length + 0.1);
+  const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+  const g = c.createGain();
+  g.gain.value = 0.05 + Math.random() * 0.05;
+  if (pan) {
+    pan.pan.value = (Math.random() * 2 - 1) * 0.8;
+    g.connect(pan).connect(ambienceBus);
+  } else g.connect(ambienceBus);
+  const base = 2400 + Math.random() * 2200;
+  const notes = 2 + Math.floor(Math.random() * 4);
+  const rising = Math.random() < 0.5;
+  let at = t;
+  for (let i = 0; i < notes; i++) {
+    const length = 0.05 + Math.random() * 0.09;
+    const from = base * (0.9 + Math.random() * 0.25);
+    const to = from * (rising ? 1.25 + Math.random() * 0.3 : 0.7 + Math.random() * 0.15);
+    tone(g, at, length, 'sine', from, to, 0.6, 0.01);
+    at += length + 0.03 + Math.random() * 0.08;
   }
+  return at;
 }
 
-/** Schedules the loop a few seconds ahead at a time, so it keeps going without a long-lived timer per note. */
-function startMusic() {
+/** Starts the breeze for good and schedules gusts and birds a few seconds ahead at a time. */
+function startMeadow() {
   const c = ctx!;
-  // A little echo gives the plucks room, as if played in the open meadow.
-  const echo = c.createDelay(1);
-  echo.delayTime.value = BEAT * 1.5;
-  const feedback = c.createGain();
-  feedback.gain.value = 0.3;
-  const wet = c.createGain();
-  wet.gain.value = 0.35;
-  musicBus.connect(echo).connect(feedback).connect(echo);
-  echo.connect(wet).connect(master);
+  const src = c.createBufferSource();
+  src.buffer = noise;
+  src.loop = true;
+  const color = c.createBiquadFilter();
+  color.type = 'lowpass';
+  color.frequency.value = 400;
+  color.Q.value = 0.5;
+  // A second, gentler band gives the air a soft hollow whistle on top of the rumble.
+  const air = c.createBiquadFilter();
+  air.type = 'bandpass';
+  air.frequency.value = 900;
+  air.Q.value = 0.8;
+  const level = c.createGain();
+  level.gain.value = 0;
+  src.connect(color).connect(level).connect(ambienceBus);
+  const airLevel = c.createGain();
+  airLevel.gain.value = 0.25;
+  color.connect(air).connect(airLevel).connect(level);
+  src.start();
 
-  let step = 0;
-  let next = c.currentTime + 1;
-  const quarter = (TUNE.length / ROOTS.length) * BEAT;
+  let nextGust = c.currentTime + 0.5;
+  let nextBird = c.currentTime + 4 + Math.random() * 6;
   const schedule = () => {
-    while (next < c.currentTime + 3) {
-      const i = step % TUNE.length;
-      if (i % (TUNE.length / ROOTS.length) === 0) drone(next, note(ROOTS[i / (TUNE.length / ROOTS.length)] - 10), quarter + 1.5);
-      const n = TUNE[i];
-      if (n !== null) pluck(next, note(n), 0.28 + (i % 4 === 0 ? 0.08 : 0));
-      step++;
-      next += BEAT;
+    const horizon = c.currentTime + 3;
+    while (nextGust < horizon) nextGust += gust(level, color, nextGust);
+    while (nextBird < horizon) {
+      let end = bird(nextBird);
+      // Sometimes the same bird calls again a moment later.
+      if (Math.random() < 0.35) end = bird(end + 0.25 + Math.random() * 0.4);
+      nextBird = end + 5 + Math.random() * 12;
     }
   };
   schedule();
-  clearInterval(musicTimer);
-  musicTimer = window.setInterval(schedule, 1000);
+  clearInterval(ambienceTimer);
+  ambienceTimer = window.setInterval(schedule, 1000);
 }
