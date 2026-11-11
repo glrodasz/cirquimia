@@ -341,7 +341,7 @@ export function ending(won: boolean) {
 
 // ---------------------------------------------------------------- music
 
-// Sixteen bars of a slow pentatonic tune (scale steps, null = rest), looped over a soft drone: about 70 s.
+// Sixty-four steps of a slow pentatonic tune (scale steps, null = rest), looped over a soft drone: about 35 s.
 const TUNE: (number | null)[] = [
   5, null, 7, null, 6, null, 4, null, 5, null, null, 2, 4, null, null, null,
   7, null, 9, null, 8, null, 7, 5, 6, null, null, null, 4, null, 5, null,
