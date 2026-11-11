@@ -1,6 +1,6 @@
 /**
  * Every sound in the game, synthesized with Web Audio at play time: no files to load and no licences to track.
- * Effects are short shaped noise and tones (chalk, stone, flame, splash, chimes); underneath, a very quiet meadow:
+ * Effects are short shaped noise and tones (marker, stone, flame, splash, chimes); underneath, a very quiet meadow:
  * wind in gusts and a bird now and then. Nothing plays until the first touch or key (browsers require a
  * gesture), and the on/off choice is kept between visits.
  */
@@ -21,7 +21,7 @@ let master: GainNode;
 let sfxBus: GainNode;
 let ambienceBus: GainNode;
 let noise: AudioBuffer;
-let chalk: AudioBuffer;
+let marker: AudioBuffer;
 let cracks: AudioBuffer[] = [];
 let roars: AudioBuffer[] = [];
 let pops: AudioBuffer[] = [];
@@ -70,7 +70,7 @@ function unlock() {
     noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    chalk = chalkGrain(ctx);
+    marker = markerGlide(ctx);
     cracks = [0, 1, 2].map(() => groundCrack(ctx!));
     roars = [0, 1, 2].map(() => flameRoar(ctx!));
     pops = [0, 1, 2].map(() => emberPops(ctx!));
@@ -208,24 +208,19 @@ function tone(dest: AudioNode, t: number, length: number, type: OscillatorType, 
 // ---------------------------------------------------------------- the ink
 
 /**
- * Chalk on a slate: a firm stroke rather than sand. Fewer, longer strokes of grain (5–14 ms each, close together)
- * with almost no hiss underneath; the filters below give it a solid, resonant body around 1.5–2.5 kHz.
+ * A felt marker gliding on paper: smooth noise with a slow, gentle wobble in it (the tip's pressure), no grains or
+ * clicks, so it can run under every stroke without tiring the ear.
  */
-function chalkGrain(c: BaseAudioContext) {
+function markerGlide(c: BaseAudioContext) {
   const rate = c.sampleRate;
   const buffer = c.createBuffer(1, rate * 2, rate);
   const data = buffer.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.03;
-  let at = 0;
-  while (at < data.length) {
-    const length = Math.floor(rate * (0.005 + Math.random() * 0.009));
-    const peak = 0.5 + Math.random() * 0.3;
-    for (let k = 0; k < length && at + k < data.length; k++) {
-      // Rounded grains (no sharp edges) keep the line soft.
-      const env = Math.sin((Math.PI * k) / length);
-      data[at + k] += (Math.random() * 2 - 1) * peak * env;
-    }
-    at += Math.floor(length * (0.8 + Math.random() * 0.4));
+  let soft = 0;
+  for (let i = 0; i < data.length; i++) {
+    soft += 0.35 * (Math.random() * 2 - 1 - soft);
+    const t = i / rate;
+    // Loops seamlessly: whole cycles over the 2 s buffer.
+    data[i] = soft * (0.85 + 0.15 * Math.sin(2 * Math.PI * 3 * t) * Math.sin(2 * Math.PI * 0.5 * t));
   }
   return buffer;
 }
@@ -234,7 +229,7 @@ let inkGain: GainNode | null = null;
 let inkFilter: BiquadFilterNode | null = null;
 let inkSource: AudioBufferSourceNode | null = null;
 
-/** Soft chalk on a slate while drawing: a little louder and brighter the faster the stroke moves. */
+/** A soft marker on paper while drawing: barely there, a touch louder and brighter the faster the stroke moves. */
 export const inkSound = {
   begin() {
     this.end();
@@ -242,44 +237,36 @@ export const inkSound = {
     const c = ctx;
     const t = c.currentTime;
     inkSource = c.createBufferSource();
-    inkSource.buffer = chalk;
+    inkSource.buffer = marker;
     inkSource.loop = true;
     const low = c.createBiquadFilter();
     low.type = 'highpass';
-    low.frequency.value = 450;
-    // The body: a resonant band where chalk on slate sings, so it reads as one firm line, not grit.
+    low.frequency.value = 350;
+    // A gentle, wide band: the papery "fff" of a felt tip, nothing sharp above it.
     inkFilter = c.createBiquadFilter();
-    inkFilter.type = 'bandpass';
-    inkFilter.frequency.value = 1300;
-    inkFilter.Q.value = 1.6;
-    // And no sandy fizz above it.
-    const top = c.createBiquadFilter();
-    top.type = 'lowpass';
-    top.frequency.value = 2600;
+    inkFilter.type = 'lowpass';
+    inkFilter.frequency.value = 1400;
+    inkFilter.Q.value = 0.5;
     inkGain = c.createGain();
-    inkGain.gain.value = 0;
-    inkSource.connect(low).connect(inkFilter).connect(top).connect(inkGain).connect(sfxBus);
+    inkGain.gain.setValueAtTime(0, t);
+    inkSource.connect(low).connect(inkFilter).connect(inkGain).connect(sfxBus);
     inkSource.start(t, Math.random() * 1.5);
-    // The chalk touching the board: one short knock.
-    hiss(sfxBus, t, 0.035, { type: 'bandpass', from: 1200, q: 2 }, { attack: 0.004, peak: 0.08 });
   },
   /** `speed` in px/s. */
   move(speed: number) {
-    if (!ctx || !inkGain || !inkFilter || !inkSource) return;
+    if (!ctx || !inkGain || !inkFilter) return;
     const k = Math.min(1, speed / 1400);
     const now = ctx.currentTime;
-    inkGain.gain.setTargetAtTime(k < 0.03 ? 0.01 : 0.06 + k * 0.2, now, 0.05);
-    inkFilter.frequency.setTargetAtTime(1150 + k * 550, now, 0.08);
-    inkSource.playbackRate.setTargetAtTime(0.8 + k * 0.25, now, 0.08);
+    inkGain.gain.setTargetAtTime(k < 0.03 ? 0 : 0.05 + k * 0.1, now, 0.08);
+    inkFilter.frequency.setTargetAtTime(1200 + k * 900, now, 0.12);
   },
   end() {
     if (!ctx || !inkGain || !inkSource) return;
-    inkGain.gain.setTargetAtTime(0, ctx.currentTime, 0.02);
-    inkSource.stop(ctx.currentTime + 0.15);
+    inkGain.gain.setTargetAtTime(0, ctx.currentTime, 0.04);
+    inkSource.stop(ctx.currentTime + 0.25);
     inkGain = inkFilter = inkSource = null;
   },
 };
-
 
 // ---------------------------------------------------------------- recorded-like textures
 // Natural sounds are made of many small events, not one tone: these are rendered once (three takes each, picked at
