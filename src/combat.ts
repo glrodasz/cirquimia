@@ -79,18 +79,18 @@ interface Tuning {
    * 0 keeps wandering as usual, 1 changes direction every half second or so, so a strike has to be timed.
    */
   evade: number;
-  /** Speed multiplier of the sidestep out of a strike (1 = plain walk, too slow to clear the warning). */
-  rush: number;
+  /** Keeps moving the whole time it faces the alchemist, like a player on the stick, not only while threatened. */
+  restless: boolean;
 }
 
 const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, star: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false, evade: 0, rush: 1 },
-  normal: { speed: 1.15, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.12, lead: 0.3, dodge: 0.75, reaction: 0.14, elemental: 0.3, blast: 0.15, star: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.2, fortress: 0.08, wallCooldown: 9, counter: false, evade: 0.6, rush: 1.9 },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, star: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false, evade: 0, restless: false },
+  normal: { speed: 1.4, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.12, lead: 0.3, dodge: 0.75, reaction: 0.14, elemental: 0.3, blast: 0.15, star: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.3, fortress: 0.08, wallCooldown: 9, counter: false, evade: 0.6, restless: true},
   // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
-  dificil: { speed: 1.4, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.08, lead: 0.6, dodge: 0.7, reaction: 0.12, elemental: 0.5, blast: 0.5, star: 0.3, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.35, fortress: 0.3, wallCooldown: 6, counter: true, evade: 0.8, rush: 1.8 },
+  dificil: { speed: 1.55, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.08, lead: 0.6, dodge: 0.7, reaction: 0.12, elemental: 0.5, blast: 0.5, star: 0.3, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.5, fortress: 0.3, wallCooldown: 6, counter: true, evade: 0.8, restless: true },
   // Hard pushed well further: relentless, sharp aim well ahead, dodges and walls most strikes, loves the blast;
   // the warning still leaves time to step out.
-  experto: { speed: 1.65, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.46, reaction: 0.1, elemental: 0.7, blast: 0.75, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.6, fortress: 0.45, wallCooldown: 3.5, counter: true, evade: 1, rush: 2.3 },
+  experto: { speed: 1.6, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.46, reaction: 0.1, elemental: 0.7, blast: 0.75, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.85, fortress: 0.45, wallCooldown: 3, counter: true, evade: 1, restless: true },
 };
 // The tutorial's ambush keeps the pace 'experto' had when it was tuned, so making the top level harder leaves it alone.
 const AMBUSH_PACE: Tuning = { ...TUNING.experto, cooldown: [2.3, 3], draw: 0.6, lead: 0.55 };
@@ -405,10 +405,7 @@ class Rival extends Fighter<Character> {
         dz /= d;
       }
       const spot = new THREE.Vector3(this.dodgeFrom.x + dx * (HIT_RADIUS + 0.3), 0, this.dodgeFrom.z + dz * (HIT_RADIUS + 0.3));
-      if (onScreen(spot)) {
-        this.body.setTarget(spot);
-        this.body.dash(this.tuning.rush, 0.5);
-      }
+      if (onScreen(spot)) this.body.setTarget(spot);
       this.moveTimer = 1;
     }
 
@@ -416,7 +413,7 @@ class Rival extends Fighter<Character> {
     // a wary rival jinks instead: short sidesteps across the alchemist's line of fire, each one a fresh direction,
     // so a strike aimed ahead along its route goes stale, as a player reading the threat would move.
     this.moveTimer -= dt;
-    const evading = this.tuning.evade > 0 && combat.heroArmed && !this.ambush && foe === combat.heroFighter;
+    const evading = this.tuning.evade > 0 && (combat.heroArmed || this.tuning.restless) && !this.ambush && foe === combat.heroFighter;
     if (this.moveTimer <= 0 && (!this.body.moving || evading) && this.walled <= 0) {
       this.moveTimer = evading ? THREE.MathUtils.randFloat(0.4, 0.85) / this.tuning.evade : THREE.MathUtils.randFloat(2.5, 4);
       for (let i = 0; i < 8; i++) {

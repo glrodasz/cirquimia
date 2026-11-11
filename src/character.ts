@@ -139,10 +139,6 @@ export class Character {
   private down = false;
   /** Seconds left rooted to the spot by a vine: no walking until then. */
   private rootedFor = 0;
-  /** A short burst of speed (a rival's sidestep out of a strike): multiplier and seconds left. */
-  private dashBoost = 1;
-  private dashFor = 0;
-  private dashTotal = 1;
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -309,12 +305,6 @@ export class Character {
    * Where it will be in `seconds` if it keeps doing what it is doing: along its route to the target,
    * or straight on while the keys are held.
    */
-  /** Starts `boost` times faster, easing back to a walk over the next `seconds`. */
-  dash(boost: number, seconds: number) {
-    this.dashBoost = boost;
-    this.dashFor = this.dashTotal = seconds;
-  }
-
   ahead(seconds: number, out = new THREE.Vector3()) {
     const pos = this.root.position;
     out.set(pos.x, 0, pos.z);
@@ -389,9 +379,6 @@ export class Character {
   update(dt: number) {
     this.time += dt;
     this.rootedFor = Math.max(0, this.rootedFor - dt);
-    // The burst eases off as it ends, so a sidestep reads as a push off one foot rather than a jump cut.
-    this.dashFor = Math.max(0, this.dashFor - dt);
-    const speed = this.speed * (1 + (this.dashBoost - 1) * (this.dashFor / this.dashTotal));
     const pos = this.root.position;
     // Drop corners already reached; the last waypoint is the target.
     while (this.path.length > 1 && Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < WAYPOINT_RADIUS) this.path.shift();
@@ -402,7 +389,7 @@ export class Character {
     const walking = dist > ARRIVE_RADIUS || this.path.length > 1;
 
     if (walking && dist > 1e-6) {
-      const step = Math.min(dist, speed * dt);
+      const step = Math.min(dist, this.speed * dt);
       pos.x += (dx / dist) * step;
       pos.z += (dz / dist) * step;
       this.resolveCollisions();
@@ -428,7 +415,7 @@ export class Character {
     this.root.rotation.y = this.heading;
 
     this.walkBlend += ((walking ? 1 : 0) - this.walkBlend) * Math.min(1, dt * 10);
-    this.walkPhase += ((speed / STRIDE) * Math.PI * 2 * dt) * this.walkBlend;
+    this.walkPhase += ((this.speed / STRIDE) * Math.PI * 2 * dt) * this.walkBlend;
     if (this.flashTimer > 0 && (this.flashTimer -= dt) <= 0) {
       this.model.traverse((o) => {
         if (o instanceof THREE.Mesh) o.material = o.userData.material;
