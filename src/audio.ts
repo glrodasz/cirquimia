@@ -332,12 +332,12 @@ function groundTear(c: BaseAudioContext) {
     }
     swell += (target - swell) * 0.001;
     low += 0.08 * (Math.random() * 2 - 1 - low);
-    const env = Math.min(1, t / 0.05) * Math.exp(-Math.max(0, t - 0.15) / 0.45);
+    const env = Math.min(1, t / 0.05) * Math.exp(-Math.max(0, t - 0.15) / 0.3);
     data[i] = low * 4 * env * swell;
   }
   // Clods breaking off: soft, dull knocks (long, low grains) through the tear.
-  for (let t = 0.02; t < 0.9; ) {
-    t += -Math.log(1 - Math.random()) / (30 * Math.exp(-t / 0.3) + 5);
+  for (let t = 0.02; t < 0.5; ) {
+    t += -Math.log(1 - Math.random()) / (30 * Math.exp(-t / 0.2) + 5);
     grain(data, rate, t, 0.008 + Math.random() * 0.015, 0.2 + Math.random() * 0.25);
   }
   return buffer;
@@ -471,12 +471,12 @@ export function strike(element: Element, at: Where) {
   const t = ctx!.currentTime;
   const o = out(0.75, at);
   const ground = (gain: number) => {
-    // The earth opening: a deep grinding groan that swells in, the crack muffled inside it, then soil falling.
+    // The earth opening: a deep grinding groan that swells in with the crack muffled inside it. One layer of each, no
+    // repeats: a second crack a moment later read as an echo.
     texture(o, t, pick(tears), { type: 'lowpass', from: 700, to: 260, at: 0.9, q: 0.8 }, 1.1 * gain, 0.7);
-    texture(o, t + 0.02, pick(cracks), { type: 'lowpass', from: 1800, to: 500, at: 0.5 }, 0.55 * gain, 0.7);
+    texture(o, t + 0.02, pick(cracks), { type: 'lowpass', from: 1800, to: 500, at: 0.5 }, 0.55 * gain, 0.7, 0.5);
     tone(o, t, 0.7, 'sine', 62, 38, 0.35 * gain, 0.04);
     hiss(o, t, 0.5, { type: 'lowpass', from: 220, to: 90, q: 0.7 }, { attack: 0.04, peak: 0.55 * gain });
-    texture(o, t + 0.25, pick(cracks), { type: 'bandpass', from: 1400, q: 0.6 }, 0.12 * gain, 1.1);
   };
   const flare = (gain: number) => {
     // Fwoomp: the flame catching, a soft low gust of air.
