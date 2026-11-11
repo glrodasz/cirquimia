@@ -137,8 +137,6 @@ function hold(kind: ShapeKind | null) {
 // How to play: full screen on the first visit, then behind the "?" next to the gear. The match waits while it is open.
 const help = mountHelp();
 mountSoundButton();
-// Mouse-only screens and sideways phones get a quiet note on where the game plays best.
-mountDeviceHint();
 /** Screen pixels of a world point, `lift` world units above it. */
 function toScreen(p: THREE.Vector3, lift: number) {
   const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
@@ -708,6 +706,19 @@ document.addEventListener('touchmove', (e) => !canScroll(e.target) && claimTouch
 const keys = new KeyboardMove();
 const keysHint = mountKeysHint();
 keys.onChange = (key, down, code) => keysHint.press(key, down, code);
+// Mouse-only screens hear once that the game is on phones too, queued after the tutorial and the WASD keycaps so
+// notes come one at a time; sideways phones get a quiet note to turn upright.
+mountDeviceHint(
+  () =>
+    tutorial.done &&
+    !tutorial.showing &&
+    keysHint.settled() &&
+    !help.open &&
+    !dev.open &&
+    !board.open &&
+    !combat.over &&
+    document.getElementById('match-spot')?.hidden !== false,
+);
 keys.listen(window, () => help.open || dev.open);
 const lookAlong = new THREE.Vector3();
 const ahead = new THREE.Vector3();

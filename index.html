@@ -404,6 +404,11 @@
       #device-hint svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
       @keyframes device-hint { 0%, 55% { opacity: 1; } 100% { opacity: .35; } }
       @media (prefers-reduced-motion: reduce) { #device-hint { animation-duration: .01s; animation-delay: 3.5s; } }
+      /* Desktop's "also on your phone": fades in, reads for a few seconds, fades out (then hidden). */
+      #device-hint.brief { animation: device-brief 5s ease-in-out both; }
+      @keyframes device-brief { 0% { opacity: 0; } 8%, 84% { opacity: 1; } 100% { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { #device-hint.brief { animation: device-brief-still 5s linear both; } }
+      @keyframes device-brief-still { 0%, 99% { opacity: 1; } 100% { opacity: 0; } }
       /* Desktop: bare WASD (or arrow) keycaps at the bottom left, where the touch stick sits on phones, as faint as the
          stick once the player has walked with them; the held key lights up. */
       #keys-hint { position: fixed; bottom: var(--edge-bottom); left: calc(max(16px, env(safe-area-inset-left)) + 6px); z-index: 2; pointer-events: none; display: grid; gap: 4px; justify-items: center; opacity: .8; transition: opacity .8s; }

@@ -3,16 +3,41 @@
  * The URL decides the language: / is English, /es is Spanish. On the first visit to /, the edge
  * (functions/_middleware.ts) sends the player to their saved choice or their browser's language.
  */
-import { LANGUAGE_NAMES, LOCALE_COOKIE, isLocale, localePrefix, pageLocale, readCookie, switchLocalePath, type Locale } from './locale';
+import { LANGUAGE_NAMES, LOCALE_COOKIE, isLocale, localePrefix, negotiateLocale, pageLocale, readCookie, switchLocalePath, type Locale } from './locale';
 import { persistLocale } from './persistLocale';
+import { PORTAL } from '../platform';
 
 export type Lang = Locale;
 
-export const LANG: Lang = typeof location === 'undefined' ? 'en' : pageLocale(location.pathname);
+/** Portal builds (itch.io) have no /es page: the language is ?lang=, else the saved choice, else the browser's. */
+const PORTAL_STORE = 'cirquimia.lang';
+function portalLocale(): Locale {
+  const fromQuery = new URLSearchParams(location.search).get('lang');
+  if (isLocale(fromQuery)) return fromQuery;
+  try {
+    const saved = localStorage.getItem(PORTAL_STORE);
+    if (isLocale(saved)) return saved;
+  } catch {}
+  return negotiateLocale(navigator.languages ?? [navigator.language]);
+}
+
+export const LANG: Lang = typeof location === 'undefined' ? 'en' : PORTAL ? portalLocale() : pageLocale(location.pathname);
 
 /** The counterpart of this page in another language, keeping ?seed, ?look and the like. */
 export function langHref(lang: Lang) {
+  if (PORTAL) {
+    const params = new URLSearchParams(location.search);
+    params.set('lang', lang);
+    return `?${params}${location.hash}`;
+  }
   return switchLocalePath(location.pathname, lang) + location.search + location.hash;
+}
+
+function remember(lang: Lang) {
+  if (!PORTAL) return persistLocale(lang);
+  try {
+    localStorage.setItem(PORTAL_STORE, lang);
+  } catch {}
 }
 
 /** A real link to the other language: crawlable, and it remembers the choice when followed. */
@@ -25,13 +50,13 @@ export function langLink(lang: Lang, className: string, label = LANGUAGE_NAMES[l
   link.textContent = label;
   link.setAttribute('aria-label', strings[lang].switchLanguage);
   if (lang === LANG) link.setAttribute('aria-current', 'page');
-  link.addEventListener('click', () => persistLocale(lang));
+  link.addEventListener('click', () => remember(lang));
   return link;
 }
 
 // Before the URL path carried the language, the choice lived in ?lang= and localStorage; move it to the cookie once.
 const LEGACY_STORE = 'cirquimia.lang';
-try {
+if (!PORTAL) try {
   const url = new URL(location.href);
   const fromQuery = url.searchParams.get('lang');
   if (isLocale(fromQuery)) {
@@ -198,7 +223,7 @@ const es = {
     bookAria: 'Símbolos: mira aquí los ataques que ya probaste',
   },
   device: {
-    touch: 'Cirquimia se disfruta mucho más en un móvil o tableta táctil',
+    touch: 'También en tu móvil: cirquimia.pages.dev',
     portrait: 'Cirquimia se juega mejor en vertical',
   },
   keys: {
@@ -440,7 +465,7 @@ const en: Strings = {
     bookAria: 'Symbols: see the attacks you have tried here',
   },
   device: {
-    touch: 'Cirquimia plays much better on a touch phone or tablet',
+    touch: 'Also on your phone: cirquimia.pages.dev',
     portrait: 'Cirquimia plays best in portrait mode',
   },
   keys: {

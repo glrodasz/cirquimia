@@ -12,11 +12,12 @@ const LABELS: Record<KeySet, Record<MoveKey, string>> = {
  * Bare keycaps at the bottom left of desktop screens (where the touch stick sits on phones) that say the alchemist
  * walks with WASD. They show whichever set the player last used: pressing an arrow turns them into arrows, WASD
  * turns them back. Clearer until the player has walked with them, then as faint as the stick; the pressed key
- * lights up. Never takes a click.
+ * lights up. Never takes a click. `settled` tells the notes that queue after it (the device hint) when it is done.
  */
 export function mountKeysHint() {
-  if (!hasKeyboard()) return { press: () => {} };
+  if (!hasKeyboard()) return { press: () => {}, settled: () => true };
   let used = false;
+  let settled = false;
   try {
     used = localStorage.getItem(STORE) === '1';
   } catch {}
@@ -24,6 +25,9 @@ export function mountKeysHint() {
   el.id = 'keys-hint';
   el.setAttribute('aria-hidden', 'true');
   if (used) el.classList.add('used');
+  settled = used;
+  // A player who only ever clicks has seen the keycaps long enough after a minute.
+  if (!used) setTimeout(() => (settled = true), 60_000);
   let set: KeySet = 'letters';
   try {
     if (localStorage.getItem(SET_STORE) === 'arrows') set = 'arrows';
@@ -54,7 +58,12 @@ export function mountKeysHint() {
         localStorage.setItem(STORE, '1');
       } catch {}
       // Stay readable a moment after the first step, then fade back.
-      setTimeout(() => el.classList.add('used'), 2500);
+      setTimeout(() => {
+        el.classList.add('used');
+        settled = true;
+      }, 2500);
     },
+    /** The keycaps have done their job (walked with, now a watermark): other notes may follow. */
+    settled: () => settled,
   };
 }
