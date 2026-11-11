@@ -25,6 +25,7 @@ let chalk: AudioBuffer;
 let cracks: AudioBuffer[] = [];
 let roars: AudioBuffer[] = [];
 let pops: AudioBuffer[] = [];
+let tears: AudioBuffer[] = [];
 let splashes: AudioBuffer[] = [];
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
@@ -73,6 +74,7 @@ function unlock() {
     cracks = [0, 1, 2].map(() => groundCrack(ctx!));
     roars = [0, 1, 2].map(() => flameRoar(ctx!));
     pops = [0, 1, 2].map(() => emberPops(ctx!));
+    tears = [0, 1, 2].map(() => groundTear(ctx!));
     splashes = [0, 1, 2].map(() => waterSplash(ctx!));
     startMeadow();
   }
@@ -217,9 +219,10 @@ function chalkGrain(c: BaseAudioContext) {
   let at = 0;
   while (at < data.length) {
     const length = Math.floor(rate * (0.005 + Math.random() * 0.009));
-    const peak = 0.6 + Math.random() * 0.4;
+    const peak = 0.5 + Math.random() * 0.3;
     for (let k = 0; k < length && at + k < data.length; k++) {
-      const env = Math.sin((Math.PI * k) / length) ** 0.5;
+      // Rounded grains (no sharp edges) keep the line soft.
+      const env = Math.sin((Math.PI * k) / length);
       data[at + k] += (Math.random() * 2 - 1) * peak * env;
     }
     at += Math.floor(length * (0.8 + Math.random() * 0.4));
@@ -231,7 +234,7 @@ let inkGain: GainNode | null = null;
 let inkFilter: BiquadFilterNode | null = null;
 let inkSource: AudioBufferSourceNode | null = null;
 
-/** Chalk on a slate while drawing: louder and a little brighter the faster the stroke moves. */
+/** Soft chalk on a slate while drawing: a little louder and brighter the faster the stroke moves. */
 export const inkSound = {
   begin() {
     this.end();
@@ -243,31 +246,31 @@ export const inkSound = {
     inkSource.loop = true;
     const low = c.createBiquadFilter();
     low.type = 'highpass';
-    low.frequency.value = 600;
+    low.frequency.value = 450;
     // The body: a resonant band where chalk on slate sings, so it reads as one firm line, not grit.
     inkFilter = c.createBiquadFilter();
     inkFilter.type = 'bandpass';
-    inkFilter.frequency.value = 1700;
-    inkFilter.Q.value = 3.5;
+    inkFilter.frequency.value = 1300;
+    inkFilter.Q.value = 1.6;
     // And no sandy fizz above it.
     const top = c.createBiquadFilter();
     top.type = 'lowpass';
-    top.frequency.value = 4200;
+    top.frequency.value = 2600;
     inkGain = c.createGain();
     inkGain.gain.value = 0;
     inkSource.connect(low).connect(inkFilter).connect(top).connect(inkGain).connect(sfxBus);
     inkSource.start(t, Math.random() * 1.5);
     // The chalk touching the board: one short knock.
-    hiss(sfxBus, t, 0.035, { type: 'bandpass', from: 1500, q: 3 }, { attack: 0.002, peak: 0.25 });
+    hiss(sfxBus, t, 0.035, { type: 'bandpass', from: 1200, q: 2 }, { attack: 0.004, peak: 0.08 });
   },
   /** `speed` in px/s. */
   move(speed: number) {
     if (!ctx || !inkGain || !inkFilter || !inkSource) return;
     const k = Math.min(1, speed / 1400);
     const now = ctx.currentTime;
-    inkGain.gain.setTargetAtTime(k < 0.03 ? 0.02 : 0.12 + k * 0.4, now, 0.025);
-    inkFilter.frequency.setTargetAtTime(1500 + k * 900, now, 0.05);
-    inkSource.playbackRate.setTargetAtTime(0.85 + k * 0.35, now, 0.05);
+    inkGain.gain.setTargetAtTime(k < 0.03 ? 0.01 : 0.06 + k * 0.2, now, 0.05);
+    inkFilter.frequency.setTargetAtTime(1150 + k * 550, now, 0.08);
+    inkSource.playbackRate.setTargetAtTime(0.8 + k * 0.25, now, 0.08);
   },
   end() {
     if (!ctx || !inkGain || !inkSource) return;
@@ -321,10 +324,42 @@ function groundCrack(c: BaseAudioContext) {
   return buffer;
 }
 
+/**
+ * The ground tearing open: a low, grinding groan made of slow, uneven swells of dark noise, with clods breaking
+ * off inside it. Played slow and low-passed it is felt more than heard.
+ */
+function groundTear(c: BaseAudioContext) {
+  const rate = c.sampleRate;
+  const length = 1.3;
+  const buffer = c.createBuffer(1, Math.floor(rate * length), rate);
+  const data = buffer.getChannelData(0);
+  let low = 0;
+  let swell = 1;
+  let target = 1;
+  let next = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / rate;
+    if (t >= next) {
+      target = 0.3 + Math.random() * 0.7;
+      next = t + 0.04 + Math.random() * 0.12;
+    }
+    swell += (target - swell) * 0.001;
+    low += 0.08 * (Math.random() * 2 - 1 - low);
+    const env = Math.min(1, t / 0.05) * Math.exp(-Math.max(0, t - 0.15) / 0.45);
+    data[i] = low * 4 * env * swell;
+  }
+  // Clods breaking off: soft, dull knocks (long, low grains) through the tear.
+  for (let t = 0.02; t < 0.9; ) {
+    t += -Math.log(1 - Math.random()) / (30 * Math.exp(-t / 0.3) + 5);
+    grain(data, rate, t, 0.008 + Math.random() * 0.015, 0.2 + Math.random() * 0.25);
+  }
+  return buffer;
+}
+
 /** A flare: a roar that bursts in, flutters as the flame licks and dies down, with no tone in it at all. */
 function flameRoar(c: BaseAudioContext) {
   const rate = c.sampleRate;
-  const length = 1.2;
+  const length = 1.7;
   const buffer = c.createBuffer(1, Math.floor(rate * length), rate);
   const data = buffer.getChannelData(0);
   let flutter = 1;
@@ -332,12 +367,13 @@ function flameRoar(c: BaseAudioContext) {
   let next = 0;
   for (let i = 0; i < data.length; i++) {
     const t = i / rate;
+    // The flame licks: deep, uneven swells 8–20 times a second.
     if (t >= next) {
-      target = 0.35 + Math.random() * 0.65;
-      next = t + 0.02 + Math.random() * 0.05;
+      target = 0.15 + Math.random() * 0.85;
+      next = t + 0.05 + Math.random() * 0.08;
     }
-    flutter += (target - flutter) * 0.004;
-    const env = Math.min(1, t / 0.06) ** 2 * Math.exp(-Math.max(0, t - 0.08) / 0.4);
+    flutter += (target - flutter) * 0.0015;
+    const env = Math.min(1, t / 0.12) ** 2 * Math.exp(-Math.max(0, t - 0.2) / 0.55);
     data[i] = (Math.random() * 2 - 1) * env * flutter;
   }
   return buffer;
@@ -448,17 +484,24 @@ export function strike(element: Element, at: Where) {
   const t = ctx!.currentTime;
   const o = out(0.75, at);
   const ground = (gain: number) => {
-    texture(o, t, pick(cracks), { type: 'lowpass', from: 7000, to: 2500, at: 0.4 }, 0.9 * gain);
-    // The weight of it, felt more than heard.
-    hiss(o, t, 0.25, { type: 'lowpass', from: 160, q: 0.7 }, { attack: 0.005, peak: 0.6 * gain });
+    // The earth opening: a deep grinding groan that swells in, the crack muffled inside it, then soil falling.
+    texture(o, t, pick(tears), { type: 'lowpass', from: 700, to: 260, at: 0.9, q: 0.8 }, 1.1 * gain, 0.7);
+    texture(o, t + 0.02, pick(cracks), { type: 'lowpass', from: 1800, to: 500, at: 0.5 }, 0.55 * gain, 0.7);
+    tone(o, t, 0.7, 'sine', 62, 38, 0.35 * gain, 0.04);
+    hiss(o, t, 0.5, { type: 'lowpass', from: 220, to: 90, q: 0.7 }, { attack: 0.04, peak: 0.55 * gain });
+    texture(o, t + 0.25, pick(cracks), { type: 'bandpass', from: 1400, q: 0.6 }, 0.12 * gain, 1.1);
   };
   const flare = (gain: number) => {
-    // A whoosh that opens up bright as the flame leaps, then settles into a darker roar.
-    const f = texture(o, t, pick(roars), { type: 'lowpass', from: 350 }, 0.9 * gain);
-    f.frequency.exponentialRampToValueAtTime(3200, t + 0.12);
-    f.frequency.exponentialRampToValueAtTime(900, t + 1);
-    texture(o, t, pick(roars), { type: 'lowpass', from: 220, q: 0.5 }, 0.6 * gain, 0.6);
-    texture(o, t + 0.05, pick(pops), { type: 'highpass', from: 1800 }, 0.35 * gain);
+    // Fwoomp: the flame catching, a soft low gust of air.
+    hiss(o, t, 0.4, { type: 'lowpass', from: 180, to: 600, q: 0.8 }, { attack: 0.06, peak: 0.7 * gain });
+    // The whoosh sweeping up as the flame leaps, then the roar licking and settling, darker as it dies.
+    const f = texture(o, t, pick(roars), { type: 'bandpass', from: 300, q: 0.9 }, 1.2 * gain);
+    f.frequency.exponentialRampToValueAtTime(2400, t + 0.22);
+    f.frequency.exponentialRampToValueAtTime(700, t + 1.5);
+    texture(o, t, pick(roars), { type: 'lowpass', from: 260, q: 0.5 }, 0.8 * gain, 0.55);
+    // Crackling all through it.
+    texture(o, t + 0.08, pick(pops), { type: 'highpass', from: 1500 }, 0.45 * gain);
+    texture(o, t + 0.5, pick(pops), { type: 'highpass', from: 2200 }, 0.25 * gain, 1.2);
   };
   const splash = (gain: number) => {
     texture(o, t, pick(splashes), { type: 'bandpass', from: 2600, to: 1100, at: 0.5, q: 0.6 }, 1.1 * gain);
