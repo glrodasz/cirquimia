@@ -202,7 +202,6 @@ const es = {
     portrait: 'Cirquimia se juega mejor en vertical',
   },
   keys: {
-    hint: 'o flechas para moverte',
     move: 'Usa <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas para <b>caminar</b>. También puedes hacer clic en el suelo.',
   },
   gpu: {
@@ -445,7 +444,6 @@ const en: Strings = {
     portrait: 'Cirquimia plays best in portrait mode',
   },
   keys: {
-    hint: 'or arrows to move',
     move: 'Use <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys to <b>walk</b>. You can also click the ground.',
   },
   gpu: {

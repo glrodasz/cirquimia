@@ -1,12 +1,17 @@
-import { t } from './i18n';
 import { hasKeyboard, type MoveKey } from './keys';
 
 const STORE = 'cirquimia.keys';
-const LABELS: Record<MoveKey, string> = { up: 'W', left: 'A', down: 'S', right: 'D' };
+const SET_STORE = 'cirquimia.keyset';
+type KeySet = 'letters' | 'arrows';
+const LABELS: Record<KeySet, Record<MoveKey, string>> = {
+  letters: { up: 'W', left: 'A', down: 'S', right: 'D' },
+  arrows: { up: '↑', left: '←', down: '↓', right: '→' },
+};
 
 /**
- * Keycaps at the bottom of desktop screens that say the alchemist walks with WASD or the arrows. Clear until the
- * player has walked with them (then it settles into a faint watermark, also on later visits); the pressed key
+ * Bare keycaps at the bottom left of desktop screens (where the touch stick sits on phones) that say the alchemist
+ * walks with WASD. They show whichever set the player last used: pressing an arrow turns them into arrows, WASD
+ * turns them back. Clearer until the player has walked with them, then as faint as the stick; the pressed key
  * lights up. Never takes a click.
  */
 export function mountKeysHint() {
@@ -19,15 +24,29 @@ export function mountKeysHint() {
   el.id = 'keys-hint';
   el.setAttribute('aria-hidden', 'true');
   if (used) el.classList.add('used');
-  const cap = (k: MoveKey) => `<kbd data-key="${k}">${LABELS[k]}</kbd>`;
-  el.innerHTML =
-    `<span class="caps"><span class="row">${cap('up')}</span><span class="row">${cap('left')}${cap('down')}${cap('right')}</span></span>` +
-    `<span class="label"></span>`;
-  el.querySelector('.label')!.textContent = t.keys.hint;
+  let set: KeySet = 'letters';
+  try {
+    if (localStorage.getItem(SET_STORE) === 'arrows') set = 'arrows';
+  } catch {}
+  const cap = (k: MoveKey) => `<kbd data-key="${k}"></kbd>`;
+  el.innerHTML = `<span class="row">${cap('up')}</span><span class="row">${cap('left')}${cap('down')}${cap('right')}</span>`;
+  const label = (next: KeySet) => {
+    set = next;
+    el.dataset.set = next;
+    el.querySelectorAll<HTMLElement>('kbd').forEach((k) => (k.textContent = LABELS[next][k.dataset.key as MoveKey]));
+  };
+  label(set);
   document.body.append(el);
 
   return {
-    press(key: MoveKey, down: boolean) {
+    press(key: MoveKey, down: boolean, code = '') {
+      const next: KeySet = code.startsWith('Arrow') ? 'arrows' : 'letters';
+      if (down && next !== set) {
+        label(next);
+        try {
+          localStorage.setItem(SET_STORE, next);
+        } catch {}
+      }
       el.querySelector(`[data-key="${key}"]`)?.classList.toggle('on', down);
       if (!down || used) return;
       used = true;
