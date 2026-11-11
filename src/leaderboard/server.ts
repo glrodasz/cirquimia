@@ -35,10 +35,10 @@ export interface Ctx {
   env: Env;
 }
 
-const RUN_TTL_MS = 3 * 60 * 60 * 1000;
+export const RUN_TTL_MS = 3 * 60 * 60 * 1000;
 /** The real time since the run opened may fall this much short of the game time (the run opens a moment after the match starts). */
 const CLOCK_SLACK_MS = 5000;
-const WINDOW_MS = 10 * 60 * 1000;
+export const WINDOW_MS = 10 * 60 * 1000;
 const MAX_RUNS_PER_WINDOW = 60;
 const MAX_SCORES_PER_WINDOW = 12;
 const MAX_BODY = 4096;
@@ -80,13 +80,30 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS scores_all ON scores (score DESC, created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_day ON scores (day, score DESC, created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_ip ON scores (ip_hash, created_at)`,
+  // The share links (src/leaderboard/shares.ts): one card per run, its image kept as a JPEG.
+  `CREATE TABLE IF NOT EXISTS shares (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL UNIQUE,
+    locale TEXT NOT NULL,
+    initials TEXT,
+    score INTEGER NOT NULL,
+    duration_ms INTEGER NOT NULL,
+    damage INTEGER NOT NULL,
+    rivals INTEGER NOT NULL,
+    difficulty TEXT NOT NULL,
+    image BLOB NOT NULL,
+    ip_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS shares_ip ON shares (ip_hash, updated_at)`,
 ];
 
 /** Columns added after the first release, for databases created before them (fails harmlessly once present). */
 const MIGRATIONS = ['ALTER TABLE scores ADD COLUMN damage INTEGER NOT NULL DEFAULT 0'];
 
 let ready: Promise<unknown> | null = null;
-function ensureSchema(db: D1Database) {
+export function ensureSchema(db: D1Database) {
   ready ??= db.batch(SCHEMA.map((q) => db.prepare(q))).then(async () => {
     for (const q of MIGRATIONS) await db.prepare(q).run().catch(() => {});
   }).catch((e) => {
@@ -96,14 +113,14 @@ function ensureSchema(db: D1Database) {
   return ready;
 }
 
-function json(body: unknown, status = 200, cache = 'no-store') {
+export function json(body: unknown, status = 200, cache = 'no-store') {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': cache },
   });
 }
 
-const fail = (error: string, status: number) => json({ error }, status);
+export const fail = (error: string, status: number) => json({ error }, status);
 
 async function hashIp(request: Request, salt: string) {
   const ip = request.headers.get('CF-Connecting-IP') ?? request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ?? 'unknown';
@@ -126,7 +143,7 @@ async function readBody(request: Request): Promise<Record<string, unknown> | nul
 
 const short = (v: unknown, max: number) => (typeof v === 'string' && v ? v.slice(0, max) : null);
 
-async function setup(ctx: Ctx) {
+export async function setup(ctx: Ctx) {
   const db = ctx.env.DB;
   if (!db) return null;
   await ensureSchema(db);

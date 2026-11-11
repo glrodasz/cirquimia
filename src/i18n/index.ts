@@ -136,7 +136,6 @@ const es = {
     postOnX: 'Publicar en', // + X
     sendDiscord: 'Enviar a', // + Discord
     preview: 'Tu tarjeta: toca para guardarla',
-    xCopied: 'Imagen copiada: pégala en tu post de X.',
     discordCopied: 'Imagen copiada: pégala en Discord.',
     discordSaved: 'Imagen guardada: súbela a Discord.',
     mastodonHost: 'Tu servidor (ej. mastodon.social)',
@@ -378,7 +377,6 @@ const en: Strings = {
     postOnX: 'Post on',
     sendDiscord: 'Send to',
     preview: 'Your card: tap to save it',
-    xCopied: 'Image copied: paste it into your X post.',
     discordCopied: 'Image copied: paste it in Discord.',
     discordSaved: 'Image saved: upload it to Discord.',
     mastodonHost: 'Your server (e.g. mastodon.social)',

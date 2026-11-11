@@ -5,8 +5,8 @@
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
 import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, threadsLogo, trophyIcon, xLogo } from '../icons';
-import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, type Entry, type Period, type Runs } from './client';
-import { copyImage, mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData } from './share';
+import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, uploadShare, type Entry, type Period, type Runs } from './client';
+import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
 import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -195,7 +195,30 @@ export function mountLeaderboard(): Leaderboard {
       return next;
     };
     let card = draw();
-    preview.addEventListener('click', () => void shareImage(card, data));
+
+    // The link whose preview is the card: uploaded when the player heads for the share buttons, not for every win.
+    let upload: Promise<string | null> | null = null;
+    let uploaded: string | null = null;
+    const link: ShareLink = {
+      peek: () => uploaded,
+      get: () =>
+        (upload ??= (async () => {
+          const id = await runs.current();
+          if (!id) return null;
+          const wide = await scene.then((m) => renderShareCard(data, m, true));
+          const url = await Promise.race([uploadShare(id, wide, data), new Promise<null>((r) => setTimeout(() => r(null), 8000))]);
+          if (url) uploaded = url;
+          else upload = null; // try again on the next share
+          return url;
+        })()),
+    };
+    const warm = () => void link.get();
+    for (const zone of slot.querySelectorAll<HTMLElement>('.share, .more-menu')) {
+      zone.addEventListener('pointerdown', warm);
+      zone.addEventListener('focusin', warm);
+      zone.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && warm());
+    }
+    preview.addEventListener('click', () => void shareImage(card, data, link));
     moreBtn.addEventListener('click', () => {
       menu.hidden = !menu.hidden;
       moreBtn.setAttribute('aria-expanded', String(!menu.hidden));
@@ -208,7 +231,7 @@ export function mountLeaderboard(): Leaderboard {
         return;
       }
       masto.hidden = true;
-      openComposer('mastodon', data, host);
+      openComposer('mastodon', data, link, host);
     };
     masto.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -217,15 +240,11 @@ export function mountLeaderboard(): Leaderboard {
     for (const btn of slot.querySelectorAll<HTMLButtonElement>('.net')) {
       btn.addEventListener('click', async () => {
         const to = btn.dataset.to;
-        if (to === 'x' && !matchMedia('(pointer: coarse)').matches) {
-          const copied = copyImage(card);
-          openComposer('x', data);
-          if (await copied) say(t.rank.xCopied);
-        } else if (to === 'x' || to === 'bluesky' || to === 'threads') openComposer(to, data);
+        if (to === 'x' || to === 'bluesky' || to === 'threads') openComposer(to, data, link);
         else if (to === 'mastodon') mastodon(savedMastodon());
         else if (to === 'image') await saveImage(card, data);
         else if (to === 'discord') {
-          const result = await shareDiscord(card, data);
+          const result = await shareDiscord(card, data, link);
           if (result === 'copied') say(t.rank.discordCopied);
           if (result === 'saved') say(t.rank.discordSaved);
         }
@@ -267,6 +286,11 @@ export function mountLeaderboard(): Leaderboard {
       say(t.rank.placed(res.rank.today, res.rank.all));
       Object.assign(data, { score: res.score, initials, rank: res.rank });
       card = draw();
+      // Same link, new image with the initials and place: sent again on the next share.
+      if (uploaded) {
+        uploaded = null;
+        upload = null;
+      }
       slot.querySelector<HTMLElement>('.net')!.focus({ preventScroll: true });
     });
   };
