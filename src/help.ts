@@ -8,32 +8,6 @@ import { bookIcon, dropIcon, flameIcon, questionIcon, runeIcon, turnArrowIcon } 
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
-import chargeShot from './assets/help/charge.webp';
-import runesShot from './assets/help/runes.webp';
-
-const STORE = 'cirquimia.help';
-
-function seen() {
-  try {
-    return localStorage.getItem(STORE) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markSeen() {
-  try {
-    localStorage.setItem(STORE, '1');
-  } catch {
-    // Blocked storage: the guide simply shows again next time.
-  }
-}
-
-/** One brush stroke along the points, inked with a class from the HUD palette. */
-function stroke(line: Pt[], width: number, cls: string, rand: () => number) {
-  const b = brushPath(line, width, rand);
-  return { ink: `<path class="${cls}" d="${b.ink}"/>`, dry: b.dry };
-}
 
 function poly(points: Pt[]): Pt[] {
   return points.slice(1).flatMap((p, i) => segment(points[i], p).slice(i ? 1 : 0));
@@ -46,7 +20,7 @@ const HAND =
 const KNUCKLES = 'M6.4 9.8V12.6M9.8 10.4V13';
 
 /** The hand with a clean outline, plus the ripple a tap leaves around its fingertip. */
-function hand(x: number, y: number, s: number, tap = true) {
+export function hand(x: number, y: number, s: number, tap = true) {
   const r = 6.5 * s;
   const ripple = (a: number, b: number) =>
     `M${(x + Math.cos(a) * r).toFixed(1)} ${(y + Math.sin(a) * r).toFixed(1)}A${r} ${r} 0 0 1 ${(x + Math.cos(b) * r).toFixed(1)} ${(y + Math.sin(b) * r).toFixed(1)}`;
@@ -76,21 +50,11 @@ const OVERLAYS: Array<(rand: () => number) => string> = [
   // From the stroke to the symbol now held over the alchemist's head.
   (rand) => `<path class="arrow" d="${arrowLine([[114, 70], [150, 92], [170, 138]], 0, rand)}"/>` + hand(33, 10, 1.4, false),
   () => hand(132, 112, 1.4),
-  // The triangles drawn right over the campfire and the lagoon, the hand finishing each stroke.
-  (rand) =>
-    stroke(poly([[47, 158], [70, 199], [24, 199], [47, 158], [52, 166]]), 3.6, 'ink fire', rand).ink +
-    hand(52, 166, 1.2, false) +
-    stroke(poly([[232, 66], [282, 66], [257, 110], [232, 66], [240, 66]]), 3.6, 'ink water', rand).ink +
-    hand(240, 66, 1.2, false),
-  () => `<g class="badge"><rect x="140" y="160" width="64" height="26" rx="13"/><text x="172" y="178">+25%</text></g>`,
 ];
-const SHOTS = [moveShot, drawShot, useShot, chargeShot, runesShot];
+const SHOTS = [moveShot, drawShot, useShot];
 
-/** The optional stick: the ring, darkened as while steering, its knob pushed up and to the right, and the alchemist walking that way. */
-const padOverlay = (rand: () => number) =>
-  `<g class="pad"><circle cx="58" cy="178" r="34"/><circle class="knob" cx="72" cy="164" r="13"/></g>` +
-  `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` +
-  hand(72, 164, 1.3, false);
+/** Touch screens: the first page also shows the optional stick, its knob pushed up and to the right. */
+const padRing = `<g class="pad"><circle cx="58" cy="178" r="34"/><circle class="knob" cx="72" cy="164" r="13"/></g>`;
 
 /** A teardrop: the tip, down one side, round the belly and back up. */
 
@@ -134,17 +98,19 @@ function bookCard(cls: string, title: string, pages: string[], label: (n: number
   );
 }
 
-/** How to play: one illustrated page per step. */
+/**
+ * How to play: move, draw, cast, one illustrated page each. The rest (walls, fire and water) is taught in the
+ * first match, and every symbol is in the book.
+ */
 function guide() {
   const rand = random();
+  const pad = padEnabled();
   const slides = t.help.slides.map(([title, text], i) => ({
     shot: SHOTS[i],
-    overlay: OVERLAYS[i],
+    overlay: i === 0 && pad ? (r: () => number) => padRing + OVERLAYS[0](r) : OVERLAYS[i],
     title,
-    text: i === 0 && hasKeyboard() ? t.keys.move : text,
+    text: i === 0 ? (hasKeyboard() ? t.keys.move : pad ? t.help.pad : text) : text,
   }));
-  // Touch screens: right after walking, a page on the optional stick.
-  if (padEnabled()) slides.splice(1, 0, { shot: moveShot, overlay: padOverlay, title: t.help.pad[0], text: t.help.pad[1] });
   const pages = slides.map(
     ({ shot, overlay, title, text }, i) =>
       `<figure class="shot"><img src="${shot}" alt="" draggable="false">` +
@@ -326,7 +292,6 @@ export function mountHelp() {
   function hide() {
     if (!open) return;
     open = false;
-    markSeen();
     overlay.classList.remove('show');
     setTimeout(() => {
       if (!open) overlay.hidden = true;
@@ -355,7 +320,7 @@ export function mountHelp() {
       }
     }
   });
-  if (!seen()) show('guide');
+  // No guide on the first visit: the first match teaches by playing, and the guide waits behind the "?".
 
   return {
     get open() {
