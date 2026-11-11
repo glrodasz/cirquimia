@@ -21,6 +21,7 @@ let master: GainNode;
 let sfxBus: GainNode;
 let musicBus: GainNode;
 let noise: AudioBuffer;
+let chalk: AudioBuffer;
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
 let musicTimer = 0;
@@ -53,6 +54,7 @@ function unlock() {
     noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    chalk = chalkGrain(ctx);
     startMusic();
   }
   if (ctx.state === 'suspended' && enabled && !document.hidden) void ctx.resume();
@@ -161,39 +163,72 @@ function tone(dest: AudioNode, t: number, length: number, type: OscillatorType, 
 
 // ---------------------------------------------------------------- the ink
 
+/**
+ * Chalk on a slate: not a smooth hiss but a dense run of tiny dry grains, each a few milliseconds of bright noise
+ * at its own loudness, over a thin rasp, with the odd skip where the chalk catches the grain of the board.
+ */
+function chalkGrain(c: BaseAudioContext) {
+  const rate = c.sampleRate;
+  const buffer = c.createBuffer(1, rate * 2, rate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.12;
+  let at = 0;
+  while (at < data.length) {
+    const length = Math.floor(rate * (0.0015 + Math.random() * 0.005));
+    const peak = 0.25 + Math.random() * 0.75;
+    for (let k = 0; k < length && at + k < data.length; k++) {
+      const env = Math.sin((Math.PI * k) / length);
+      data[at + k] += (Math.random() * 2 - 1) * peak * env;
+    }
+    // Mostly packed tight, now and then a catch: a short gap, then a harder grain.
+    at += Math.random() < 0.06 ? Math.floor(rate * (0.012 + Math.random() * 0.02)) : Math.floor(length * (0.4 + Math.random() * 0.8));
+  }
+  return buffer;
+}
+
 let inkGain: GainNode | null = null;
 let inkFilter: BiquadFilterNode | null = null;
 let inkSource: AudioBufferSourceNode | null = null;
 
-/** A soft nib scratch that follows the pen: louder and brighter the faster it moves. */
+/** Chalk scratching on a slate while drawing: louder, brighter and grittier the faster the stroke moves. */
 export const inkSound = {
   begin() {
     this.end();
     if (!ctx || !enabled || ctx.state !== 'running') return;
     const c = ctx;
+    const t = c.currentTime;
     inkSource = c.createBufferSource();
-    inkSource.buffer = noise;
+    inkSource.buffer = chalk;
     inkSource.loop = true;
+    const low = c.createBiquadFilter();
+    low.type = 'highpass';
+    low.frequency.value = 900;
     inkFilter = c.createBiquadFilter();
-    inkFilter.type = 'bandpass';
-    inkFilter.Q.value = 0.9;
-    inkFilter.frequency.value = 2200;
+    inkFilter.type = 'peaking';
+    inkFilter.frequency.value = 3200;
+    inkFilter.Q.value = 1.2;
+    inkFilter.gain.value = 8;
     inkGain = c.createGain();
     inkGain.gain.value = 0;
-    inkSource.connect(inkFilter).connect(inkGain).connect(sfxBus);
-    inkSource.start();
+    inkSource.connect(low).connect(inkFilter).connect(inkGain).connect(sfxBus);
+    inkSource.start(t, Math.random() * 1.5);
+    // The chalk touching the board: one dry tick.
+    hiss(sfxBus, t, 0.03, { type: 'bandpass', from: 2600, q: 2 }, { attack: 0.002, peak: 0.12 });
   },
   /** `speed` in px/s. */
   move(speed: number) {
-    if (!ctx || !inkGain || !inkFilter) return;
-    const k = Math.min(1, speed / 1500);
-    inkGain.gain.setTargetAtTime(0.02 + k * 0.1, ctx.currentTime, 0.03);
-    inkFilter.frequency.setTargetAtTime(1800 + k * 2600, ctx.currentTime, 0.04);
+    if (!ctx || !inkGain || !inkFilter || !inkSource) return;
+    const k = Math.min(1, speed / 1400);
+    const now = ctx.currentTime;
+    inkGain.gain.setTargetAtTime(k < 0.03 ? 0.01 : 0.05 + k * 0.22, now, 0.025);
+    inkFilter.frequency.setTargetAtTime(2400 + k * 2200, now, 0.04);
+    // Faster strokes run over more grain per second.
+    inkSource.playbackRate.setTargetAtTime(0.75 + k * 0.6, now, 0.05);
   },
   end() {
     if (!ctx || !inkGain || !inkSource) return;
-    inkGain.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
-    inkSource.stop(ctx.currentTime + 0.2);
+    inkGain.gain.setTargetAtTime(0, ctx.currentTime, 0.02);
+    inkSource.stop(ctx.currentTime + 0.15);
     inkGain = inkFilter = inkSource = null;
   },
 };
