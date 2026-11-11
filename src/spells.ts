@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { charge, clack, healChord, rumble, strike, vineCreak, wallRise } from './audio';
 import { heightAt } from './noise';
 import type { Obstacle } from './meadow';
 
@@ -923,6 +924,7 @@ export class Spells {
   /** Raises a defensive arc around the caster, facing the tapped point (clamped to close range); `owner` can strike through it. */
   wall(caster: THREE.Vector3, toward: THREE.Vector3, ink: string | null = null, owner: unknown = null) {
     this.start(new EarthWall(caster.x, caster.z, toward, ink, owner));
+    wallRise(caster);
   }
 
   /** Strikes the tapped point after a short ground warning: rock pillars, or fire or water drawn earlier. */
@@ -936,26 +938,31 @@ export class Spells {
     scale = 1,
   ) {
     this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn, ink, scale));
+    rumble(at, warn);
   }
 
   /** Marks a strike that a standing wall stops before it starts: just a cross where it would have broken out. */
   denied(at: THREE.Vector3, ink: string | null = null, scale = 1) {
     this.start(new DeniedMark(at.x, at.z, ink, PILLAR_AREA * 2.2 * scale));
+    clack(at);
   }
 
   /** Shows fire or water being drawn from a source into the alchemist (who is followed while it flies). */
   channel(source: THREE.Vector3, caster: THREE.Vector3, element: 'fire' | 'water') {
     this.start(new Channel(source, caster, element === 'fire'));
+    charge(element, caster);
   }
 
   /** Rising lines of light on someone being healed (followed while it lasts); a dashed ring when boosted by runes. */
   heal(target: THREE.Vector3, ink: string | null = null, boosted = false) {
     this.start(new HealGlow(target, ink, boosted));
+    healChord(target);
   }
 
   /** Vine coiled round someone's legs (followed while it lasts), holding them for ROOT_TIME. */
   snare(target: THREE.Vector3, ink: string | null = null) {
     this.start(new Snare(target, ink));
+    vineCreak(target);
   }
 
   /** Drops every effect at once, e.g. when a new meadow replaces the terrain they were built on. */
@@ -995,8 +1002,11 @@ export class Spells {
       // Pillars check for a wall at the moment they would break out, so raising one during the warning still saves you.
       if (effect instanceof PillarStrike && !effect.solid && !effect.blocked && effect.erupting(dt)) {
         effect.blocked = this.shielded(effect.x, effect.z, effect.caster);
-        if (effect.blocked) this.start(new DeniedMark(effect.x, effect.z, effect.ink, effect.area * 2.2));
-        else this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area);
+        if (effect.blocked) {
+          this.start(new DeniedMark(effect.x, effect.z, effect.ink, effect.area * 2.2));
+          clack(effect);
+        } else strike(effect.element, effect);
+        if (!effect.blocked) this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area);
       }
       const wasSolid = effect.solid;
       effect.update(dt);

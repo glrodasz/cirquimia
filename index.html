@@ -204,6 +204,13 @@
       :root[data-theme="dark"] :is(#rank h2, #match-end .scored .pts b, #match-end .note b) { color: #ffd27a; }
       #help-btn, #book-btn { position: fixed; top: var(--edge-top); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
       #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
+      #sound-btn { position: fixed; top: var(--edge-top); right: calc(max(12px, env(safe-area-inset-right)) + 144px); width: 40px; height: 40px; padding: 8px; border: 0; cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
+      .dev #sound-btn { right: calc(max(12px, env(safe-area-inset-right)) + 192px); }
+      #sound-btn:active { transform: scale(.92); }
+      #sound-btn:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
+      #sound-btn .hud-icon { display: block; width: 100%; height: 100%; overflow: visible; }
+      #sound-btn .hud-icon .ink { fill: var(--hud-ink); }
+      #sound-btn .hud-icon .red { fill: var(--hud-red); }
       #rank-btn { position: fixed; top: var(--edge-top); right: calc(max(12px, env(safe-area-inset-right)) + 96px); width: 40px; height: 40px; padding: 2px; border: 0; border-radius: 50%; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); cursor: pointer; z-index: 3; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
       .dev #help-btn { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
       .dev #book-btn { right: calc(max(12px, env(safe-area-inset-right)) + 96px); }
@@ -220,7 +227,7 @@
       :is(#help-btn, #book-btn) .glyph { fill: #b5761f; }
       /* HUD in the grimoire's print: square cards of cream paper with a double black rule, solid icons in black and red ink, small-caps Garamond. Same in light and dark. */
       :root { --hud-paper: rgba(245,239,224,.95); --hud-ink: #1f1a15; --hud-red: #a3271c; }
-      #match .match-btn, #help-btn, #book-btn, #rank-btn, #dev-gear { border-radius: 0; background: var(--hud-paper); color: var(--hud-ink); border: 1px solid var(--hud-ink); box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 2px 6px rgba(20,28,24,.18); backdrop-filter: none; -webkit-backdrop-filter: none; }
+      #match .match-btn, #help-btn, #book-btn, #rank-btn, #sound-btn, #dev-gear { border-radius: 0; background: var(--hud-paper); color: var(--hud-ink); border: 1px solid var(--hud-ink); box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 2px 6px rgba(20,28,24,.18); backdrop-filter: none; -webkit-backdrop-filter: none; }
       #match .match-btn { gap: 4px; padding: 0 9px 0 6px; font: 500 16px/1 'EB Garamond Variable', Garamond, Georgia, serif; font-variant-caps: small-caps; letter-spacing: .02em; }
       #match .match-btn .cap::after { font-size: 13px; }
       #match .match-btn:hover { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 3px 10px rgba(20,28,24,.28); }
