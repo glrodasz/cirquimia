@@ -72,11 +72,8 @@
       #match.snug { gap: 6px; }
       #match.snug .match-btn { padding-right: 10px; }
       #match.snug .match-btn .cap::after { content: none; }
-      #match.small { gap: 5px; }
-      #match.small .match-btn { gap: 2px; padding-right: 8px; font-size: 12px; letter-spacing: -.01em; }
-      #match.small .match-btn .disc { width: 30px; height: 30px; }
-      #match.tight .level .cap { display: none; }
-      #match.tight .level { padding-right: 4px; }
+      #match.icons .match-btn .cap { display: none; }
+      #match.icons .match-btn { width: 40px; justify-content: center; padding: 0; }
       .match-btn:hover { box-shadow: 0 3px 12px rgba(20,28,24,.26); }
       .match-btn:active { transform: scale(.95); }
       .match-btn:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
@@ -644,9 +641,7 @@
       /* HUD compaction (narrow phones, four buttons on the right): the grimoire pills shrink the same way. */
       #match.snug .match-btn { padding-right: 8px; }
       #match.snug .match-btn .cap::after { content: none; }
-      #match.small .match-btn { gap: 2px; padding: 0 6px 0 4px; font-size: 14px; letter-spacing: 0; }
-      #match.small .match-btn .disc { width: 22px; height: 22px; }
-      #match.tight .level { padding-right: 4px; }
+      #match.icons .match-btn { padding: 0; }
       /* The ranking as a page of the grimoire: a register of names, places in red, scores in old-style figures. */
       #rank .card { max-height: min(640px, calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); border-radius: 0; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), var(--g-lift); padding: 20px 18px 14px; font-family: var(--g-font); backdrop-filter: none; -webkit-backdrop-filter: none; }
       #rank .card > h2#rank-title { margin: 2px 36px 12px; padding-bottom: 10px; border-bottom: 3px double var(--g-ink); font: 500 25px/1.1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .14em; color: var(--g-red); }
