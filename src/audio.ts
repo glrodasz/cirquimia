@@ -22,6 +22,10 @@ let sfxBus: GainNode;
 let ambienceBus: GainNode;
 let noise: AudioBuffer;
 let chalk: AudioBuffer;
+let cracks: AudioBuffer[] = [];
+let roars: AudioBuffer[] = [];
+let pops: AudioBuffer[] = [];
+let splashes: AudioBuffer[] = [];
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
 let ambienceTimer = 0;
@@ -48,7 +52,14 @@ function unlock() {
     ctx = new Ctor();
     master = ctx.createGain();
     master.gain.value = enabled ? 1 : 0;
-    master.connect(ctx.destination);
+    // Several strikes at once (a star, three rivals) can pile up: a gentle limiter keeps them from clipping.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -10;
+    limiter.knee.value = 8;
+    limiter.ratio.value = 6;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.2;
+    master.connect(limiter).connect(ctx.destination);
     sfxBus = ctx.createGain();
     sfxBus.gain.value = SFX_LEVEL;
     sfxBus.connect(master);
@@ -59,6 +70,10 @@ function unlock() {
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     chalk = chalkGrain(ctx);
+    cracks = [0, 1, 2].map(() => groundCrack(ctx!));
+    roars = [0, 1, 2].map(() => flameRoar(ctx!));
+    pops = [0, 1, 2].map(() => emberPops(ctx!));
+    splashes = [0, 1, 2].map(() => waterSplash(ctx!));
     startMeadow();
   }
   wake();
@@ -262,6 +277,132 @@ export const inkSound = {
   },
 };
 
+
+// ---------------------------------------------------------------- recorded-like textures
+// Natural sounds are made of many small events, not one tone: these are rendered once (three takes each, picked at
+// random) sample by sample, then shaped by filters when played.
+
+const pick = (takes: AudioBuffer[]) => takes[Math.floor(Math.random() * takes.length)];
+
+/** Adds one sharp grain at `at` (s): noise with an instant attack and a fast decay. */
+function grain(data: Float32Array, rate: number, at: number, length: number, peak: number) {
+  const start = Math.floor(at * rate);
+  const n = Math.floor(length * rate);
+  for (let k = 0; k < n && start + k < data.length; k++) data[start + k] += (Math.random() * 2 - 1) * peak * Math.exp((-5 * k) / n);
+}
+
+/**
+ * Ground breaking open: a dense burst of cracks that thins out, a dull crunch underneath, then loose earth and
+ * pebbles pattering down for half a second.
+ */
+function groundCrack(c: BaseAudioContext) {
+  const rate = c.sampleRate;
+  const length = 1;
+  const buffer = c.createBuffer(1, rate * length, rate);
+  const data = buffer.getChannelData(0);
+  // The crunch: low-passed noise (one-pole) with a quick swell and a short decay.
+  let low = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / rate;
+    low += 0.06 * (Math.random() * 2 - 1 - low);
+    data[i] = low * 5 * Math.min(1, t / 0.006) * Math.exp(-t / 0.09);
+  }
+  // Cracks: hundreds per second at first, dying away; the louder ones come early.
+  for (let t = 0; t < 0.35; ) {
+    const density = 900 * Math.exp(-t / 0.05) + 60;
+    t += -Math.log(1 - Math.random()) / density;
+    grain(data, rate, t, 0.0008 + Math.random() * 0.004, (0.25 + Math.random() ** 2 * 0.9) * Math.exp(-t / 0.12));
+  }
+  // Debris: sparse little stones landing, each a tiny tick.
+  for (let t = 0.12; t < length - 0.05; ) {
+    t += -Math.log(1 - Math.random()) / (45 * Math.exp(-(t - 0.12) / 0.3) + 4);
+    grain(data, rate, t, 0.0006 + Math.random() * 0.002, 0.12 + Math.random() * 0.18 * Math.exp(-(t - 0.12) / 0.3));
+  }
+  return buffer;
+}
+
+/** A flare: a roar that bursts in, flutters as the flame licks and dies down, with no tone in it at all. */
+function flameRoar(c: BaseAudioContext) {
+  const rate = c.sampleRate;
+  const length = 1.2;
+  const buffer = c.createBuffer(1, Math.floor(rate * length), rate);
+  const data = buffer.getChannelData(0);
+  let flutter = 1;
+  let target = 1;
+  let next = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / rate;
+    if (t >= next) {
+      target = 0.35 + Math.random() * 0.65;
+      next = t + 0.02 + Math.random() * 0.05;
+    }
+    flutter += (target - flutter) * 0.004;
+    const env = Math.min(1, t / 0.06) ** 2 * Math.exp(-Math.max(0, t - 0.08) / 0.4);
+    data[i] = (Math.random() * 2 - 1) * env * flutter;
+  }
+  return buffer;
+}
+
+/** Embers and sap popping in the fire: scattered dry snaps. */
+function emberPops(c: BaseAudioContext) {
+  const rate = c.sampleRate;
+  const buffer = c.createBuffer(1, Math.floor(rate * 1.1), rate);
+  const data = buffer.getChannelData(0);
+  for (let t = 0.02; t < 1; ) {
+    t += -Math.log(1 - Math.random()) / (40 * Math.exp(-t / 0.5) + 6);
+    grain(data, rate, t, 0.0005 + Math.random() * 0.0025, 0.3 + Math.random() * 0.7);
+  }
+  return buffer;
+}
+
+/** Water thrown hard: a wet burst, then smaller splashes as it falls back, then drips. */
+function waterSplash(c: BaseAudioContext) {
+  const rate = c.sampleRate;
+  const buffer = c.createBuffer(1, Math.floor(rate * 1), rate);
+  const data = buffer.getChannelData(0);
+  const burst = (at: number, decay: number, peak: number) => {
+    const start = Math.floor(at * rate);
+    for (let k = 0; start + k < data.length && k < rate * decay * 5; k++) {
+      const t = k / rate;
+      data[start + k] += (Math.random() * 2 - 1) * peak * Math.min(1, t / 0.004) * Math.exp(-t / decay);
+    }
+  };
+  burst(0, 0.11, 1);
+  for (let i = 0; i < 6; i++) burst(0.08 + Math.random() * 0.4, 0.02 + Math.random() * 0.03, 0.15 + Math.random() * 0.3);
+  return buffer;
+}
+
+/** Plays a rendered texture through a filter, at a gain and an optional speed (pitch) change. */
+function texture(
+  dest: AudioNode,
+  t: number,
+  buffer: AudioBuffer,
+  filter: { type: BiquadFilterType; from: number; to?: number; at?: number; q?: number },
+  gain: number,
+  speed = 1,
+  until?: number,
+) {
+  const c = ctx!;
+  const src = c.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = speed * (0.92 + Math.random() * 0.16);
+  const f = c.createBiquadFilter();
+  f.type = filter.type;
+  f.Q.value = filter.q ?? 0.7;
+  f.frequency.setValueAtTime(filter.from, t);
+  if (filter.to) f.frequency.exponentialRampToValueAtTime(filter.to, t + (filter.at ?? buffer.duration));
+  const g = c.createGain();
+  g.gain.value = gain;
+  src.connect(f).connect(g).connect(dest);
+  src.start(t);
+  if (until) {
+    g.gain.setValueAtTime(gain, t + until - 0.06);
+    g.gain.linearRampToValueAtTime(0, t + until);
+    src.stop(t + until + 0.01);
+  }
+  return f;
+}
+
 // ---------------------------------------------------------------- effects
 
 // A major pentatonic on D: every chime and the fanfare share it, so nothing clashes.
@@ -292,55 +433,65 @@ export function rumble(at: Where, warn: number) {
   if (!ready('rumble', 0.02)) return;
   const t = ctx!.currentTime;
   const o = out(0.5, at);
-  hiss(o, t, warn + 0.08, { type: 'lowpass', from: 140, to: 220, q: 2 }, { attack: warn * 0.8, peak: 0.9 });
-  tone(o, t, warn + 0.08, 'sine', 48, 62, 0.5, warn * 0.8);
+  hiss(o, t, warn + 0.08, { type: 'lowpass', from: 120, to: 200, q: 1.5 }, { attack: warn * 0.8, peak: 0.8 });
+  // Grit shifting in the ground as it starts to give.
+  const g = ctx!.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(1, t + warn);
+  g.connect(o);
+  texture(g, t, pick(cracks), { type: 'lowpass', from: 900, q: 0.7 }, 0.35, 0.45, warn + 0.08);
 }
 
-/** A strike breaks out: stone, flame, water, steam or a creaking vine. */
+/** A strike breaks out: the ground cracking open, a flare, a splash, a steam blast or a creaking vine. */
 export function strike(element: Element, at: Where) {
   if (!ready(`strike-${element}`, 0.03)) return;
   const t = ctx!.currentTime;
-  const o = out(0.7, at);
-  const stone = (gain: number) => {
-    tone(o, t, 0.32, 'sine', 120, 42, 0.9 * gain);
-    hiss(o, t, 0.18, { type: 'lowpass', from: 1800, to: 300, q: 0.8 }, { attack: 0.004, peak: 0.7 * gain });
-    hiss(o, t + 0.02, 0.09, { type: 'bandpass', from: 3200, q: 1.5 }, { attack: 0.002, peak: 0.25 * gain });
+  const o = out(0.75, at);
+  const ground = (gain: number) => {
+    texture(o, t, pick(cracks), { type: 'lowpass', from: 7000, to: 2500, at: 0.4 }, 0.9 * gain);
+    // The weight of it, felt more than heard.
+    hiss(o, t, 0.25, { type: 'lowpass', from: 160, q: 0.7 }, { attack: 0.005, peak: 0.6 * gain });
   };
-  const flame = (gain: number) => {
-    hiss(o, t, 0.55, { type: 'bandpass', from: 500, to: 1600, q: 0.8 }, { attack: 0.03, peak: 0.8 * gain });
-    for (let i = 0; i < 6; i++) hiss(o, t + 0.05 + Math.random() * 0.4, 0.03, { type: 'highpass', from: 2500 }, { attack: 0.002, peak: 0.25 * gain });
+  const flare = (gain: number) => {
+    // A whoosh that opens up bright as the flame leaps, then settles into a darker roar.
+    const f = texture(o, t, pick(roars), { type: 'lowpass', from: 350 }, 0.9 * gain);
+    f.frequency.exponentialRampToValueAtTime(3200, t + 0.12);
+    f.frequency.exponentialRampToValueAtTime(900, t + 1);
+    texture(o, t, pick(roars), { type: 'lowpass', from: 220, q: 0.5 }, 0.6 * gain, 0.6);
+    texture(o, t + 0.05, pick(pops), { type: 'highpass', from: 1800 }, 0.35 * gain);
   };
   const splash = (gain: number) => {
-    hiss(o, t, 0.45, { type: 'bandpass', from: 1400, to: 500, q: 0.9 }, { attack: 0.01, peak: 0.7 * gain });
-    for (let i = 0; i < 5; i++) {
-      const at0 = t + 0.03 + Math.random() * 0.3;
-      const f = 300 + Math.random() * 400;
-      tone(o, at0, 0.08, 'sine', f, f * 2.2, 0.3 * gain);
+    texture(o, t, pick(splashes), { type: 'bandpass', from: 2600, to: 1100, at: 0.5, q: 0.6 }, 1.1 * gain);
+    for (let i = 0; i < 4; i++) {
+      const drop = t + 0.15 + Math.random() * 0.45;
+      const f = 500 + Math.random() * 700;
+      tone(o, drop, 0.05, 'sine', f, f * 2.4, 0.18 * gain);
     }
   };
   switch (element) {
     case 'earth':
     case 'columns':
-      stone(1);
+      ground(1);
       break;
     case 'fire':
     case 'fireStar':
-      stone(0.5);
-      flame(1);
+      ground(0.45);
+      flare(1);
       break;
     case 'water':
     case 'waterStar':
-      stone(0.5);
+      ground(0.45);
       splash(1);
       break;
     case 'blast':
-      stone(1.2);
-      flame(0.8);
-      hiss(o, t + 0.05, 1, { type: 'highpass', from: 1200, to: 3000, q: 0.5 }, { attack: 0.08, peak: 0.5 });
+      ground(1);
+      flare(0.8);
+      // Water on fire: a long hiss of steam.
+      hiss(o, t + 0.06, 1.1, { type: 'highpass', from: 2500, to: 5000, q: 0.4 }, { attack: 0.1, peak: 0.35 });
       break;
     case 'vine':
-      for (let i = 0; i < 3; i++) tone(o, t + i * 0.09, 0.22, 'sawtooth', 90 + i * 14, 70, 0.12);
-      hiss(o, t, 0.4, { type: 'bandpass', from: 700, to: 400, q: 2 }, { attack: 0.05, peak: 0.3 });
+      texture(o, t, pick(cracks), { type: 'bandpass', from: 900, q: 1.5 }, 0.5, 0.5, 0.6);
+      for (let i = 0; i < 3; i++) tone(o, t + i * 0.09, 0.22, 'sawtooth', 90 + i * 14, 70, 0.08);
       break;
   }
 }
