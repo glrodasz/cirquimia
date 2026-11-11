@@ -25,6 +25,25 @@ const STAR_FLUID_SCALE = 0.75; // a fire or water star's flames and spouts again
 export const STAR_REACH = 0.5; // from the target to each tip, world units: the target itself sits between them
 export const STAR_STAGGER = 0.06; // s between tips, in the order the star is drawn
 
+/**
+ * The ring of a star's five columns while they stand: whoever crosses it (in or out) is struck once more,
+ * so the safe play caught inside is to stand still in the middle until it sinks.
+ */
+export interface StarCage {
+  x: number;
+  z: number;
+  reach: number;
+  caster: unknown;
+  element: Element;
+  /** Tips standing right now (erupted and not yet sinking). */
+  standing: number;
+  /** Tips actually cast (one aimed into a wall never starts), and how many of them have erupted so far. */
+  tips: number;
+  erupted: number;
+  /** Already struck by this star, at a tip or for crossing it: never twice. */
+  readonly struck: Set<unknown>;
+}
+
 /** Strikes cast from inside a rune circle are this much bigger: area, and the star's spread. */
 export const RUNE_BOOST = 1.25;
 
@@ -387,6 +406,8 @@ class PillarStrike extends Effect {
     readonly ink: string | null = null,
     /** Size multiplier for the whole strike, e.g. 1.1 when cast from a rune circle. */
     readonly scale = 1,
+    /** The star this is one tip of, if any. */
+    readonly cage: StarCage | null = null,
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
@@ -916,7 +937,7 @@ export class Spells {
   private readonly active: Active[] = [];
 
   /** Called when a strike breaks out (not when a wall stops it), with whoever cast it. */
-  onStrike: (x: number, z: number, element: Element, caster: unknown, area: number) => void = () => {};
+  onStrike: (x: number, z: number, element: Element, caster: unknown, area: number, cage: StarCage | null) => void = () => {};
 
   constructor(private readonly obstacles: Obstacle[]) {}
 
@@ -934,8 +955,9 @@ export class Spells {
     warn = PILLAR_WARN,
     ink: string | null = null,
     scale = 1,
+    cage: StarCage | null = null,
   ) {
-    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn, ink, scale));
+    this.start(new PillarStrike(at.x, at.z, caster, element, owner, warn, ink, scale, cage));
   }
 
   /** Marks a strike that a standing wall stops before it starts: just a cross where it would have broken out. */
@@ -996,11 +1018,15 @@ export class Spells {
       if (effect instanceof PillarStrike && !effect.solid && !effect.blocked && effect.erupting(dt)) {
         effect.blocked = this.shielded(effect.x, effect.z, effect.caster);
         if (effect.blocked) this.start(new DeniedMark(effect.x, effect.z, effect.ink, effect.area * 2.2));
-        else this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area);
+        else this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area, effect.cage);
+        if (effect.cage) effect.cage.erupted++;
       }
       const wasSolid = effect.solid;
       effect.update(dt);
-      if (effect.solid !== wasSolid) this.setBlocking(effect, effect.solid);
+      if (effect.solid !== wasSolid) {
+        this.setBlocking(effect, effect.solid);
+        if (effect instanceof PillarStrike && effect.cage) effect.cage.standing += effect.solid ? 1 : -1;
+      }
       if (!effect.done) continue;
       this.active.splice(i, 1);
       this.root.remove(effect.group);
