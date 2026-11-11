@@ -155,7 +155,6 @@ const es = {
     mine: 'Tuyo',
   },
   help: {
-    button: 'Cómo jugar',
     title: 'Cómo jugar',
     slides: [
       ['Muévete', 'Toca el suelo y el alquimista <b>camina</b> hasta allí.'],
@@ -168,7 +167,9 @@ const es = {
     back: 'Atrás',
     next: 'Siguiente',
     close: 'Cerrar',
+    bookButton: 'Libro: símbolos y cómo jugar',
     symbolsButton: 'Símbolos',
+    language: 'Idioma',
     shapesTitle: 'Símbolos disponibles',
     damage: 'Daño',
     healing: 'Curación',
@@ -398,7 +399,6 @@ const en: Strings = {
     mine: 'Yours',
   },
   help: {
-    button: 'How to play',
     title: 'How to play',
     slides: [
       ['Move', 'Tap the ground and the alchemist <b>walks</b> there.'],
@@ -411,7 +411,9 @@ const en: Strings = {
     back: 'Back',
     next: 'Next',
     close: 'Close',
+    bookButton: 'Book: symbols and how to play',
     symbolsButton: 'Symbols',
+    language: 'Language',
     shapesTitle: 'Available symbols',
     damage: 'Damage',
     healing: 'Healing',

@@ -149,7 +149,7 @@ export function mountMatchControls(match: MatchControls) {
   const fit = () => {
     box.classList.remove('snug', 'icons');
     const right = () => {
-      const lefts = ['sound-btn', 'rank-btn', 'book-btn', 'help-btn', 'dev-gear']
+      const lefts = ['sound-btn', 'rank-btn', 'book-btn', 'dev-gear']
         .map((id) => document.getElementById(id)?.getBoundingClientRect().left ?? Infinity)
         .filter((x) => x > 0);
       return Math.min(innerWidth, ...lefts) - 8;

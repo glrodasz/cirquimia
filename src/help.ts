@@ -4,7 +4,8 @@ import type { ShapeKind } from './gestures';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
-import { bookIcon, dropIcon, flameIcon, questionIcon, runeIcon, turnArrowIcon } from './icons';
+import { LANGUAGE_NAMES } from './i18n/locale';
+import { bookIcon, dropIcon, flameIcon, runeIcon, turnArrowIcon } from './icons';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
@@ -85,7 +86,8 @@ const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</
 
 /**
  * An alchemist's book: one sheet of grimoire paper with a red title, its pages stacked on top of each
- * other and two big page-turn buttons along the bottom edge, with the page number between them.
+ * other and two big page-turn buttons along the bottom edge, with the page number between them. Under
+ * those, a foot strip: the two sections of the book (symbols, how to play) and the language.
  */
 function bookCard(cls: string, title: string, pages: string[], label: (n: number, total: number) => string) {
   return (
@@ -94,7 +96,11 @@ function bookCard(cls: string, title: string, pages: string[], label: (n: number
     `<div class="pages">${pages.map((page, i) => `<section class="page" aria-label="${label(i + 1, pages.length)}">${page}</section>`).join('')}</div>` +
     `<div class="turn"><button type="button" class="back">${turnArrowIcon()}<span class="cap"></span></button>` +
     `<span class="folio" aria-live="polite"><span aria-hidden="true"></span><span class="sr"></span></span>` +
-    `<button type="button" class="go"><span class="cap"></span>${turnArrowIcon()}</button></div></div>`
+    `<button type="button" class="go"><span class="cap"></span>${turnArrowIcon()}</button></div>` +
+    `<div class="foot"><div class="tabs">` +
+    `<button type="button" class="tab" data-to="symbols"${cls === 'manual' ? ' aria-current="page"' : ''}>${t.help.symbolsButton}</button>` +
+    `<button type="button" class="tab" data-to="guide"${cls === 'guide' ? ' aria-current="page"' : ''}>${t.help.howTo}</button>` +
+    `</div><div class="langs" role="group" aria-label="${t.help.language}"></div></div></div>`
   );
 }
 
@@ -155,21 +161,18 @@ function symbols() {
   return bookCard('manual', t.help.shapesTitle, [`${progress}<ol class="shapes">${shapes}</ol>${legend}`, notes, combo], t.help.pageOf);
 }
 
+/** Set before switching language, so the book opens again on the same section once the page reloads. */
+const REOPEN = 'cirquimia.reopen';
+
 /**
- * Two cards behind two buttons next to the gear: "?" swipes through how to play (also shown on the
- * first visit) and the book lists the symbols. The game holds still while either is open.
+ * One book behind one button next to the gear: it opens on the symbols, and its foot strip turns to how to
+ * play and switches the language. The game holds still while it is open.
  */
 export function mountHelp() {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.id = 'help-btn';
-  button.setAttribute('aria-label', t.help.button);
-  button.innerHTML = questionIcon();
-
   const book = document.createElement('button');
   book.type = 'button';
   book.id = 'book-btn';
-  book.setAttribute('aria-label', t.help.symbolsButton);
+  book.setAttribute('aria-label', t.help.bookButton);
   book.innerHTML = bookIcon();
 
   const overlay = document.createElement('div');
@@ -178,8 +181,8 @@ export function mountHelp() {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'help-title');
-  for (const node of [button, book, overlay]) for (const type of ['pointerdown', 'pointerup', 'pointermove']) node.addEventListener(type, (e) => e.stopPropagation());
-  document.body.append(book, button, overlay);
+  for (const node of [book, overlay]) for (const type of ['pointerdown', 'pointerup', 'pointermove']) node.addEventListener(type, (e) => e.stopPropagation());
+  document.body.append(book, overlay);
 
   // Mobile browsers can lay fixed elements out under their own toolbars; size the card to what is actually visible.
   const fit = () => overlay.style.setProperty('--seen', `${Math.round(visualViewport?.height ?? innerHeight)}px`);
@@ -193,9 +196,27 @@ export function mountHelp() {
   const show = (page: 'guide' | 'symbols') => {
     if (!open) opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     overlay.innerHTML = page === 'guide' ? guide() : symbols(); // fresh brush jitter each time
-    overlay.append(langLink(LANG === 'es' ? 'en' : 'es', 'lang'));
     overlay.querySelector('.x')!.addEventListener('click', hide);
-    turn = page === 'guide' ? wireBook(t.help.go) : wireBook(t.help.ok, t.help.howTo, () => show('guide'));
+    for (const tab of overlay.querySelectorAll<HTMLButtonElement>('.tab'))
+      tab.addEventListener('click', () => tab.dataset.to !== page && show(tab.dataset.to as 'guide' | 'symbols'));
+    const langs = overlay.querySelector('.langs')!;
+    for (const lang of ['es', 'en'] as const) {
+      const link = langLink(lang, 'lang', lang.toUpperCase());
+      if (lang === LANG) {
+        link.removeAttribute('aria-label');
+        link.title = LANGUAGE_NAMES[lang];
+        link.addEventListener('click', (e) => e.preventDefault());
+        langs.append(link);
+        continue;
+      }
+      link.title = link.getAttribute('aria-label')!;
+      // Stay in the book across the reload, on this same section.
+      link.addEventListener('click', () => {
+        try { sessionStorage.setItem(REOPEN, page); } catch { /* private mode: the book just stays closed */ }
+      });
+      langs.append(link);
+    }
+    turn = wireBook(page === 'guide' ? t.help.go : t.help.ok);
     overlay.hidden = false;
     open = true;
     void overlay.offsetWidth; // let the fade-in start from hidden
@@ -210,7 +231,7 @@ export function mountHelp() {
    * back down on top. The last page's button closes the book, and the first page's back button can
    * lead somewhere else.
    */
-  function wireBook(done: string, before?: string, onBefore?: () => void) {
+  function wireBook(done: string) {
     const leaves = [...overlay.querySelectorAll<HTMLElement>('.page')];
     const shelf = overlay.querySelector<HTMLElement>('.pages')!;
     const back = overlay.querySelector<HTMLButtonElement>('.back')!;
@@ -231,8 +252,8 @@ export function mountHelp() {
       const ahead = at < last;
       next.classList.toggle('seal', !ahead);
       next.querySelector('.cap')!.textContent = ahead ? t.help.next : done;
-      back.querySelector('.cap')!.textContent = at === 0 && before ? before : t.help.back;
-      back.classList.toggle('hide', at === 0 && !before);
+      back.querySelector('.cap')!.textContent = t.help.back;
+      back.classList.toggle('hide', at === 0);
     };
 
     const go = (to: number) => {
@@ -281,7 +302,7 @@ export function mountHelp() {
         else if (along < 0.28) go(at - 1);
       }
     });
-    back.addEventListener('click', () => (at === 0 ? onBefore?.() : go(at - 1)));
+    back.addEventListener('click', () => go(at - 1));
     next.addEventListener('click', () => (at === last ? hide() : go(at + 1)));
 
     leaves[0].classList.add('on');
@@ -301,7 +322,6 @@ export function mountHelp() {
     else (document.activeElement as HTMLElement | null)?.blur();
   }
 
-  button.addEventListener('click', () => show('guide'));
   book.addEventListener('click', () => show('symbols'));
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) hide();
@@ -320,7 +340,13 @@ export function mountHelp() {
       }
     }
   });
-  // No guide on the first visit: the first match teaches by playing, and the guide waits behind the "?".
+  // No guide on the first visit: the first match teaches by playing, and the guide waits inside the book.
+  let reopen: string | null = null;
+  try {
+    reopen = sessionStorage.getItem(REOPEN);
+    sessionStorage.removeItem(REOPEN);
+  } catch { /* no storage */ }
+  if (reopen === 'guide' || reopen === 'symbols') show(reopen);
 
   return {
     get open() {

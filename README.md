@@ -167,7 +167,7 @@ docs/           diagrams
 | `spells.ts` | Spell visuals: earth wall, pillars, fire, water, heal, star |
 | `combat.ts` | HP, damage, rune bonus, rival AI and difficulty levels, win/lose |
 | `match.ts` | Match HUD (rivals, difficulty), end-of-match cards, restart on a new meadow |
-| `help.ts` | "How to play" guide |
+| `help.ts` | The book (HUD book button): symbols, the "How to play" guide and the language switch in its foot |
 | `tutorial.ts` | Interactive first-match tutorial |
 | `sourceHints.ts` | After the tutorial: the fire, then the water triangle traced over its source |
 | `gpu.ts` | WebGL 2 probe and the hardware-acceleration notice |
