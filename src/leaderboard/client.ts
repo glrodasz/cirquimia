@@ -5,10 +5,11 @@
  */
 import type { Difficulty } from '../combat';
 import { LANG } from '../i18n';
+import { API_BASE } from '../platform';
 import { cleanInitials, validInitials } from './score';
 import type { Category } from './device';
 
-const API = '/api';
+const API = API_BASE;
 const INITIALS_STORE = 'cirquimia.initials';
 const MINE_STORE = 'cirquimia.myscores';
 

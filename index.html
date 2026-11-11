@@ -404,6 +404,11 @@
       #device-hint svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
       @keyframes device-hint { 0%, 55% { opacity: 1; } 100% { opacity: .35; } }
       @media (prefers-reduced-motion: reduce) { #device-hint { animation-duration: .01s; animation-delay: 3.5s; } }
+      /* Desktop's "also on your phone": fades in, reads for a few seconds, fades out (then hidden). */
+      #device-hint.brief { animation: device-brief 5s ease-in-out both; }
+      @keyframes device-brief { 0% { opacity: 0; } 8%, 84% { opacity: 1; } 100% { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { #device-hint.brief { animation: device-brief-still 5s linear both; } }
+      @keyframes device-brief-still { 0%, 99% { opacity: 1; } 100% { opacity: 0; } }
       /* Desktop: WASD keycaps at the bottom centre, clear until the player has walked with them, then a faint watermark. */
       #keys-hint { position: fixed; bottom: var(--edge-bottom); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 10px; border-radius: 16px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 12px/1.25 system-ui, -apple-system, sans-serif; white-space: nowrap; transition: opacity .8s; }
       #keys-hint.used { opacity: .35; }

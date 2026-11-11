@@ -43,6 +43,7 @@ npm run dev            # http://localhost:5173, also exposed on your LAN to test
 | `npm test` | Unit tests (Vitest): stroke recognizer, pointer router, keyboard walking, aim reticle |
 | `npm run build` | Type-checks and builds to `dist/` |
 | `npm run build:single` | Builds `dist/cirquimia-single.html`, the whole game in one self-contained file |
+| `npm run build:itch` | Builds `cirquimia-itch.zip` for itch.io (upload as an HTML5 game): language from `?lang=` or the browser, ranking via cirquimia.pages.dev with CORS open to itch hosts only |
 | `npm run preview` | Serves the production build |
 
 ## How to play

@@ -5,3 +5,5 @@ dist/
 .DS_Store
 .env
 .env.*
+dist-itch/
+cirquimia-itch.zip

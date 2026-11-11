@@ -7,6 +7,7 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "build:single": "npm run build && node scripts/inline.mjs",
+    "build:itch": "tsc --noEmit && vite build --mode itch --outDir dist-itch && node scripts/itch.mjs",
     "preview": "vite preview --host",
     "test": "vitest run"
   },
