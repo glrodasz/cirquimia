@@ -56,6 +56,14 @@ export function trophyIcon() {
   );
 }
 
+/** An hourglass: two bulbs between a top and a bottom bar, sand settling below. */
+export function hourglassIcon() {
+  return box(
+    '<path class="ink" fill-rule="evenodd" d="M5 2H19V4H17.6C17.6 7.6 15.6 10.4 13.4 12C15.6 13.6 17.6 16.4 17.6 20H19V22H5V20H6.4C6.4 16.4 8.4 13.6 10.6 12C8.4 10.4 6.4 7.6 6.4 4H5ZM8.4 4C8.5 6.9 10.2 9.4 12 10.6C13.8 9.4 15.5 6.9 15.6 4Z"/>' +
+      '<path class="ink" d="M12 15.2C10.2 15.9 8.8 17.6 8.5 20H15.5C15.2 17.6 13.8 15.9 12 15.2Z"/>',
+  );
+}
+
 /* ---- Icons for the rest of the UI, in the same solid, simplified hand. ---- */
 
 const solid = (d: string, cls = 'ink', view = '0 0 24 24') => `<svg viewBox="${view}" aria-hidden="true"><path class="${cls}" fill-rule="evenodd" d="${d}"/></svg>`;
