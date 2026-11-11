@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Favicon: the transmutation circle drawn thick enough to read at 16 px. -->
+  <rect width="64" height="64" rx="14" fill="#3a5350"/>
+  <g fill="none" stroke="#eef3ee" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="33" r="23" stroke-width="5"/>
+    <path d="M32 13.5 L49 43 L15 43 Z" stroke-width="4.5"/>
+  </g>
+  <circle cx="32" cy="33" r="5" fill="#e8b04f"/>
+</svg>

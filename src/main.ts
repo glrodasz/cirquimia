@@ -705,7 +705,7 @@ document.addEventListener('touchmove', (e) => !canScroll(e.target) && claimTouch
 // Clicking the ground still walks too, so both work and a held key simply takes over from a click.
 const keys = new KeyboardMove();
 const keysHint = mountKeysHint();
-keys.onChange = (key, down) => keysHint.press(key, down);
+keys.onChange = (key, down, code) => keysHint.press(key, down, code);
 // Mouse-only screens hear once that the game is on phones too, queued after the tutorial and the WASD keycaps so
 // notes come one at a time; sideways phones get a quiet note to turn upright.
 mountDeviceHint(
