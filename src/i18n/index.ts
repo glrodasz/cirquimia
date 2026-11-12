@@ -158,10 +158,18 @@ const es = {
     title: 'Cómo jugar',
     slides: [
       ['Muévete', 'Toca el suelo y el alquimista <b>camina</b> hasta allí.'],
-      ['Dibuja un símbolo', 'Traza la forma con el dedo: queda <b>lista en tu mano</b>. Solo uno a la vez: uno nuevo reemplaza al anterior. El muro y la cura salen al instante.'],
-      ['Lánzalo', 'Toca al <b>rival</b> y el ataque sale ahí. Toca al alquimista para soltarlo.'],
+      ['Dibuja un símbolo', 'Traza la forma y queda <b>en tu mano</b>. Solo cabe uno a la vez.'],
+      ['Lánzalo', 'Toca al <b>rival</b> para lanzarlo. Toca a tu alquimista para soltarlo.'],
     ],
-    pad: 'Toca el suelo y el alquimista <b>camina</b> hasta allí, o deja el dedo quieto en el <b>aro de abajo a la izquierda</b> y deslízalo.',
+    // Pages 2 and 3 with a mouse.
+    desk: ['Traza la forma con el ratón y queda <b>en tu mano</b>. Solo cabe uno a la vez.', 'Haz clic en el <b>rival</b> para lanzarlo. Haz clic en tu alquimista para soltarlo.'],
+    // The two ways to walk, each a short heading and one line: pointing at the map, and the stick or the keys.
+    moveWays: {
+      tap: ['Toca el mapa', 'Tu alquimista camina hasta donde toques.'],
+      click: ['Haz clic en el mapa', 'Tu alquimista camina hasta donde hagas clic.'],
+      stick: ['Usa el joystick', 'Deja el dedo en el aro y deslízalo.'],
+      keys: ['Usa el teclado', 'Camina con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas.'],
+    },
     slideOf: (n: number, total: number) => `Paso ${n} de ${total}`,
     pageOf: (n: number, total: number) => `Página ${n} de ${total}`,
     back: 'Atrás',
@@ -224,9 +232,6 @@ const es = {
   device: {
     touch: 'También en tu móvil: cirquimia.pages.dev',
     portrait: 'Cirquimia se juega mejor en vertical',
-  },
-  keys: {
-    move: 'Usa <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas para <b>caminar</b>. También puedes hacer clic en el suelo.',
   },
   gpu: {
     none: {
@@ -399,10 +404,16 @@ const en: Strings = {
     title: 'How to play',
     slides: [
       ['Move', 'Tap the ground and the alchemist <b>walks</b> there.'],
-      ['Draw a symbol', 'Trace the shape with your finger: it is <b>ready in your hand</b>. Only one at a time: a new one replaces the last. Walls and heals go off at once.'],
-      ['Cast it', 'Tap the <b>rival</b> and the attack lands there. Tap the alchemist to drop it.'],
+      ['Draw a symbol', 'Trace the shape and it stays <b>in your hand</b>. Only one at a time.'],
+      ['Cast it', 'Tap the <b>rival</b> to cast it. Tap your alchemist to drop it.'],
     ],
-    pad: 'Tap the ground and the alchemist <b>walks</b> there, or rest your finger on the <b>ring at the bottom left</b> and slide it.',
+    desk: ['Trace the shape with the mouse and it stays <b>in your hand</b>. Only one at a time.', 'Click the <b>rival</b> to cast it. Click your alchemist to drop it.'],
+    moveWays: {
+      tap: ['Tap the map', 'Your alchemist walks to where you tap.'],
+      click: ['Click the map', 'Your alchemist walks to where you click.'],
+      stick: ['Use the joystick', 'Rest your finger on the ring and slide it.'],
+      keys: ['Use the keyboard', 'Walk with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys.'],
+    },
     slideOf: (n: number, total: number) => `Step ${n} of ${total}`,
     pageOf: (n: number, total: number) => `Page ${n} of ${total}`,
     back: 'Back',
@@ -465,9 +476,6 @@ const en: Strings = {
   device: {
     touch: 'Also on your phone: cirquimia.pages.dev',
     portrait: 'Cirquimia plays best in portrait mode',
-  },
-  keys: {
-    move: 'Use <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys to <b>walk</b>. You can also click the ground.',
   },
   gpu: {
     none: {

@@ -566,6 +566,15 @@
       #help .page:nth-child(even) .shot { transform: none; }
       #help .shot::before, #help .shot::after { content: none; }
       #help .shot svg { inset: 0; width: 100%; height: 100%; }
+      /* The walk page: the shot split on its diagonal, two short ways to move under it. */
+      #help .shot .split { fill: none; stroke: var(--g-paper); stroke-width: 3; }
+      #help .shot .key rect { fill: rgba(245,239,224,.88); stroke: #1f1a15; stroke-width: 1.2; }
+      #help .shot .key text { fill: #1f1a15; font: 600 12px var(--g-font); text-anchor: middle; }
+      #help .shot .key.lit rect { fill: #1f1a15; } #help .shot .key.lit text { fill: #f5efe0; }
+      #help .page p.way { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+      #help .page p.way + p.way::before { content: none; }
+      #help .page p.way + p.way { margin-top: 6px; }
+      #help .page p.way b { font-weight: 500; font-variant-caps: small-caps; letter-spacing: .05em; color: var(--g-red); }
       #help .shot .badge rect { fill: var(--g-red); } #help .shot .badge text { fill: var(--g-paper); font: 600 15px var(--g-font); }
       #help .page h3 { gap: 10px; font: 500 24px/1.15 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; }
       #help .num { width: auto; height: auto; border-radius: 0; background: none; box-shadow: none; color: var(--g-red); font: 500 22px/1 var(--g-font); }

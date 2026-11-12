@@ -54,8 +54,31 @@ const OVERLAYS: Array<(rand: () => number) => string> = [
 ];
 const SHOTS = [moveShot, drawShot, useShot];
 
-/** Touch screens: the first page also shows the optional stick, its knob pushed up and to the right. */
-const padRing = `<g class="pad"><circle cx="58" cy="178" r="34"/><circle class="knob" cx="72" cy="164" r="13"/></g>`;
+/**
+ * The walk page split along its diagonal into the two ways to move. Top right: the screenshot as it is, a hand
+ * tapping (or clicking) the map. Bottom left: the same meadow closer in, the alchemist walking off up and to the
+ * right, driven by the stick's ring with its knob pushed that way, or by the arrow keys on a keyboard.
+ */
+function splitMove(rand: () => number, keys: boolean) {
+  const zoom = 1.5;
+  const hero: Pt = [182, 118]; // the alchemist's feet in the move screenshot
+  const at: Pt = [128, 168]; // where they land in the close-up half
+  const x = at[0] - hero[0] * zoom;
+  const y = at[1] - hero[1] * zoom;
+  const cap = (cx: number, cy: number, label: string, lit = false) =>
+    `<g class="key${lit ? ' lit' : ''}"><rect x="${cx - 11}" y="${cy - 11}" width="22" height="22"/><text x="${cx}" y="${cy + 4.5}">${label}</text></g>`;
+  const steer = keys
+    ? cap(48, 174, 'W', true) + cap(24, 198, 'A') + cap(48, 198, 'S') + cap(72, 198, 'D', true)
+    : `<g class="pad"><circle cx="50" cy="190" r="30"/><circle class="knob" cx="62" cy="178" r="12"/></g>`;
+  return (
+    `<defs><clipPath id="move-near"><polygon points="0,0 312,234 0,234"/></clipPath></defs>` +
+    `<image href="${moveShot}" x="${x}" y="${y}" width="${312 * zoom}" height="${234 * zoom}" clip-path="url(#move-near)" preserveAspectRatio="none"/>` +
+    `<path class="split" d="M-4 -3L316 237"/>` +
+    OVERLAYS[0](rand) +
+    `<path class="arrow" d="${arrowLine([[at[0] + 16, at[1] - 8], [at[0] + 52, at[1] - 16]], 3, rand)}"/>` +
+    steer
+  );
+}
 
 /** A teardrop: the tip, down one side, round the belly and back up. */
 
@@ -121,19 +144,20 @@ function bookCard() {
  */
 function guide() {
   const rand = random();
-  const pad = padEnabled();
-  const slides = t.help.slides.map(([title, text], i) => ({
-    shot: SHOTS[i],
-    overlay: i === 0 && pad ? (r: () => number) => padRing + OVERLAYS[0](r) : OVERLAYS[i],
-    title,
-    text: i === 0 ? (hasKeyboard() ? t.keys.move : pad ? t.help.pad : text) : text,
-  }));
-  return slides.map(
-    ({ shot, overlay, title, text }, i) =>
-      `<figure class="shot"><img src="${shot}" alt="" draggable="false">` +
-      `<svg viewBox="0 0 312 234" aria-hidden="true">${overlay(rand)}</svg></figure>` +
-      `<h3><span class="num">${i + 1}</span>${title}</h3><p>${text}</p>`,
-  );
+  const keys = hasKeyboard();
+  // Two ways to walk: point at the map, or the stick on touch screens / the keys on a keyboard.
+  const ways = keys ? [t.help.moveWays.click, t.help.moveWays.keys] : padEnabled() ? [t.help.moveWays.tap, t.help.moveWays.stick] : null;
+  return t.help.slides.map(([title, text], i) => {
+    const split = i === 0 && ways;
+    const body = split
+      ? ways.map(([head, line]) => `<p class="way"><b>${head}</b><span>${line}</span></p>`).join('')
+      : `<p>${keys && i > 0 ? t.help.desk[i - 1] : text}</p>`;
+    return (
+      `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
+      `<svg viewBox="0 0 312 234" aria-hidden="true">${split ? splitMove(rand, keys) : OVERLAYS[i](rand)}</svg></figure>` +
+      `<h3><span class="num">${i + 1}</span>${title}</h3>${body}`
+    );
+  });
 }
 
 /**
