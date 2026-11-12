@@ -87,9 +87,14 @@ interface Lesson {
 }
 
 interface MoveLesson {
-  walk: Line;
-  pad: Line;
-  keys: Line;
+  title: string;
+  /** First, where there is one, the stick or the keys, then the tap (or click) on the mark: either one walks. */
+  tap: string;
+  click: string;
+  orTap: string;
+  orClick: string;
+  pad: string;
+  keys: string;
   done: string;
 }
 
@@ -195,9 +200,13 @@ const es = {
   },
   tutorial: {
     move: {
-      walk: ['Muévete hasta la marca', 'Toca el suelo donde brilla.'],
-      pad: ['Muévete hasta la marca', 'Toca el suelo donde brilla, o deja el dedo en el aro y deslízalo.'],
-      keys: ['Muévete hasta la marca', 'Usa WASD o las flechas, o haz clic donde brilla.'],
+      title: 'Muévete hasta la marca',
+      tap: 'Toca el suelo donde brilla.',
+      click: 'Haz clic en el suelo donde brilla.',
+      orTap: 'O toca el suelo donde brilla.',
+      orClick: 'O haz clic en el suelo donde brilla.',
+      pad: 'Deja el dedo en el aro y deslízalo.',
+      keys: 'Camina con WASD o las flechas.',
       done: '¡Bien! Ahora a pelear.',
     },
     square: {
@@ -441,9 +450,13 @@ const en: Strings = {
   },
   tutorial: {
     move: {
-      walk: ['Walk to the mark', 'Tap the ground where it glows.'],
-      pad: ['Walk to the mark', 'Tap the ground where it glows, or rest your finger on the ring and slide it.'],
-      keys: ['Walk to the mark', 'Use WASD or the arrow keys, or click where it glows.'],
+      title: 'Walk to the mark',
+      tap: 'Tap the ground where it glows.',
+      click: 'Click the ground where it glows.',
+      orTap: 'Or tap the ground where it glows.',
+      orClick: 'Or click the ground where it glows.',
+      pad: 'Rest your finger on the ring and slide it.',
+      keys: 'Walk with WASD or the arrow keys.',
       done: 'Nice! Now, to battle.',
     },
     square: {
