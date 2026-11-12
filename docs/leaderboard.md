@@ -46,3 +46,20 @@ D1 → cirquimia → Console: `DELETE FROM scores WHERE id = 123;` (or `WHERE in
 npm run build
 npx wrangler pages dev dist --d1 DB=local-cirquimia
 ```
+
+## Share links
+
+A share link belongs to a saved score. Saving a score gives it a random `share_id` (8 readable characters, not the
+row id, so links cannot be walked through), and the link is `/s/<share_id>`, built from that score row. Right after
+saving, the game uploads a 1200×630 JPEG of the card (`POST /api/shares` with the run id as proof,
+`src/leaderboard/shares.ts`), kept in D1's `share_images` table (~100 KB each) as the link's `og:image`.
+
+Sharing asks for the initials first: tapping a share button (or the card) before saving shows "Add your initials to
+share your card" and turns Save into "Save and share"; saving then opens the network's composer with the link
+(X, Bluesky, Threads, Mastodon) or points at the button to tap again (Discord, save image, the card).
+
+Only link-preview robots (by user agent) get the page with the tags; people who open the link are redirected
+straight to the game (302), and an in-app browser that looks like a robot is sent on by the page's instant
+redirect. A score whose card never arrived still has a link, with the game's own picture as preview.
+Matches without a ranking (offline, no run) share the plain site link. If storage ever grows, `share_images`
+can move to an R2 bucket without changing the URLs.

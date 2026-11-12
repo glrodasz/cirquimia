@@ -7,6 +7,7 @@
  * (or a duration longer than the real time since the run opened), and limits how often one address can play and submit.
  */
 import { classifyDevice, type DeviceHints } from './device';
+import { newShareId } from './shareId';
 import { dayOf, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
 
 /** The slice of Cloudflare's D1 API used here. */
@@ -35,10 +36,10 @@ export interface Ctx {
   env: Env;
 }
 
-const RUN_TTL_MS = 3 * 60 * 60 * 1000;
+export const RUN_TTL_MS = 3 * 60 * 60 * 1000;
 /** The real time since the run opened may fall this much short of the game time (the run opens a moment after the match starts). */
 const CLOCK_SLACK_MS = 5000;
-const WINDOW_MS = 10 * 60 * 1000;
+export const WINDOW_MS = 10 * 60 * 1000;
 const MAX_RUNS_PER_WINDOW = 60;
 const MAX_SCORES_PER_WINDOW = 12;
 const MAX_BODY = 4096;
@@ -80,13 +81,24 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS scores_all ON scores (score DESC, created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_day ON scores (day, score DESC, created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_ip ON scores (ip_hash, created_at)`,
+  // The share links' cards (src/leaderboard/shares.ts), one per saved score, by the score's share_id.
+  `CREATE TABLE IF NOT EXISTS share_images (
+    share_id TEXT PRIMARY KEY,
+    image BLOB NOT NULL,
+    created_at INTEGER NOT NULL
+  )`,
 ];
 
 /** Columns added after the first release, for databases created before them (fails harmlessly once present). */
-const MIGRATIONS = ['ALTER TABLE scores ADD COLUMN damage INTEGER NOT NULL DEFAULT 0'];
+const MIGRATIONS = [
+  'ALTER TABLE scores ADD COLUMN damage INTEGER NOT NULL DEFAULT 0',
+  // The public id of a score's share link (/s/<share_id>): random, so the links cannot be walked through.
+  'ALTER TABLE scores ADD COLUMN share_id TEXT',
+  'CREATE UNIQUE INDEX IF NOT EXISTS scores_share ON scores (share_id)',
+];
 
 let ready: Promise<unknown> | null = null;
-function ensureSchema(db: D1Database) {
+export function ensureSchema(db: D1Database) {
   ready ??= db.batch(SCHEMA.map((q) => db.prepare(q))).then(async () => {
     for (const q of MIGRATIONS) await db.prepare(q).run().catch(() => {});
   }).catch((e) => {
@@ -96,14 +108,14 @@ function ensureSchema(db: D1Database) {
   return ready;
 }
 
-function json(body: unknown, status = 200, cache = 'no-store') {
+export function json(body: unknown, status = 200, cache = 'no-store') {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': cache },
   });
 }
 
-const fail = (error: string, status: number) => json({ error }, status);
+export const fail = (error: string, status: number) => json({ error }, status);
 
 async function hashIp(request: Request, salt: string) {
   const ip = request.headers.get('CF-Connecting-IP') ?? request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ?? 'unknown';
@@ -126,7 +138,7 @@ async function readBody(request: Request): Promise<Record<string, unknown> | nul
 
 const short = (v: unknown, max: number) => (typeof v === 'string' && v ? v.slice(0, max) : null);
 
-async function setup(ctx: Ctx) {
+export async function setup(ctx: Ctx) {
   const db = ctx.env.DB;
   if (!db) return null;
   await ensureSchema(db);
@@ -217,13 +229,15 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   const score = scoreFor(dealt, run.difficulty, duration);
   const day = dayOf(now);
   const country = (ctx.request as Request & { cf?: { country?: string } }).cf?.country ?? null;
+  const shareId = newShareId();
 
   const inserted = await s.db
     .prepare(
-      `INSERT INTO scores (run_id, initials, score, duration_ms, damage, rivals, difficulty, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO scores (share_id, run_id, initials, score, duration_ms, damage, rivals, difficulty, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .bind(
+      shareId,
       runId,
       initials,
       score,
@@ -269,6 +283,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       category: device.category,
       rank: { today: today?.rank ?? 1, all: all?.rank ?? 1 },
       total: { today: today?.total ?? 1, all: all?.total ?? 1 },
+      share: `${new URL(ctx.request.url).origin}/s/${shareId}`,
     },
     201,
   );

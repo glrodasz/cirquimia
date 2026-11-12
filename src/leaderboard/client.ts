@@ -35,6 +35,8 @@ export interface Submitted {
   category: Category;
   rank: { today: number; all: number };
   total: { today: number; all: number };
+  /** The score's share link, whose preview is its card. */
+  share?: string;
 }
 
 export type Period = 'today' | 'all';
@@ -155,5 +157,17 @@ function rememberMine(id: number) {
     localStorage.setItem(MINE_STORE, JSON.stringify(ids));
   } catch {
     // Blocked storage: the row just won't be highlighted.
+  }
+}
+
+/** Uploads the wide card of a saved score, the preview of its share link; false when the server refused. */
+export async function uploadCard(runId: string, image: Blob): Promise<boolean> {
+  const form = new FormData();
+  form.set('runId', runId);
+  form.set('image', image, 'card.jpg');
+  try {
+    return (await fetch(`${API}/shares`, { method: 'POST', body: form })).ok;
+  } catch {
+    return false;
   }
 }

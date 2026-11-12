@@ -254,15 +254,18 @@ const hudFade = mountHudFade({
     return tutorial.done && !combat.over && !help.open && !dev.open && !board.open;
   },
 });
+// Decided when the match starts: the tutorial finishes during its own match, and that match never counts.
+let rankedMatch = false;
 combat.onStart = () => {
   hudFade.reset();
-  runs.start(combat.rivalCount, combat.difficulty, combat.rivalCount > 0 && tutorial.done && !DEV);
+  rankedMatch = combat.rivalCount > 0 && tutorial.done && !DEV;
+  runs.start(combat.rivalCount, combat.difficulty, rankedMatch);
 };
 combat.onEnd = (outcome) => {
-  const ranked = outcome === 'victory' && combat.rivalCount > 0;
   const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs, damage: combat.heroDamage };
   matchHud.showEnd(outcome);
-  if (ranked && tutorial.done && !DEV) board.fillEnd(matchHud.scoreSlot, runs, match, snapshotMeadow());
+  // Score, initials and sharing only where the score can be saved.
+  if (outcome === 'victory' && rankedMatch) board.fillEnd(matchHud.scoreSlot, runs, match, snapshotMeadow());
 };
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
 const practice = new Practice();

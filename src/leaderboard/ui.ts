@@ -5,8 +5,8 @@
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
 import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, threadsLogo, trophyIcon, xLogo } from '../icons';
-import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, type Entry, type Period, type Runs } from './client';
-import { copyImage, mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData } from './share';
+import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, uploadCard, type Entry, type Period, type Runs } from './client';
+import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
 import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -195,11 +195,39 @@ export function mountLeaderboard(): Leaderboard {
       return next;
     };
     let card = draw();
-    preview.addEventListener('click', () => void shareImage(card, data));
-    moreBtn.addEventListener('click', () => {
-      menu.hidden = !menu.hidden;
-      moreBtn.setAttribute('aria-expanded', String(!menu.hidden));
-    });
+
+    // The share link belongs to the saved score: sharing asks for the initials first (one step: type them, then
+    // "Save and share"), the server gives the score its link, and the card is uploaded right away as its preview.
+    // Without a ranking (offline, no run) there is nothing to save, and the post carries the game's own link.
+    let settle: (url: string | null) => void = () => {};
+    const saved = new Promise<string | null>((r) => (settle = r));
+    let upload: Promise<unknown> = Promise.resolve();
+    let ready: string | null = null;
+    const link: ShareLink = {
+      peek: () => ready,
+      get: () =>
+        Promise.race([
+          saved.then(async (url) => {
+            await upload;
+            return url;
+          }),
+          new Promise<null>((r) => setTimeout(() => r(null), 10_000)),
+        ]),
+    };
+    const caption = save.querySelector('.cap')!;
+    /** A share waiting for the initials: the target, kept so "Save and share" can finish it. */
+    let pending: string | null = null;
+    const needsName = () => !form.hidden && !input.disabled;
+    const askName = (to: string) => {
+      pending = to;
+      caption.textContent = t.rank.saveShare;
+      say(t.rank.nameToShare);
+      input.focus();
+      input.classList.remove('shake');
+      void input.offsetWidth;
+      input.classList.add('shake');
+    };
+
     const mastodon = (raw: string) => {
       const host = mastodonHost(raw);
       if (!host) {
@@ -208,35 +236,37 @@ export function mountLeaderboard(): Leaderboard {
         return;
       }
       masto.hidden = true;
-      openComposer('mastodon', data, host);
+      openComposer('mastodon', data, link, host);
     };
+    const share = async (to: string) => {
+      if (needsName()) return askName(to);
+      if (to === 'x' || to === 'bluesky' || to === 'threads') openComposer(to, data, link);
+      else if (to === 'mastodon') mastodon(savedMastodon());
+      else if (to === 'image') await saveImage(card, data);
+      else if (to === 'preview') await shareImage(card, data, link);
+      else if (to === 'discord') {
+        const result = await shareDiscord(card, data, link);
+        if (result === 'copied') say(t.rank.discordCopied);
+        if (result === 'saved') say(t.rank.discordSaved);
+      }
+    };
+    preview.addEventListener('click', () => void share('preview'));
+    moreBtn.addEventListener('click', () => {
+      menu.hidden = !menu.hidden;
+      moreBtn.setAttribute('aria-expanded', String(!menu.hidden));
+    });
     masto.addEventListener('submit', (e) => {
       e.preventDefault();
       mastodon(mastoInput.value);
     });
-    for (const btn of slot.querySelectorAll<HTMLButtonElement>('.net')) {
-      btn.addEventListener('click', async () => {
-        const to = btn.dataset.to;
-        if (to === 'x' && !matchMedia('(pointer: coarse)').matches) {
-          const copied = copyImage(card);
-          openComposer('x', data);
-          if (await copied) say(t.rank.xCopied);
-        } else if (to === 'x' || to === 'bluesky' || to === 'threads') openComposer(to, data);
-        else if (to === 'mastodon') mastodon(savedMastodon());
-        else if (to === 'image') await saveImage(card, data);
-        else if (to === 'discord') {
-          const result = await shareDiscord(card, data);
-          if (result === 'copied') say(t.rank.discordCopied);
-          if (result === 'saved') say(t.rank.discordSaved);
-        }
-      });
-    }
+    for (const btn of slot.querySelectorAll<HTMLButtonElement>('.net')) btn.addEventListener('click', () => void share(btn.dataset.to ?? ''));
     slot.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
 
     void runs.current().then((id) => {
       if (!id && slot.isConnected) {
         form.hidden = true;
         say(t.rank.unavailable);
+        settle(null);
       }
     });
 
@@ -250,15 +280,22 @@ export function mountLeaderboard(): Leaderboard {
         input.classList.add('shake');
         return;
       }
+      // A post waiting for the name opens its tab now, inside the tap, and reaches the network once the link is up.
+      const then = pending;
+      pending = null;
       saveInitials(initials);
       save.disabled = input.disabled = true;
-      save.querySelector('.cap')!.textContent = t.rank.saving;
+      caption.textContent = t.rank.saving;
+      if (then === 'x' || then === 'bluesky' || then === 'threads' || then === 'mastodon') void share(then);
       const id = await runs.current();
       const res = id ? await submitScore(id, initials, match.durationMs, match.damage) : 'unavailable';
       if (failed(res)) {
         save.disabled = input.disabled = false;
-        save.querySelector('.cap')!.textContent = t.rank.save;
-        if (res !== 'too-many') form.hidden = true;
+        caption.textContent = t.rank.save;
+        if (res !== 'too-many') {
+          form.hidden = true;
+          settle(null);
+        }
         say(res === 'too-many' ? t.rank.tooMany : res === 'rejected' ? t.rank.rejected : t.rank.unavailable);
         return;
       }
@@ -267,7 +304,20 @@ export function mountLeaderboard(): Leaderboard {
       say(t.rank.placed(res.rank.today, res.rank.all));
       Object.assign(data, { score: res.score, initials, rank: res.rank });
       card = draw();
-      slot.querySelector<HTMLElement>('.net')!.focus({ preventScroll: true });
+      // The card with the name and place, as the link's preview.
+      const url = res.share ?? null;
+      if (url && id) {
+        // Always the bundled meadow: the link's card stands for the game, not for this match's frame.
+        upload = renderShareCard(data, null, true)
+          .then((wide) => Promise.race([uploadCard(id, wide), new Promise((r) => setTimeout(r, 8000))]))
+          .then(() => (ready = url));
+      }
+      settle(url);
+      const next = then && then !== 'x' && then !== 'bluesky' && then !== 'threads' && then !== 'mastodon'
+        ? slot.querySelector<HTMLElement>(then === 'preview' ? '.preview' : `.net[data-to="${then}"]`)
+        : null;
+      if (next) say(`${t.rank.placed(res.rank.today, res.rank.all)}<br>${t.rank.readyToShare}`);
+      (next ?? slot.querySelector<HTMLElement>('.net'))!.focus({ preventScroll: true });
     });
   };
 

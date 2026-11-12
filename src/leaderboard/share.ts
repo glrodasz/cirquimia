@@ -23,15 +23,58 @@ export interface ShareData {
 }
 
 export const CARD_SIZE = 1080;
-const W = CARD_SIZE;
-const H = CARD_SIZE;
+/** The link preview's card: the size X, Bluesky, Threads, Mastodon and chats show whole. */
+export const WIDE = { w: 1200, h: 630 };
 const FONT = "'EB Garamond Variable', Garamond, Georgia, serif";
 const PAPER = '#f5efe0';
 const INK = '#1f1a15';
 const SOFT = '#6b6258';
 const RED = '#a3271c';
-// The circle sits past the top right corner, as on the link preview, so the meadow reads as a glimpse.
-const DISC = { x: 830, y: 270, r: 370 };
+/**
+ * Where everything sits, square (the image itself) or wide (the link preview). The circle sits past the top
+ * right corner, so the meadow reads as a glimpse; `y` values are text baselines.
+ */
+interface Layout {
+  w: number;
+  h: number;
+  disc: { x: number; y: number; r: number };
+  left: number;
+  frame: number;
+  name: { y: number; size: number };
+  label: { y: number; size: number };
+  score: { y: number; size: number; width: number; unit: number };
+  stats: { y: number; size: number };
+  rule: number;
+  foot: { y: number; size: number };
+}
+
+const SQUARE: Layout = {
+  w: CARD_SIZE,
+  h: CARD_SIZE,
+  disc: { x: 830, y: 270, r: 370 },
+  left: 96,
+  frame: 36,
+  name: { y: 150, size: 54 },
+  label: { y: 690, size: 36 },
+  score: { y: 880, size: 250, width: 640, unit: 54 },
+  stats: { y: 944, size: 40 },
+  rule: 978,
+  foot: { y: 1030, size: 36 },
+};
+
+const WIDE_LAYOUT: Layout = {
+  w: WIDE.w,
+  h: WIDE.h,
+  disc: { x: 960, y: 205, r: 265 },
+  left: 76,
+  frame: 26,
+  name: { y: 118, size: 46 },
+  label: { y: 300, size: 30 },
+  score: { y: 450, size: 190, width: 470, unit: 44 },
+  stats: { y: 504, size: 32 },
+  rule: 530,
+  foot: { y: 576, size: 30 },
+};
 const SYMBOLS: ShapeKind[] = ['circle', 'square', 'triangle', 'triangleDown', 'rhombus', 'pentagram'];
 
 export const shareUrl = () => new URL(localizePath('/', LANG), SITE_URL).href;
@@ -48,7 +91,7 @@ function fallbackMeadow() {
 }
 
 /** The paper: warm cream, a little darker towards the edges, with a faint grain. */
-function paper(g: CanvasRenderingContext2D) {
+function paper(g: CanvasRenderingContext2D, W: number, H: number) {
   g.fillStyle = PAPER;
   g.fillRect(0, 0, W, H);
   const edge = g.createRadialGradient(W * 0.35, H * 0.62, 200, W * 0.45, H * 0.55, W * 0.85);
@@ -65,8 +108,8 @@ function paper(g: CanvasRenderingContext2D) {
 }
 
 /** The meadow through the circle, with the rings, ticks and the six symbols of a transmutation circle around it. */
-function circle(g: CanvasRenderingContext2D, meadow: CanvasImageSource | null) {
-  const { x, y, r } = DISC;
+function circle(g: CanvasRenderingContext2D, meadow: CanvasImageSource | null, disc: Layout['disc']) {
+  const { x, y, r } = disc;
   g.save();
   g.shadowColor = 'rgba(31,26,21,.35)';
   g.shadowBlur = 40;
@@ -144,10 +187,11 @@ function fit(g: CanvasRenderingContext2D, text: string, weight: string, size: nu
 }
 
 /** Text with a halo of paper, so the circle's rings pass behind the letters instead of through them. */
-function inked(g: CanvasRenderingContext2D, text: string, x: number, y: number) {
+function inked(g: CanvasRenderingContext2D, text: string, x: number, y: number, halo = 14) {
+  if (halo <= 0) return g.fillText(text, x, y);
   g.save();
   g.strokeStyle = '#eee5d2'; // the paper where the edges start to darken
-  g.lineWidth = 14;
+  g.lineWidth = halo;
   g.lineJoin = 'round';
   g.strokeText(text, x, y);
   g.restore();
@@ -155,17 +199,21 @@ function inked(g: CanvasRenderingContext2D, text: string, x: number, y: number) 
 }
 
 /** Two thin rules, the grimoire's frame around the page. */
-function frame(g: CanvasRenderingContext2D) {
+function frame(g: CanvasRenderingContext2D, W: number, H: number, m: number) {
   g.strokeStyle = INK;
   g.lineWidth = 2;
-  g.strokeRect(36, 36, W - 72, H - 72);
+  g.strokeRect(m, m, W - m * 2, H - m * 2);
   g.lineWidth = 1;
   g.globalAlpha = 0.5;
-  g.strokeRect(46, 46, W - 92, H - 92);
+  g.strokeRect(m + 10, m + 10, W - m * 2 - 20, H - m * 2 - 20);
   g.globalAlpha = 1;
 }
 
-export async function renderShareCard(d: ShareData, meadow?: CanvasImageSource | null): Promise<Blob> {
+/**
+ * The card as a PNG (square, to share as an image, with the meadow of the match) or, `wide`, as the JPEG the share
+ * link shows as its preview, which the game always draws with the bundled meadow (`meadow` null).
+ */
+export async function renderShareCard(d: ShareData, meadow?: CanvasImageSource | null, wide = false): Promise<Blob> {
   try {
     await Promise.all([
       document.fonts.load(`500 64px ${FONT}`),
@@ -175,70 +223,82 @@ export async function renderShareCard(d: ShareData, meadow?: CanvasImageSource |
   } catch {
     // The fallback serif will do.
   }
+  const L = wide ? WIDE_LAYOUT : SQUARE;
+  const { w: W, h: H, left } = L;
   const scene = meadow ?? (await fallbackMeadow());
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
-  paper(g);
-  frame(g);
-  circle(g, scene);
+  paper(g, W, H);
+  frame(g, W, H, L.frame);
+  circle(g, scene, L.disc);
 
-  const left = 96;
   g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
 
   // The name, in spaced small capitals.
   g.fillStyle = INK;
-  g.font = `500 54px ${FONT}`;
-  g.letterSpacing = '14px';
-  inked(g, 'CIRQUIMIA', left, 150);
+  g.font = `500 ${L.name.size}px ${FONT}`;
+  g.letterSpacing = `${Math.round(L.name.size / 4)}px`;
+  inked(g, 'CIRQUIMIA', left, L.name.y);
   g.letterSpacing = '0px';
   g.fillStyle = RED;
-  g.fillRect(left, 176, 120, 3);
+  g.fillRect(left, L.name.y + L.name.size / 2, L.name.size * 2.2, 3);
 
   // What happened, then the score in red ink.
   g.fillStyle = RED;
-  g.font = `500 36px ${FONT}`;
-  g.letterSpacing = '6px';
-  inked(g, `${t.match.victory.replace(/[¡!]/g, '')} · ${DIFFICULTY_LABEL[d.difficulty]}`.toUpperCase(), left, 690);
+  g.font = `500 ${L.label.size}px ${FONT}`;
+  g.letterSpacing = `${Math.round(L.label.size / 6)}px`;
+  inked(g, `${t.match.victory.replace(/[¡!]/g, '')} · ${DIFFICULTY_LABEL[d.difficulty]}`.toUpperCase(), left, L.label.y);
   g.letterSpacing = '0px';
 
   const score = d.score.toLocaleString(LANG);
-  fit(g, score, '500', 250, 640, 120);
+  fit(g, score, '500', L.score.size, L.score.width, 120);
   g.fillStyle = INK;
-  g.fillText(score, left - 8, 880);
+  inked(g, score, left - 8, L.score.y, wide ? 10 : 0);
   const scoreW = g.measureText(score).width;
   g.fillStyle = SOFT;
-  g.font = `italic 400 54px ${FONT}`;
-  g.fillText(t.rank.points(d.score), left + scoreW + 10, 880);
+  g.font = `italic 400 ${L.score.unit}px ${FONT}`;
+  inked(g, t.rank.points(d.score), left + scoreW + 10, L.score.y, wide ? 10 : 0);
 
   const stats = `${formatTime(d.durationMs)}  ·  ${t.rank.damage(d.damage)}  ·  ${t.rank.rivals(d.rivals)}`;
-  fit(g, stats, 'italic 400', 40, W - left * 2);
+  fit(g, stats, 'italic 400', L.stats.size, wide ? L.disc.x - L.disc.r - left - 20 : W - left * 2);
   g.fillStyle = SOFT;
-  g.fillText(stats, left, 944);
+  inked(g, stats, left, L.stats.y, wide ? 10 : 0);
 
   // The foot: a double rule, the player and their place, and the dare.
   g.fillStyle = INK;
-  g.fillRect(left, 978, W - left * 2, 2);
-  g.fillRect(left, 985, W - left * 2, 1);
+  g.fillRect(left, L.rule, W - left * 2, 2);
+  g.fillRect(left, L.rule + 7, W - left * 2, 1);
   const who = d.initials ? `${d.initials}${d.rank ? `  ·  ${t.rank.placeToday(d.rank.today)}` : ''}` : '';
-  g.font = `600 36px ${FONT}`;
+  g.font = `600 ${L.foot.size}px ${FONT}`;
   g.letterSpacing = '4px';
-  g.fillText(who, left, 1030);
+  inked(g, who, left, L.foot.y, wide ? 10 : 0);
   const whoW = who ? g.measureText(who).width + 40 : 0;
   g.letterSpacing = '0px';
   g.textAlign = 'right';
   g.fillStyle = RED;
   const dare = `${t.rank.beatMe}  ${SITE_URL.replace(/^https:\/\//, '')}`;
-  fit(g, dare, 'italic 500', 38, W - left * 2 - whoW);
-  g.fillText(dare, W - left, 1030);
+  fit(g, dare, 'italic 500', L.foot.size + 2, W - left * 2 - whoW);
+  inked(g, dare, W - left, L.foot.y, wide ? 10 : 0);
 
-  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/png'));
+  const type = wide ? 'image/jpeg' : 'image/png';
+  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), type, 0.8));
 }
 
-export function shareText(d: ShareData) {
-  return t.rank.shareText(d.score.toLocaleString(LANG), formatTime(d.durationMs), d.rivals, DIFFICULTY_LABEL[d.difficulty], shareUrl());
+/** The post's text; `link` is the card's own page (its preview shows the card), else the game. */
+export function shareText(d: ShareData, link?: string | null) {
+  return t.rank.shareText(d.score.toLocaleString(LANG), formatTime(d.durationMs), d.rivals, DIFFICULTY_LABEL[d.difficulty], link || shareUrl());
+}
+
+/**
+ * The saved score's share link, ready once its card is uploaded. `peek` gives it without waiting (null while it
+ * is still on its way or when there is none), for the share sheet, which must open inside the tap.
+ */
+export interface ShareLink {
+  get(): Promise<string | null>;
+  peek(): string | null;
 }
 
 export type Target = 'x' | 'discord' | 'bluesky' | 'threads' | 'mastodon' | 'image';
@@ -287,10 +347,11 @@ function download(blob: Blob, name: string) {
 }
 
 /**
- * Opens a network's composer with the text and link. Called straight from the tap so the new tab is not blocked;
- * the networks' compose pages take text only, so the image goes to Discord and "Save image".
+ * Opens a network's composer with the text and the card's link, whose preview is the card (compose pages take
+ * text only). Called straight from the tap so the new tab is not blocked: when the link is not ready yet, the tab
+ * opens empty and is sent to the composer once the card is up, or with the bare game link if that fails.
  */
-export function openComposer(target: 'x' | 'bluesky' | 'threads' | 'mastodon', d: ShareData, host?: string) {
+export function openComposer(target: 'x' | 'bluesky' | 'threads' | 'mastodon', d: ShareData, link: ShareLink, host?: string) {
   if (target === 'mastodon' && host) {
     try {
       localStorage.setItem(MASTODON_STORE, host);
@@ -298,20 +359,40 @@ export function openComposer(target: 'x' | 'bluesky' | 'threads' | 'mastodon', d
       // Asked again next time.
     }
   }
-  window.open(composeUrl(target, shareText(d), host), '_blank', 'noopener');
+  const ready = link.peek();
+  if (ready) {
+    window.open(composeUrl(target, shareText(d, ready), host), '_blank', 'noopener');
+    return;
+  }
+  const tab = window.open('', '_blank');
+  if (tab) {
+    tab.opener = null;
+    try {
+      tab.document.title = 'Cirquimia';
+      tab.document.body.style.cssText = 'margin:0;display:grid;place-items:center;height:100vh;background:#f5efe0;color:#6b6258;font:italic 22px Georgia,serif';
+      tab.document.body.textContent = '…';
+    } catch {
+      // Just an empty tab for a moment.
+    }
+  }
+  void link.get().then((url) => {
+    const to = composeUrl(target, shareText(d, url), host);
+    if (tab && !tab.closed) tab.location.href = to;
+    else if (!tab) window.open(to, '_blank', 'noopener');
+  });
 }
 
 /**
  * Discord: phones open the share sheet with the image (Discord is in it); elsewhere the image is copied
  * to paste into a channel, or saved if the browser cannot copy images.
  */
-export async function shareDiscord(card: Promise<Blob>, d: ShareData): Promise<'shared' | 'copied' | 'saved' | 'cancelled'> {
+export async function shareDiscord(card: Promise<Blob>, d: ShareData, link: ShareLink): Promise<'shared' | 'copied' | 'saved' | 'cancelled'> {
   const blob = await card;
   const file = new File([blob], `cirquimia-${d.score}.png`, { type: 'image/png' });
   const touch = matchMedia('(pointer: coarse)').matches;
   if (touch && navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], text: shareText(d) });
+      await navigator.share({ files: [file], text: shareText(d, link.peek()) });
       return 'shared';
     } catch (e) {
       if ((e as DOMException)?.name === 'AbortError') return 'cancelled';
@@ -330,28 +411,13 @@ export async function saveImage(card: Promise<Blob>, d: ShareData) {
   download(await card, `cirquimia-${d.score}.png`);
 }
 
-/**
- * The card on the clipboard, for pasting into the X composer on a computer (its compose page takes text only).
- * Started straight from the tap, before the composer's tab takes the focus; false when the browser refuses.
- */
-export function copyImage(card: Promise<Blob>): Promise<boolean> {
-  try {
-    return navigator.clipboard.write([new ClipboardItem({ 'image/png': card })]).then(
-      () => true,
-      () => false,
-    );
-  } catch {
-    return Promise.resolve(false);
-  }
-}
-
 /** The preview's tap: the share sheet with the image on phones, a download elsewhere. */
-export async function shareImage(card: Promise<Blob>, d: ShareData) {
+export async function shareImage(card: Promise<Blob>, d: ShareData, link: ShareLink) {
   const blob = await card;
   const file = new File([blob], `cirquimia-${d.score}.png`, { type: 'image/png' });
   if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], text: shareText(d) });
+      await navigator.share({ files: [file], text: shareText(d, link.peek()) });
       return;
     } catch (e) {
       if ((e as DOMException)?.name === 'AbortError') return;
