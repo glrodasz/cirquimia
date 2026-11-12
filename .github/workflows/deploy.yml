@@ -51,7 +51,7 @@ jobs:
             git tag v0.1.0 57f32a6038c22994aa6bf1bd94780d6ec3e91ea4 # main before versioning (PR #74)
             git push origin v0.1.0
           fi
-          npx -y -p semantic-release@25.0.9 -p conventional-changelog-conventionalcommits@10.4.1 semantic-release
+          npx -y -p semantic-release@25.0.9 -p conventional-changelog-conventionalcommits@9.3.1 semantic-release
 
       - run: npm run build
 
