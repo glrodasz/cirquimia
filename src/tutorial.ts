@@ -410,14 +410,14 @@ export class Tutorial {
     this.body.textContent = body;
     this.body.hidden = !body;
     this.card.classList.remove('wrong');
-    this.card.animate([{ transform: 'translate(-50%, -6px)', opacity: 0 }, { transform: 'translate(-50%, 0)', opacity: 1 }], { duration: 260, easing: 'ease-out' });
+    this.card.animate([{ transform: 'translateY(6px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'ease-out' });
   }
 
   private hint(text: string) {
     this.body.textContent = text;
     this.body.hidden = false;
     this.card.classList.add('wrong');
-    this.card.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translate(calc(-50% + ${x}px), 0)` })), { duration: 300 });
+    this.card.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 300 });
   }
 
   /** The hand draws the shape over and over, slowly enough to follow, with a faint dashed guide underneath. */
