@@ -569,12 +569,12 @@
       #help .shot .key rect { fill: rgba(245,239,224,.88); stroke: #1f1a15; stroke-width: 1.2; }
       #help .shot .key text { fill: #1f1a15; font: 600 12px var(--g-font); text-anchor: middle; }
       #help .shot .key.lit rect { fill: #1f1a15; } #help .shot .key.lit text { fill: #f5efe0; }
-      /* The guide's text: two numbered steps per page, a list aligned to the left under a thin rule. */
-      #help .page ol.steps { align-self: stretch; display: grid; gap: 6px; margin: 0; padding: 0 4px 0 calc(1.5em + 4px); width: 100%; box-sizing: border-box; list-style: decimal; text-align: left; font-size: 19px; line-height: 1.3; color: var(--g-ink); }
-      #help .page h3:has(+ ol.steps) { align-self: stretch; justify-content: flex-start; padding: 0 4px; }
-      #help .page ol.steps::before { content: ''; display: block; width: 60px; height: 1px; margin: 0 0 4px -1.5em; background: var(--g-ink); opacity: .5; }
-      #help .page ol.steps li { padding-left: 2px; }
-      #help .page ol.steps li::marker { color: var(--g-red); font-weight: 500; }
+      /* The guide's text: two bulleted steps per page, a list aligned to the left under a thin rule. */
+      #help .page ul.steps { align-self: stretch; display: grid; gap: 6px; margin: 0; padding: 0 4px 0 calc(1.5em + 4px); width: 100%; box-sizing: border-box; list-style: disc; text-align: left; font-size: 19px; line-height: 1.3; color: var(--g-ink); }
+      #help .page h3:has(+ ul.steps) { align-self: stretch; justify-content: flex-start; padding: 0 4px; }
+      #help .page ul.steps::before { content: ''; display: block; width: 60px; height: 1px; margin: 0 0 4px -1.5em; background: var(--g-ink); opacity: .5; }
+      #help .page ul.steps li { padding-left: 2px; }
+      #help .page ul.steps li::marker { color: var(--g-red); font-weight: 500; }
       #help .shot .badge rect { fill: var(--g-red); } #help .shot .badge text { fill: var(--g-paper); font: 600 15px var(--g-font); }
       #help .page h3 { gap: 10px; font: 500 24px/1.15 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; }
       #help .num { width: auto; height: auto; border-radius: 0; background: none; box-shadow: none; color: var(--g-red); font: 500 22px/1 var(--g-font); }
@@ -708,7 +708,7 @@
       #help .notes .rune { color: var(--g-red); font-size: 22px; }
       #help .fire { fill: var(--g-red); } #help .water { fill: #2f5f7a; }
       #help .notes li.tried > span:last-child::after { color: var(--g-green); font-weight: 600; }
-      @media (max-height: 700px) { #help h2 { padding: 14px 40px 8px; font-size: 22px; } #help .page h3 { font-size: 21px; } #help .page p, #help .page ol.steps { font-size: 17px; } #help .fig { width: 34px; height: 34px; } #help .shapes b { font-size: 19px; } }
+      @media (max-height: 700px) { #help h2 { padding: 14px 40px 8px; font-size: 22px; } #help .page h3 { font-size: 21px; } #help .page p, #help .page ul.steps { font-size: 17px; } #help .fig { width: 34px; height: 34px; } #help .shapes b { font-size: 19px; } }
       /* HUD compaction (narrow phones, four buttons on the right): the grimoire pills shrink the same way. */
       #match.snug .match-btn { padding-right: 8px; }
       #match.snug .match-btn .cap::after { content: none; }
