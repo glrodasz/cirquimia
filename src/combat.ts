@@ -940,6 +940,7 @@ export class Combat {
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
+      rival.body.bounds = this.onScreen;
       // Evenly spread around the alchemist (opposite sides for two, a triangle for three), so everyone starts apart.
       const base = Math.random() * Math.PI * 2;
       for (let tries = 0; tries < 12; tries++) {

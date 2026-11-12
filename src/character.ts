@@ -144,6 +144,12 @@ export class Character {
   private readonly passing = new Set<Obstacle>();
   /** The obstacles it collides with and routes around: all but the ones it is walking out of. */
   private blocking: Obstacle[] = [];
+  /**
+   * Where it may walk (the rivals: the play area). It never takes a step that leaves it, and a goal past it is pulled
+   * back inside along the way there. Null: anywhere (the alchemist, whose taps and keys are limited before they get here).
+   */
+  bounds: ((p: THREE.Vector3) => boolean) | null = null;
+  private readonly probe = new THREE.Vector3();
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -273,6 +279,7 @@ export class Character {
   setTarget(point: THREE.Vector3) {
     if (this.down || this.rooted) return;
     this.target.set(point.x, 0, point.z);
+    this.keepGoalInside();
     // Never aim inside a tree or a big rock; push the goal to its edge.
     for (const o of this.obstacles) {
       const dx = this.target.x - o.x;
@@ -396,9 +403,12 @@ export class Character {
 
     if (walking && dist > 1e-6) {
       const step = Math.min(dist, this.speed * dt);
+      const fromX = pos.x;
+      const fromZ = pos.z;
       pos.x += (dx / dist) * step;
       pos.z += (dz / dist) * step;
       this.resolveCollisions();
+      this.keepInside(fromX, fromZ);
       this.stuckTimer += dt;
       if (this.stuckTimer >= STUCK_TIME) {
         const moved = Math.hypot(pos.x - this.stuckFrom.x, pos.z - this.stuckFrom.z);
@@ -511,6 +521,40 @@ export class Character {
     this.blocking.length = 0;
     for (const o of this.obstacles) if (!this.passing.has(o)) this.blocking.push(o);
     return this.blocking;
+  }
+
+  private inside(x: number, z: number) {
+    return !this.bounds || this.bounds(this.probe.set(x, 0, z));
+  }
+
+  /** A goal past the edge becomes the last point inside on the straight line to it. */
+  private keepGoalInside() {
+    const pos = this.root.position;
+    const t = this.target;
+    if (this.inside(t.x, t.z) || !this.inside(pos.x, pos.z)) return;
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (this.inside(pos.x + (t.x - pos.x) * mid, pos.z + (t.z - pos.z) * mid)) lo = mid;
+      else hi = mid;
+    }
+    t.set(pos.x + (t.x - pos.x) * lo, 0, pos.z + (t.z - pos.z) * lo);
+  }
+
+  /**
+   * Undoes a step that took it out of bounds, keeping whatever part of it slides along the edge. Someone already
+   * outside (the window was resized) may still walk back in.
+   */
+  private keepInside(fromX: number, fromZ: number) {
+    const pos = this.root.position;
+    if (this.inside(pos.x, pos.z) || !this.inside(fromX, fromZ)) return;
+    if (this.inside(pos.x, fromZ)) pos.z = fromZ;
+    else if (this.inside(fromX, pos.z)) pos.x = fromX;
+    else {
+      pos.x = fromX;
+      pos.z = fromZ;
+    }
   }
 
   private resolveCollisions() {
