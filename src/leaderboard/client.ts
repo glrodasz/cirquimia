@@ -35,6 +35,8 @@ export interface Submitted {
   category: Category;
   rank: { today: number; all: number };
   total: { today: number; all: number };
+  /** The score's share link, whose preview is its card. */
+  share?: string;
 }
 
 export type Period = 'today' | 'all';
@@ -158,24 +160,14 @@ function rememberMine(id: number) {
   }
 }
 
-/**
- * Uploads the wide card for a run and returns the link that shows it as its preview, or null when the match
- * has no run (training, the tutorial, offline) or the server refused.
- */
-export async function uploadShare(runId: string, image: Blob, d: { durationMs: number; damage: number; initials?: string }): Promise<string | null> {
+/** Uploads the wide card of a saved score, the preview of its share link; false when the server refused. */
+export async function uploadCard(runId: string, image: Blob): Promise<boolean> {
   const form = new FormData();
   form.set('runId', runId);
-  form.set('durationMs', String(Math.round(d.durationMs)));
-  form.set('damage', String(d.damage));
-  if (d.initials) form.set('initials', d.initials);
-  form.set('locale', LANG);
   form.set('image', image, 'card.jpg');
   try {
-    const res = await fetch(`${API}/shares`, { method: 'POST', body: form });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { url?: unknown };
-    return typeof body.url === 'string' ? body.url : null;
+    return (await fetch(`${API}/shares`, { method: 'POST', body: form })).ok;
   } catch {
-    return null;
+    return false;
   }
 }

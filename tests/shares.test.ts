@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ID_PATTERN, isPreviewBot, newShareId, sharePage, type ShareRow } from '../src/leaderboard/shares';
+import { isPreviewBot, sharePage, type ShareRow } from '../src/leaderboard/shares';
+import { ID_PATTERN, newShareId } from '../src/leaderboard/shareId';
 import { resolveLocaleRedirect } from '../src/i18n/locale';
 
 const row: ShareRow = {
@@ -11,7 +12,7 @@ const row: ShareRow = {
   damage: 325,
   rivals: 2,
   difficulty: 'dificil',
-  updated_at: 1700000000000,
+  card: 1700000000000,
 };
 
 describe('share links', () => {
@@ -31,6 +32,10 @@ describe('share links', () => {
     expect(html).toContain('LUIS: 2635 puntos en Cirquimia');
     expect(html).toContain('Venció a 2 rivales en Difícil en 1:58');
     expect(html).toContain('href="https://cirquimia.pages.dev/es"');
+  });
+
+  it('falls back to the game picture when the card never arrived', () => {
+    expect(sharePage({ ...row, card: null }, 'https://cirquimia.pages.dev')).toContain('content="https://cirquimia.pages.dev/og/es.jpg"');
   });
 
   it('works without initials and in English', () => {

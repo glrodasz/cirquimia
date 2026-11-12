@@ -290,8 +290,8 @@ export function shareText(d: ShareData, link?: string | null) {
 }
 
 /**
- * The card's share link, uploaded on the first share and then kept. `peek` gives it without waiting (null while
- * it is still on its way or when there is none), for the share sheet, which must open inside the tap.
+ * The saved score's share link, ready once its card is uploaded. `peek` gives it without waiting (null while it
+ * is still on its way or when there is none), for the share sheet, which must open inside the tap.
  */
 export interface ShareLink {
   get(): Promise<string | null>;

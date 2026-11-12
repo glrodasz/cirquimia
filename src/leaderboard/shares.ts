@@ -1,36 +1,31 @@
 /**
- * Share links: the victory card as a page of its own, so a post on X, Bluesky, Threads, Mastodon or a chat
- * shows the card itself as the link's preview. Social networks only take text in their compose links, but every
- * one of them reads og:image from the link, so the game uploads the card and posts /s/<id> instead of the bare site.
+ * Share links: a saved score as a link whose preview is its victory card, so a post on X, Bluesky, Threads,
+ * Mastodon or a chat shows the card. Social networks only take text in their compose links, but every one of them
+ * reads og:image from the link.
  *
- * POST /api/shares (multipart: runId, image, durationMs, damage, initials?, locale) → {id, url}
- *   One card per run: sharing again (after saving the initials, say) replaces the image and keeps the link.
- *   The run must be a real ranked match opened by the server in the last hours; the score is recomputed here.
+ * Saving a score gives it a random share_id (src/leaderboard/server.ts), and the link is /s/<share_id>: the page
+ * is built from that score row, so there is nothing else to register. The only extra is the card's image, drawn
+ * by the game (it holds the meadow of the match), which the game uploads right after saving.
+ *
+ * POST /api/shares (multipart: runId, image) → {url}   The run's id proves the score is the sender's.
  * GET /s/<id>      → people go straight to the game; link-preview robots get the preview tags with the card.
  * GET /s/<id>.jpg  → the card.
- *
- * The images live in D1 next to the ranking (about 100 KB each), so nothing else needs to be set up.
  */
 import { isLocale, localizePath, type Locale } from '../i18n/locale';
 import { SITE_URL } from '../i18n/seo';
 import type { Difficulty } from '../combat';
-import { isDifficulty, plausible, scoreFor, validInitials, formatTime } from './score';
-import { ensureSchema, fail, json, RUN_TTL_MS, setup, WINDOW_MS, type Ctx } from './server';
+import { isDifficulty, validInitials, formatTime } from './score';
+import { ensureSchema, fail, json, setup, type Ctx } from './server';
+import { ID_PATTERN } from './shareId';
 
 /** The card is a 1200×630 JPEG, usually 80–150 KB; anything far larger is not ours. */
 export const MAX_IMAGE = 600 * 1024;
-const MAX_SHARES_PER_WINDOW = 20;
-const ID_CHARS = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-export const ID_PATTERN = /^[a-km-zA-HJ-NP-Z2-9]{8}$/;
-
-export function newShareId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  return [...bytes].map((b) => ID_CHARS[b % ID_CHARS.length]).join('');
-}
+/** Cards are uploaded right after saving; past this, a score's card can no longer be replaced. */
+const UPLOAD_TTL_MS = 60 * 60 * 1000;
 
 const isJpeg = (b: Uint8Array) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 
-export async function createShare(ctx: Ctx): Promise<Response> {
+export async function uploadCard(ctx: Ctx): Promise<Response> {
   const s = await setup(ctx);
   if (!s) return fail('unavailable', 503);
   const length = Number(ctx.request.headers.get('Content-Length') ?? 0);
@@ -43,66 +38,32 @@ export async function createShare(ctx: Ctx): Promise<Response> {
   }
   const runId = form.get('runId');
   const image = form.get('image');
-  const durationMs = Number(form.get('durationMs'));
-  const damage = Number(form.get('damage'));
-  const rawInitials = form.get('initials');
-  const initials = typeof rawInitials === 'string' && validInitials(rawInitials) ? rawInitials : null;
-  const rawLocale = form.get('locale');
-  const locale: Locale = isLocale(rawLocale) ? rawLocale : 'en';
   if (typeof runId !== 'string' || runId.length > 64 || !image || typeof image === 'string') return fail('bad-request', 400);
   const bytes = new Uint8Array(await (image as Blob).arrayBuffer());
   if (bytes.length > MAX_IMAGE) return fail('too-large', 413);
   if (!isJpeg(bytes)) return fail('bad-image', 415);
 
   const now = Date.now();
-  const run = await s.db
-    .prepare('SELECT created_at, rivals, difficulty FROM runs WHERE id = ?')
-    .bind(runId)
-    .first<{ created_at: number; rivals: number; difficulty: string }>();
-  if (!run || now - run.created_at > RUN_TTL_MS) return fail('unknown-run', 409);
-  if (!isDifficulty(run.difficulty) || !plausible(run.rivals, run.difficulty, durationMs, damage)) return fail('implausible', 422);
-
-  // A saved score is the truth; before saving, the same rules the server applies to scores.
-  const saved = await s.db
-    .prepare('SELECT initials, score, duration_ms, damage FROM scores WHERE run_id = ?')
-    .bind(runId)
-    .first<{ initials: string; score: number; duration_ms: number; damage: number }>();
-  const duration = saved?.duration_ms ?? Math.round(durationMs);
-  const dealt = saved?.damage ?? damage;
-  const score = saved?.score ?? scoreFor(dealt, run.difficulty, duration);
-  const who = saved?.initials ?? initials;
-
-  const recent = await s.db
-    .prepare('SELECT COUNT(*) AS n FROM shares WHERE ip_hash = ? AND updated_at > ?')
-    .bind(s.ip, now - WINDOW_MS)
-    .first<{ n: number }>();
-  if ((recent?.n ?? 0) >= MAX_SHARES_PER_WINDOW) return fail('too-many', 429);
-
-  const row = await s.db
-    .prepare(
-      `INSERT INTO shares (id, run_id, locale, initials, score, duration_ms, damage, rivals, difficulty, image, ip_hash, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(run_id) DO UPDATE SET locale = excluded.locale, initials = excluded.initials, score = excluded.score,
-         duration_ms = excluded.duration_ms, damage = excluded.damage, image = excluded.image, ip_hash = excluded.ip_hash, updated_at = excluded.updated_at
-       RETURNING id, updated_at`,
-    )
-    .bind(newShareId(), runId, locale, who, score, duration, dealt, run.rivals, run.difficulty, bytes, s.ip, now, now)
-    .first<{ id: string; updated_at: number }>();
-  if (!row) return fail('server', 500);
-  const origin = new URL(ctx.request.url).origin;
-  return json({ id: row.id, url: `${origin}/s/${row.id}` }, 201);
+  const score = await s.db.prepare('SELECT share_id, created_at FROM scores WHERE run_id = ?').bind(runId).first<{ share_id: string | null; created_at: number }>();
+  if (!score?.share_id || now - score.created_at > UPLOAD_TTL_MS) return fail('unknown-score', 409);
+  await s.db
+    .prepare('INSERT INTO share_images (share_id, image, created_at) VALUES (?, ?, ?) ON CONFLICT(share_id) DO UPDATE SET image = excluded.image')
+    .bind(score.share_id, bytes, now)
+    .run();
+  return json({ url: `${new URL(ctx.request.url).origin}/s/${score.share_id}` }, 201);
 }
 
 export interface ShareRow {
   id: string;
-  locale: string;
+  locale: string | null;
+  /** When the card was uploaded, to bust caches; null when the score has no card, and the game's picture stands in. */
+  card: number | null;
   initials: string | null;
   score: number;
   duration_ms: number;
   damage: number;
   rivals: number;
   difficulty: string;
-  updated_at: number;
 }
 
 const COPY = {
@@ -139,7 +100,7 @@ export function sharePage(row: ShareRow, origin: string) {
   const title = c.title(who, score);
   const body = c.body(row.rivals, level, formatTime(row.duration_ms));
   const page = `${origin}/s/${row.id}`;
-  const image = `${origin}/s/${row.id}.jpg?v=${row.updated_at}`;
+  const image = row.card ? `${origin}/s/${row.id}.jpg?v=${row.card}` : `${origin}/og/${locale}.jpg`;
   const play = new URL(localizePath('/', locale), origin).href;
   const meta = (attr: 'name' | 'property', key: string, value: string) => `<meta ${attr}="${key}" content="${esc(value)}">`;
   return `<!doctype html>
@@ -197,14 +158,17 @@ export async function serveShare(ctx: Ctx, param: string): Promise<Response> {
   if (!db || !ID_PATTERN.test(id)) return notFound(origin);
   await ensureSchema(db);
   if (isImage) {
-    const row = await db.prepare('SELECT image FROM shares WHERE id = ?').bind(id).first<{ image: ArrayBuffer | number[] }>();
+    const row = await db.prepare('SELECT image FROM share_images WHERE share_id = ?').bind(id).first<{ image: ArrayBuffer | number[] }>();
     if (!row) return new Response('Not found', { status: 404 });
     return new Response(new Uint8Array(row.image as ArrayBuffer), {
       headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' },
     });
   }
   const row = await db
-    .prepare('SELECT id, locale, initials, score, duration_ms, damage, rivals, difficulty, updated_at FROM shares WHERE id = ?')
+    .prepare(
+      `SELECT s.share_id AS id, s.locale, s.initials, s.score, s.duration_ms, s.damage, s.rivals, s.difficulty, i.created_at AS card
+       FROM scores s LEFT JOIN share_images i ON i.share_id = s.share_id WHERE s.share_id = ?`,
+    )
     .bind(id)
     .first<ShareRow>();
   if (!row) return notFound(origin);

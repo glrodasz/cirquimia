@@ -7,6 +7,7 @@
  * (or a duration longer than the real time since the run opened), and limits how often one address can play and submit.
  */
 import { classifyDevice, type DeviceHints } from './device';
+import { newShareId } from './shareId';
 import { dayOf, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
 
 /** The slice of Cloudflare's D1 API used here. */
@@ -80,27 +81,21 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS scores_all ON scores (score DESC, created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_day ON scores (day, score DESC, created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_ip ON scores (ip_hash, created_at)`,
-  // The share links (src/leaderboard/shares.ts): one card per run, its image kept as a JPEG.
-  `CREATE TABLE IF NOT EXISTS shares (
-    id TEXT PRIMARY KEY,
-    run_id TEXT NOT NULL UNIQUE,
-    locale TEXT NOT NULL,
-    initials TEXT,
-    score INTEGER NOT NULL,
-    duration_ms INTEGER NOT NULL,
-    damage INTEGER NOT NULL,
-    rivals INTEGER NOT NULL,
-    difficulty TEXT NOT NULL,
+  // The share links' cards (src/leaderboard/shares.ts), one per saved score, by the score's share_id.
+  `CREATE TABLE IF NOT EXISTS share_images (
+    share_id TEXT PRIMARY KEY,
     image BLOB NOT NULL,
-    ip_hash TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL
   )`,
-  `CREATE INDEX IF NOT EXISTS shares_ip ON shares (ip_hash, updated_at)`,
 ];
 
 /** Columns added after the first release, for databases created before them (fails harmlessly once present). */
-const MIGRATIONS = ['ALTER TABLE scores ADD COLUMN damage INTEGER NOT NULL DEFAULT 0'];
+const MIGRATIONS = [
+  'ALTER TABLE scores ADD COLUMN damage INTEGER NOT NULL DEFAULT 0',
+  // The public id of a score's share link (/s/<share_id>): random, so the links cannot be walked through.
+  'ALTER TABLE scores ADD COLUMN share_id TEXT',
+  'CREATE UNIQUE INDEX IF NOT EXISTS scores_share ON scores (share_id)',
+];
 
 let ready: Promise<unknown> | null = null;
 export function ensureSchema(db: D1Database) {
@@ -234,13 +229,15 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   const score = scoreFor(dealt, run.difficulty, duration);
   const day = dayOf(now);
   const country = (ctx.request as Request & { cf?: { country?: string } }).cf?.country ?? null;
+  const shareId = newShareId();
 
   const inserted = await s.db
     .prepare(
-      `INSERT INTO scores (run_id, initials, score, duration_ms, damage, rivals, difficulty, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO scores (share_id, run_id, initials, score, duration_ms, damage, rivals, difficulty, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .bind(
+      shareId,
       runId,
       initials,
       score,
@@ -286,6 +283,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       category: device.category,
       rank: { today: today?.rank ?? 1, all: all?.rank ?? 1 },
       total: { today: today?.total ?? 1, all: all?.total ?? 1 },
+      share: `${new URL(ctx.request.url).origin}/s/${shareId}`,
     },
     201,
   );
