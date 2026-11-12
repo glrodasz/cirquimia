@@ -1,6 +1,6 @@
 /**
  * Every sound in the game is synthesized with Web Audio at play time, except the earth, fire and water strikes,
- * healing and a strike a wall blocks, which are short recorded clips Guillermo picked (src/assets/sfx, from Pixabay's free sound library); until they have
+ * healing, a strike a wall blocks and the twinkle when a symbol is recognized, which are short recorded clips Guillermo picked (src/assets/sfx, from Pixabay's free sound library); until they have
  * loaded, or if they fail to, the synthesized versions play instead.
  * Effects are short shaped noise and tones (marker, stone, flame, splash, chimes); underneath, a very quiet meadow:
  * wind in gusts and a bird now and then. Nothing plays until the first touch or key (browsers require a
@@ -13,16 +13,19 @@ import fireClip from './assets/sfx/fire.mp3';
 import waterClip from './assets/sfx/water.mp3';
 import healClip from './assets/sfx/heal.mp3';
 import blockClip from './assets/sfx/block.mp3';
+import chimeClip from './assets/sfx/chime.mp3';
 
 const KEY = 'cirquimia.sound';
 const SFX_LEVEL = 0.8;
 const AMBIENCE_LEVEL = 0.5;
 /** Levels of the recorded clips, matched in loudness to the synthesized strikes they replace. */
-const EARTH_CLIP = 1;
+const EARTH_CLIP = 0.8;
 const FIRE_CLIP = 1;
 const WATER_CLIP = 0.5;
 const HEAL_CLIP = 1;
 const BLOCK_CLIP = 0.5;
+/** The twinkle sits well under the old bell (about 7 dB): it plays on every symbol drawn. */
+const CHIME_CLIP = 2.5;
 
 type Where = { x: number; z: number };
 /** Screen pan (-1 left … 1 right) and loudness (0 … 1) for a point in the meadow, set by the scene. */
@@ -40,7 +43,7 @@ let rocks: AudioBuffer[] = [];
 let roars: AudioBuffer[] = [];
 let pops: AudioBuffer[] = [];
 let splashes: AudioBuffer[] = [];
-type Clip = 'earth' | 'fire' | 'water' | 'heal' | 'block';
+type Clip = 'earth' | 'fire' | 'water' | 'heal' | 'block' | 'chime';
 const clips: Partial<Record<Clip, AudioBuffer>> = {};
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
@@ -99,7 +102,7 @@ function unlock() {
 
 /** Fetches and decodes the recorded clips in the background; a clip that fails just leaves its synth in place. */
 function loadClips(c: AudioContext) {
-  const urls = { earth: earthClip, fire: fireClip, water: waterClip, heal: healClip, block: blockClip };
+  const urls = { earth: earthClip, fire: fireClip, water: waterClip, heal: healClip, block: blockClip, chime: chimeClip };
   for (const [name, url] of Object.entries(urls) as [Clip, string][]) {
     fetch(url)
       .then((r) => r.arrayBuffer())
@@ -525,11 +528,12 @@ function texture(
 const SCALE = [293.66, 329.63, 369.99, 440, 493.88];
 const note = (i: number) => SCALE[((i % 5) + 5) % 5] * 2 ** Math.floor(i / 5);
 
-/** A shape was recognized: a small bell, pitched a little differently for each symbol. */
+/** A shape was recognized: a soft twinkle (a small bell pitched for each symbol until the clip loads). */
 export function chime(kind: string) {
   if (!ready('chime')) return;
   const t = ctx!.currentTime;
   const o = out(0.32);
+  if (clip('chime', o, t, CHIME_CLIP)) return;
   const base = { circle: 5, triangle: 7, invertedTriangle: 6, square: 4, rhombus: 8, pentagram: 9, spiral: 3 }[kind] ?? 6;
   tone(o, t, 0.9, 'sine', note(base), note(base), 0.5);
   tone(o, t + 0.07, 0.8, 'sine', note(base + 2), note(base + 2), 0.32);
