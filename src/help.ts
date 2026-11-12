@@ -150,12 +150,9 @@ function guide() {
   const ways = keys ? [t.help.moveWays.click, t.help.moveWays.keys] : padEnabled() ? [t.help.moveWays.tap, t.help.moveWays.stick] : null;
   return t.help.slides.map(([title, text], i) => {
     const split = i === 0 && ways;
-    const body = split
-      ? ways.map(([head, line]) => `<p class="way"><b>${head}</b><span>${line}</span></p>`).join('')
-      : (keys && i > 0 ? t.help.desk[i - 1] : text)
-          .split('|')
-          .map((step, n, all) => (all.length > 1 ? `<p class="way step"><span><i>${n + 1}.</i> ${step}</span></p>` : `<p>${step}</p>`))
-          .join('');
+    // Every page reads the same way: two numbered steps, a list aligned to the left.
+    const steps = split ? ways : (keys && i > 0 ? t.help.desk[i - 1] : text).split('|');
+    const body = `<ol class="steps">${steps.map((step) => `<li>${step}</li>`).join('')}</ol>`;
     return (
       `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
       `<svg viewBox="0 0 312 234" aria-hidden="true">${split ? splitMove(rand, keys) : OVERLAYS[i](rand)}</svg></figure>` +
