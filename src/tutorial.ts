@@ -19,11 +19,16 @@ const DEMO_DRAW = 1.7; // s the demo hand takes to draw the shape
 const DEMO_HOLD = 0.8;
 const GOAL_REACH = 0.3; // world units from the mark that count as arrived
 const AFTER_WALK = 1.4; // s from arriving at the mark to the attack lesson
+const SHOW_TAP = 2.4; // s the walking lesson shows the tap on the mark (two taps of the hand)
+const SHOW_ALT = 2.8; // s it then shows the stick (or the keys) swaying side to side, before the tap again
+const STARTED = 0.12; // world units the alchemist has to move for the lesson to stop showing how
 
 type Lesson = 'move' | 'square' | 'circle';
 type Shape = Exclude<Lesson, 'move'>;
 type Step = 'walk' | 'draw' | 'aim' | 'watch';
 type Stage = '' | 'moved' | 'square' | 'done';
+/** What the walking lesson shows right now: the tap, the other way (stick or keys), or nothing once the alchemist walks. */
+type WalkShow = 'tap' | 'alt' | 'go';
 
 const TEXT: Record<Shape, Record<'draw' | 'aim', [string, string]> & { watch: string; done: string }> = t.tutorial;
 const WRONG: Record<Shape, string> = t.tutorial.wrong;
@@ -105,6 +110,13 @@ export class Tutorial {
   private demoTime = 0;
   /** The walking lesson's mark on the ground. */
   private goal: THREE.Vector3 | null = null;
+  /** Where the alchemist stood when the walking lesson began, to see when it starts walking. */
+  private from: { x: number; z: number } | null = null;
+  private walkShow: WalkShow = 'tap';
+  /** The stick, or the keycaps on a desktop, that the walking lesson lights up after the tap. */
+  private alt: HTMLElement | null = null;
+  /** The spotlight as drawn, easing toward where it should be. */
+  private lit: { x: number; y: number; r: number } | null = null;
 
   private readonly root = document.createElement('div');
   private readonly dim = document.createElement('div');
@@ -229,7 +241,7 @@ export class Tutorial {
       return;
     }
     if (this.lesson === 'move') {
-      this.walkLesson();
+      this.walkLesson(dt);
       return;
     }
     // Nobody left to spar with (e.g. switched to 0 rivals): shelve the lesson until a rival is back.
@@ -274,16 +286,61 @@ export class Tutorial {
     } else this.go('draw');
   }
 
-  /** Each frame of the walking lesson: keep the mark on the ground and finish once the alchemist stands on it. */
-  private walkLesson() {
+  /**
+   * Each frame of the walking lesson: keep the mark on the ground and finish once the alchemist stands on it. Until it
+   * starts walking, the lesson shows one way at a time: the hand tapping the mark, then the stick (or the keys) lit up
+   * and swaying side to side, and over again, so either one reads as enough.
+   */
+  private walkLesson(dt: number) {
     const goal = this.goal!;
     const at = this.host.toScreen(goal, 0);
     this.mark.style.transform = `translate(${at.x.toFixed(1)}px, ${at.y.toFixed(1)}px)`;
-    this.spot(at.x, at.y, 70);
-    const pad = document.getElementById('pad')?.getBoundingClientRect();
-    if (pad && padEnabled()) this.padHand.style.transform = `translate(${(pad.left + pad.width / 2).toFixed(1)}px, ${(pad.top + pad.height / 2).toFixed(1)}px)`;
     const hero = this.host.hero();
+    if (this.walkShow !== 'go' && this.from && Math.hypot(hero.x - this.from.x, hero.z - this.from.z) > STARTED) this.show('go');
+    let spot = { x: at.x, y: at.y, r: 70 };
+    if (this.walkShow !== 'go' && this.alt) {
+      this.timer = (this.timer + dt) % (SHOW_TAP + SHOW_ALT);
+      const next: WalkShow = this.timer < SHOW_TAP ? 'tap' : 'alt';
+      if (next !== this.walkShow) this.show(next);
+      if (next === 'alt') {
+        const r = this.alt.getBoundingClientRect();
+        spot = { x: r.left + r.width / 2, y: r.top + r.height / 2, r: Math.max(r.width, r.height) / 2 + 18 };
+        this.padHand.style.transform = `translate(${spot.x.toFixed(1)}px, ${spot.y.toFixed(1)}px)`;
+      }
+    }
+    // The light glides from the mark to the stick and back rather than jumping.
+    const k = this.lit ? 1 - Math.exp(-dt * 9) : 1;
+    const lit = (this.lit ??= { ...spot });
+    lit.x += (spot.x - lit.x) * k;
+    lit.y += (spot.y - lit.y) * k;
+    lit.r += (spot.r - lit.r) * k;
+    this.spot(lit.x, lit.y, lit.r);
     if (Math.hypot(hero.x - goal.x, hero.z - goal.z) < GOAL_REACH) this.finish();
+  }
+
+  /** The stick on touch screens, else the keycaps on a desktop wide enough to show them. */
+  private altWay(): HTMLElement | null {
+    const el = document.getElementById(padEnabled() ? 'pad' : hasKeyboard() ? 'keys-hint' : '');
+    return el && el.getClientRects().length ? el : null;
+  }
+
+  /** Switches what the walking lesson shows, and its line on the card. */
+  private show(what: WalkShow) {
+    this.walkShow = what;
+    this.root.dataset.walk = what;
+    this.alt?.classList.toggle('lit', what === 'alt');
+    if (what === 'go') return;
+    const move = t.tutorial.move;
+    const touch = !hasKeyboard();
+    this.say(move.title, what === 'tap' ? (touch ? move.tap : move.click) : padEnabled() ? move.pad : move.keys);
+  }
+
+  /** Ends the walking lesson's show: the stick or the keys go back to how they were. */
+  private unlight() {
+    this.alt?.classList.remove('lit');
+    this.alt = null;
+    this.from = null;
+    this.lit = null;
   }
 
   private go(step: Step) {
@@ -292,10 +349,13 @@ export class Tutorial {
     this.demoTime = 0;
     this.root.dataset.step = step;
     if (this.lesson === 'move') {
-      const move = t.tutorial.move;
       this.root.classList.toggle('with-pad', padEnabled());
-      this.say(...(hasKeyboard() ? move.keys : padEnabled() ? move.pad : move.walk));
       this.demo.innerHTML = '';
+      this.unlight();
+      this.alt = this.altWay();
+      const hero = this.host.hero();
+      this.from = { x: hero.x, z: hero.z };
+      this.show('tap');
       return;
     }
     const text = TEXT[this.lesson as Shape];
@@ -309,6 +369,7 @@ export class Tutorial {
     this.host.deselect();
     this.pending = this.lesson === 'circle' ? 'circle' : null;
     this.goal = null;
+    this.unlight();
     this.lesson = null;
     this.root.classList.remove('show');
     this.root.hidden = true;
@@ -319,6 +380,8 @@ export class Tutorial {
     this.host.hold(false);
     this.lesson = null;
     this.goal = null;
+    this.unlight();
+    this.root.dataset.walk = '';
     this.stage = lesson === 'move' ? 'moved' : lesson === 'square' ? 'square' : 'done';
     save(this.stage);
     this.root.dataset.step = 'done';

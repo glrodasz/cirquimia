@@ -382,18 +382,22 @@
       @keyframes tutorial-bob { from { transform: translateY(-6px); } to { transform: translateY(2px); } }
       /* Walking lesson: a glowing ring on the ground with a hand tapping it, and (touch) a hand sliding on the stick. */
       #tutorial .mark, #tutorial .pad-hand { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; will-change: transform; }
-      #tutorial[data-step="walk"] .mark, #tutorial[data-step="walk"].with-pad .pad-hand { display: block; }
+      #tutorial[data-step="walk"] .mark, #tutorial[data-step="walk"][data-walk="alt"].with-pad .pad-hand { display: block; }
+      /* One way at a time: the hand taps the mark, then leaves it glowing while the stick (or the keys) lights up and sways. */
+      #tutorial .mark svg { transition: opacity .25s; }
+      #tutorial:not([data-walk="tap"]) .mark svg { opacity: 0; }
       #tutorial .mark i { position: absolute; left: -22px; top: -11px; width: 44px; height: 22px; border-radius: 50%; border: 2.5px solid #fff6e0; box-shadow: 0 0 10px rgba(255,246,224,.8), inset 0 0 8px rgba(255,246,224,.6); animation: mark-pulse 1.2s ease-in-out infinite; }
       #tutorial .mark svg, #tutorial .pad-hand svg { position: absolute; left: -16px; top: -8px; width: 56px; height: 56px; overflow: visible; }
       #tutorial .mark svg { animation: hand-tap 1.2s ease-in-out infinite; }
-      #tutorial .pad-hand svg { animation: hand-slide 1.8s ease-in-out infinite; }
+      #tutorial .pad-hand svg { animation: stick-sway 1.4s ease-in-out infinite; }
       #tutorial :is(.mark, .pad-hand) .hand path { fill: #fffaf0; stroke: #23322a; stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; }
       #tutorial :is(.mark, .pad-hand) .hand { filter: drop-shadow(0 2px 2px rgba(20,28,24,.4)); }
       #tutorial :is(.mark, .pad-hand) .hand .knuckles { fill: none; stroke-width: 1.1; }
       #tutorial .mark .tap { fill: none; stroke: #fff6e0; stroke-width: 2.4; stroke-linecap: round; filter: drop-shadow(0 1px 1.5px rgba(20,28,24,.55)); }
       @keyframes mark-pulse { 0%, 100% { transform: scale(.85); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
       @keyframes hand-tap { 0%, 100% { transform: translate(4px, 10px); } 45%, 60% { transform: translate(0, 0); } }
-      @keyframes hand-slide { 0%, 15% { transform: translate(0, 0); } 60%, 80% { transform: translate(20px, -18px); } 100% { transform: translate(0, 0); } }
+      @keyframes stick-sway { 0%, 100% { transform: translateX(0); } 20%, 35% { transform: translateX(-26px); } 65%, 80% { transform: translateX(26px); } }
+      @keyframes key-press { 0%, 12%, 42%, 100% { transform: none; border-bottom-width: 3px; background: rgba(241,245,242,.18); } 18%, 36% { transform: translateY(2px); border-bottom-width: 1.5px; background: rgba(20,32,28,.5); } }
       /* Fire, then water: a hand traces the triangle over its source after the tutorial, until each is charged once. */
       .src-demo { position: fixed; left: 0; top: 0; z-index: 1; width: 96px; height: 96px; margin: -52px 0 0 -48px; pointer-events: none; will-change: transform; }
       .src-demo[hidden] { display: none; }
@@ -427,6 +431,11 @@
       #keys-hint .row { display: flex; gap: 4px; }
       #keys-hint kbd { display: grid; place-items: center; width: 34px; height: 34px; box-sizing: border-box; border: 1.5px solid rgba(241,245,242,.3); border-bottom-width: 3px; border-radius: 7px; background: rgba(241,245,242,.1); color: rgba(241,245,242,.85); font: 700 14px/1 system-ui, -apple-system, sans-serif; transition: background .1s, color .1s, border-color .1s, transform .1s; }
       #keys-hint[data-set="arrows"] kbd { font-size: 16px; }
+      /* The walking lesson's turn for the keys: lit up, left and right pressed in turn like the stick swaying. */
+      #keys-hint.lit { opacity: 1; transition: opacity .25s; }
+      #keys-hint.lit kbd { border-color: rgba(255,246,224,.9); color: #fff; box-shadow: 0 0 10px rgba(255,246,224,.5); }
+      #keys-hint.lit kbd:is([data-key="left"], [data-key="right"]):not(.on) { animation: key-press 1.4s ease-in-out infinite; }
+      #keys-hint.lit kbd[data-key="right"]:not(.on) { animation-delay: .63s; }
       #keys-hint kbd.on { background: rgba(20,32,28,.42); border-color: rgba(241,245,242,.45); color: #f1f5f2; transform: translateY(2px); border-bottom-width: 1.5px; }
       #help kbd { display: inline-grid; place-items: center; min-width: 1.7em; height: 1.7em; box-sizing: border-box; padding: 0 .3em; border: 1px solid currentColor; border-bottom-width: 2px; border-radius: 5px; font: 700 11px/1 system-ui, -apple-system, sans-serif; opacity: .85; margin: 0 1px; vertical-align: .1em; font-size: .7em; }
       @media (max-width: 620px) { #keys-hint { display: none; } }
@@ -435,6 +444,11 @@
       #pad .knob { width: 44px; height: 44px; border-radius: 50%; background: rgba(241,245,242,.16); border: 1.5px solid rgba(241,245,242,.3); transition: background .15s, border-color .15s; }
       #pad.on .knob { background: rgba(20,32,28,.42); border-color: rgba(241,245,242,.45); }
       #pad:not(.on) .knob { transition: transform .15s ease-out; }
+      /* The walking lesson's turn for the stick: lit up, the knob swaying side to side (a real thumb on it wins). */
+      #pad { transition: opacity .2s, border-color .2s, box-shadow .2s; }
+      #pad.lit { opacity: 1; border-color: rgba(255,246,224,.9); box-shadow: 0 0 16px rgba(255,246,224,.65), inset 0 0 12px rgba(255,246,224,.35); }
+      #pad.lit .knob { background: rgba(255,246,224,.45); border-color: rgba(255,246,224,.95); animation: stick-sway 1.4s ease-in-out infinite; }
+      #pad.lit.on .knob { animation: none; }
       @media (min-width: 600px) and (min-height: 800px) { #pad { width: 140px; height: 140px; } #pad .knob { width: 52px; height: 52px; } }
       .has-pad #tutorial .tip { bottom: calc(var(--edge-bottom) + 132px); }
       #fps { position: fixed; top: calc(var(--edge-top) + 50px); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
