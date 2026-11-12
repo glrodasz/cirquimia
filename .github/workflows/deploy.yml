@@ -15,7 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write # semantic-release pushes the version tag and the GitHub release (main only)
+  issues: write # semantic-release comments on released issues and PRs
   deployments: write
   pull-requests: write
 
@@ -27,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build reads its version from the latest v* tag
 
       - uses: actions/setup-node@v4
         with:
@@ -35,6 +38,21 @@ jobs:
 
       - run: npm ci
       - run: npm test
+
+      # Versioning (0.x until we call it 1.0): fix -> patch, feat -> minor, see AGENTS.md and .releaserc.json.
+      # Runs before the build so production ships the new version. No commit is pushed back to main.
+      - name: Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # First run only: mark where versioning starts, or semantic-release would open at 1.0.0.
+          if [ -z "$(git tag -l 'v[0-9]*')" ]; then
+            git tag v0.1.0 57f32a6038c22994aa6bf1bd94780d6ec3e91ea4 # main before versioning (PR #74)
+            git push origin v0.1.0
+          fi
+          npx -y -p semantic-release@25.0.9 -p conventional-changelog-conventionalcommits@10.4.1 semantic-release
+
       - run: npm run build
 
       # Forks and repos without the Cloudflare secrets still get a build check.
