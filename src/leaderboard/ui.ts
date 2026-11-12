@@ -157,7 +157,7 @@ export function mountLeaderboard(): Leaderboard {
       `<button type="button" class="match-btn net save-img" data-to="image" aria-label="${t.rank.saveImage}" title="${t.rank.saveImage}">${saveIcon()}</button></div>` +
       `<form class="masto" hidden novalidate><input name="host" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" enterkeyhint="go" placeholder="${t.rank.mastodonHost}" aria-label="${t.rank.mastodonHost}">` +
       `<button type="submit" class="match-btn"><span class="cap">${t.rank.go}</span></button></form></div>` +
-      `<button type="button" class="match-btn view"><span class="cap">${t.rank.view}</span></button>`;
+      `<button type="button" class="match-btn view">${trophyIcon()}<span class="cap">${t.rank.view}</span></button>`;
     const form = slot.querySelector<HTMLFormElement>('.sign')!;
     const input = form.querySelector<HTMLInputElement>('input')!;
     const save = form.querySelector<HTMLButtonElement>('.save')!;
