@@ -633,6 +633,11 @@
       #dev-panel .dev-check { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
       #dev-panel input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--g-red); }
       #dev-panel .dev-note { margin: 2px 0 10px; font-size: 15px; font-style: italic; color: var(--g-soft); }
+      #dev-panel .dev-info { display: flex; align-items: center; gap: 6px; margin: 2px 0 8px; padding: 3px 8px; background: #f2dc8c; color: var(--g-ink); font-size: 14px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #dev-panel .dev-info[hidden] { display: none; }
+      #dev-panel .dev-info svg { flex: none; width: 14px; height: 14px; color: #7a5a12; }
+      #dev-panel .dev-info span { overflow: hidden; text-overflow: ellipsis; }
+      @media (max-width: 360px) { #dev-panel .dev-info { gap: 5px; padding: 3px 6px; font-size: 13px; } }
       #dev-panel .dev-fold { margin-top: 10px; border-top: 1px solid rgba(31,26,21,.4); border-bottom: 1px solid rgba(31,26,21,.4); }
       #dev-panel .dev-fold > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--g-red); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .1em; list-style: none; cursor: pointer; }
       #dev-panel .dev-fold > summary::-webkit-details-marker { display: none; }

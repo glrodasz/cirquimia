@@ -48,6 +48,11 @@ export function questionIcon() {
   );
 }
 
+/** A small solid "i" in a disc, for notes that explain a limit. */
+export function infoIcon() {
+  return '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M8 0.8A7.2 7.2 0 1 1 8 15.2A7.2 7.2 0 1 1 8 0.8ZM7 6.6H9V12.2H7ZM8 3.4A1.15 1.15 0 1 1 8 5.7A1.15 1.15 0 1 1 8 3.4Z"/></svg>';
+}
+
 /** The ranking cup: bowl with two handles on a stem and foot. */
 export function trophyIcon() {
   return box(
