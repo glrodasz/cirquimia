@@ -1,4 +1,4 @@
-import { flaskTabIcon, gearIcon, pageTabIcon, pineTabIcon } from './icons';
+import { flaskTabIcon, gearIcon, infoIcon, pageTabIcon, pineTabIcon } from './icons';
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, materialOf, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
 import { LOOK, setLook } from './look';
@@ -324,7 +324,10 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
   gen.append(el('summary', {}, t.dev.genControls));
   const inputs = new Map<keyof GenParams, { input: HTMLInputElement; show: () => void }>();
   // Pieces the meadow must have (training's lagoon and campfire) keep their material's slider off 0.
-  const requiredNote = el('p', { class: 'dev-note' });
+  const requiredNote = el('p', { class: 'dev-info' });
+  const requiredText = el('span');
+  requiredNote.innerHTML = infoIcon();
+  requiredNote.append(requiredText);
   const floor = (key: keyof GenParams, min: number) => (world.required().some((k) => materialOf(k) === key) ? Math.max(min, 1) : min);
   let group = '';
   for (const spec of PARAM_SPECS) {
@@ -445,7 +448,7 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
     }
     const why = world.requiredBy();
     requiredNote.hidden = !why;
-    requiredNote.textContent = why ? t.dev.requiredNote[why] : '';
+    requiredText.textContent = why ? t.dev.requiredNote[why] : '';
   }
 
   function stat(box: HTMLElement, rows: Array<[string, string, string?]>) {

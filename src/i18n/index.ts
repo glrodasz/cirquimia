@@ -330,8 +330,8 @@ const es = {
     tabs: { meadow: 'Pradera', data: 'Datos', tests: 'Pruebas' },
     genControls: 'Controles de generación',
     requiredNote: {
-      training: 'Agua y fuego, mínimo 1: el entrenamiento siempre trae estanque y fogata.',
-      onboarding: 'Agua y fuego, mínimo 1: las primeras partidas siempre traen estanque y fogata.',
+      training: 'Agua y fuego: mín. 1 en entrenamiento',
+      onboarding: 'Agua y fuego: mín. 1 en el tutorial',
     },
     thisMeadow: 'Esta pradera',
     performance: 'Rendimiento',
@@ -631,8 +631,8 @@ const en: Strings = {
     tabs: { meadow: 'Meadow', data: 'Data', tests: 'Tests' },
     genControls: 'Generation controls',
     requiredNote: {
-      training: 'Water and fire, at least 1: training always brings a lagoon and a campfire.',
-      onboarding: 'Water and fire, at least 1: the first matches always bring a lagoon and a campfire.',
+      training: 'Water and fire: min. 1 in training',
+      onboarding: 'Water and fire: min. 1 in the tutorial',
     },
     thisMeadow: 'This meadow',
     performance: 'Performance',
