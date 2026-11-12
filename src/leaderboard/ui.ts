@@ -307,8 +307,8 @@ export function mountLeaderboard(): Leaderboard {
       // The card with the name and place, as the link's preview.
       const url = res.share ?? null;
       if (url && id) {
-        upload = scene
-          .then((m) => renderShareCard(data, m, true))
+        // Always the bundled meadow: the link's card stands for the game, not for this match's frame.
+        upload = renderShareCard(data, null, true)
           .then((wide) => Promise.race([uploadCard(id, wide), new Promise((r) => setTimeout(r, 8000))]))
           .then(() => (ready = url));
       }

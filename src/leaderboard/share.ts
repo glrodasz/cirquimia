@@ -209,7 +209,10 @@ function frame(g: CanvasRenderingContext2D, W: number, H: number, m: number) {
   g.globalAlpha = 1;
 }
 
-/** The card as a PNG (square, to share as an image) or, `wide`, as the JPEG the share link shows as its preview. */
+/**
+ * The card as a PNG (square, to share as an image, with the meadow of the match) or, `wide`, as the JPEG the share
+ * link shows as its preview, which the game always draws with the bundled meadow (`meadow` null).
+ */
 export async function renderShareCard(d: ShareData, meadow?: CanvasImageSource | null, wide = false): Promise<Blob> {
   try {
     await Promise.all([
@@ -281,7 +284,7 @@ export async function renderShareCard(d: ShareData, meadow?: CanvasImageSource |
   inked(g, dare, W - left, L.foot.y, wide ? 10 : 0);
 
   const type = wide ? 'image/jpeg' : 'image/png';
-  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), type, 0.86));
+  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), type, 0.8));
 }
 
 /** The post's text; `link` is the card's own page (its preview shows the card), else the game. */
