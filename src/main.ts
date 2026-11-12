@@ -331,9 +331,19 @@ tiltButton.addEventListener('click', (e) => {
 });
 tiltButton.addEventListener('pointerdown', (e) => e.stopPropagation());
 
+// The size the drawing buffers were last fitted to. iOS (Safari, Brave) can fire 'resize' while the page is half
+// hidden (tab overview, share sheet, app switch) with a shrunken viewport, and sometimes never fires the one that
+// restores it: the canvas then stays stretched from a half-size buffer, so the next match looks blurry and low-res.
+// The frame loop compares against the canvas's real size every frame and refits when they drift apart.
+let fitted = { w: 0, h: 0, ratio: 0 };
+const screenSize = () => ({
+  w: renderer.domElement.clientWidth || innerWidth,
+  h: renderer.domElement.clientHeight || innerHeight,
+});
+
 function fitCamera() {
-  const w = innerWidth;
-  const h = innerHeight;
+  const { w, h } = screenSize();
+  fitted = { w, h, ratio: renderer.getPixelRatio() };
   const distance = frameCamera(camera, w / h);
   const fog = scene.fog as THREE.Fog;
   fog.near = distance * 1.2;
@@ -796,7 +806,16 @@ function setQuality(tier: Tier, reason: Reason) {
 const fpsGuard = new FpsGuard();
 
 addEventListener('resize', fitCamera);
+visualViewport?.addEventListener('resize', fitCamera);
+addEventListener('pageshow', fitCamera);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) fitCamera();
+});
 fitCamera();
+function refitIfStale() {
+  const { w, h } = screenSize();
+  if (w !== fitted.w || h !== fitted.h || renderer.getPixelRatio() !== fitted.ratio) fitCamera();
+}
 // Rivals need the real framing to land on screen.
 combat.respawn();
 
@@ -818,6 +837,7 @@ sound.locator = (at) => {
 
 renderer.setAnimationLoop((time) => {
   clock.update(time);
+  refitIfStale();
   // Too slow for this tier on this device: one step down, then a few seconds to settle before judging again.
   const real = lastFrame ? (time - lastFrame) / 1000 : 0;
   lastFrame = time;
