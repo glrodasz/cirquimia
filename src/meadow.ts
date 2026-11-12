@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { heightAt, mulberry32, patchAt } from './noise';
-import type { GenParams, GroundPaint, Layout } from './generator';
+import { GROUND_CELL, toScreenAligned, toWorld, type GenParams, type GroundPaint, type Layout } from './generator';
 import { GLADE } from './look';
 import { stylize } from './glade';
+import { withFade } from './treeFade';
 
 export interface Obstacle {
   x: number;
@@ -47,7 +48,7 @@ function shadeByHeight(geo: THREE.BufferGeometry, y0: number, y1: number, base: 
  * (trees, rocks, set pieces) as baked ambient occlusion, so props sit in the grass instead of on it.
  */
 function buildGladeGround(seed: number, paint: GroundPaint, obstacles: Obstacle[]): THREE.Mesh {
-  const segments = 80;
+  const segments = Math.round(WORLD_SIZE / GROUND_CELL);
   const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, segments, segments);
   geo.rotateX(-Math.PI / 2);
   const rand = mulberry32(seed ^ 7);
@@ -90,7 +91,7 @@ function buildGladeGround(seed: number, paint: GroundPaint, obstacles: Obstacle[
 }
 
 function buildGround(seed: number, paint: GroundPaint): THREE.Mesh {
-  const segments = 80;
+  const segments = Math.round(WORLD_SIZE / GROUND_CELL);
   const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, segments, segments);
   geo.rotateX(-Math.PI / 2);
   const rand = mulberry32(seed ^ 7);
@@ -181,6 +182,49 @@ function onFeature(layout: Layout, paint: GroundPaint, x: number, z: number, pad
   );
 }
 
+/**
+ * Wide screens: a loose band of trees beside and behind the walkable frame, so its edge reads as the rim of a
+ * clearing in a wood rather than an invisible wall. Gaps are left at random and wherever the trail runs out, and
+ * nothing goes in front (it would hide the arena). Past the band the meadow carries on, out of reach.
+ */
+function forestEdge(layout: Layout, paint: GroundPaint): Array<[number, number]> {
+  const { vMin, vMax, halfWidthAt, forest } = layout.area;
+  if (!forest) return [];
+  const rand = mulberry32(layout.seedNum ^ 0xf0e57);
+  const STEP = 1.05;
+  const DEPTH = 3.2;
+  const spots: Array<[number, number]> = [];
+  const add = (u: number, v: number) => {
+    if (rand() < 0.18) return; // a gap here and there, so it is a wood and not a hedge
+    const [x, z] = toWorld(u + (rand() - 0.5) * 0.45, v + (rand() - 0.5) * 0.45);
+    if (!onFeature(layout, paint, x, z, 0.4)) spots.push([x, z]);
+  };
+  for (let v = vMin - 1; v <= vMax + DEPTH; v += STEP) {
+    const edge = halfWidthAt(Math.min(v, vMax));
+    // Beside the frame, trunks stand a crown's width out, so no crown hangs over the edge and hides someone there.
+    for (let d = 1.35; d < DEPTH + 0.8; d += STEP) for (const side of [-1, 1]) add(side * (edge + d), v);
+  }
+  const back = halfWidthAt(vMax);
+  for (let u = -back + STEP / 2; u < back; u += STEP) for (let d = 0.7; d < DEPTH; d += STEP) add(u, vMax + d);
+  return spots;
+}
+
+/**
+ * True for a loose tree that would stand in the way of the arena: in front of it (its crown rises into it on screen)
+ * or, on phones, anywhere in it, as the narrow portrait arena has no room to spare (only the screen's side margins). Wide screens keep a few trees
+ * inside but none on the side edges, where the forest band stands clear. Anyone still under a crown sees it fade.
+ */
+function crowdsArena(layout: Layout, x: number, z: number): boolean {
+  const { vMin, vMax, halfWidthAt, forest } = layout.area;
+  const [u, v] = toScreenAligned(x, z);
+  if (v < vMin - 2.6 || v > vMax) return false;
+  const out = Math.abs(u) - halfWidthAt(Math.max(v, vMin));
+  if (out > 1.35) return false;
+  if (v < vMin) return out < 0.9;
+  // Phones keep trees only at the very sides of the screen, framing the arena with their crowns half off screen.
+  return forest ? out > -0.9 : out < 0.7;
+}
+
 /** Trees and big rocks: the scatter that blocks the walk, so it is built before checking walkability. */
 export function buildSolids(layout: Layout, params: GenParams, paint: GroundPaint, obstacles: Obstacle[]): THREE.Group {
   const group = new THREE.Group();
@@ -190,17 +234,25 @@ export function buildSolids(layout: Layout, params: GenParams, paint: GroundPain
     obstacles.every((o) => (o.x - x) ** 2 + (o.z - z) ** 2 > (o.r + pad) ** 2);
 
   // Trees: a mix of pines (stacked cones) and round broadleaf crowns.
-  const treeSpots = scatter(rand, Math.round(46 * params.arboles), 3.2, (x, z) => clearOfSpawn(x, z) && !onFeature(layout, paint, x, z, 0.6));
-  const trunk = instanced(new THREE.CylinderGeometry(0.12, 0.18, 1, 5), lambert({ color: GLADE ? '#6b5038' : '#5c4f48' }), treeSpots.length, { cast: true });
-  const pineLow = instanced(new THREE.ConeGeometry(0.9, 1.5, 6), lambert(), treeSpots.length, { cast: true });
-  const pineHigh = instanced(new THREE.ConeGeometry(0.65, 1.2, 6), lambert(), treeSpots.length, { cast: true });
-  const round = instanced(new THREE.IcosahedronGeometry(0.85, 0), lambert(), treeSpots.length, { cast: true });
+  const treeSpots = scatter(
+    rand,
+    Math.round(46 * params.arboles),
+    3.2,
+    (x, z) => clearOfSpawn(x, z) && !onFeature(layout, paint, x, z, 0.6) && !crowdsArena(layout, x, z),
+  );
+  const wood = forestEdge(layout, paint);
+  treeSpots.push(...wood.filter(([x, z]) => treeSpots.every(([tx, tz]) => (tx - x) ** 2 + (tz - z) ** 2 > 0.8)));
+  // Every tree part can fade (src/treeFade.ts) when someone walks behind it.
+  const trunk = withFade(instanced(new THREE.CylinderGeometry(0.12, 0.18, 1, 5), lambert({ color: GLADE ? '#6b5038' : '#5c4f48' }), treeSpots.length, { cast: true }));
+  const pineLow = withFade(instanced(new THREE.ConeGeometry(0.9, 1.5, 6), lambert(), treeSpots.length, { cast: true }));
+  const pineHigh = withFade(instanced(new THREE.ConeGeometry(0.65, 1.2, 6), lambert(), treeSpots.length, { cast: true }));
+  const round = withFade(instanced(new THREE.IcosahedronGeometry(0.85, 0), lambert(), treeSpots.length, { cast: true }));
   // Glade crowns: a cluster of smooth puffs, darker underneath, instead of one faceted ball.
   // They carry a painted leaf-clump texture.
   const PUFFS = 7;
   const puffMat = stylize(soft({ vertexColors: true }), { paint: { scale: 3.4, amount: 0.6 } });
   const puffs = GLADE
-    ? instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.5, 1.2), puffMat, treeSpots.length * PUFFS, { cast: true, receive: true })
+    ? withFade(instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.5, 1.2), puffMat, treeSpots.length * PUFFS, { cast: true, receive: true }))
     : null;
   const puffRand = mulberry32(layout.seedNum ^ 0x9a1d);
   let puffCount = 0;

@@ -33,16 +33,7 @@ import { mountLeaderboard } from './leaderboard/ui';
 import { Runs } from './leaderboard/client';
 import { chime, fizzle, inkSound, sound } from './audio';
 import { mountSoundButton } from './soundButton';
-
-// Camera framing: a raised three-quarter view, deliberately softer than true isometric.
-const FOV = 32;
-const ELEVATION = THREE.MathUtils.degToRad(54);
-const AZIMUTH = THREE.MathUtils.degToRad(24);
-const VIEW_HEIGHT_LANDSCAPE = 6.5; // world units visible vertically on wide screens
-const VIEW_WIDTH_PORTRAIT = 5.4; // world units visible horizontally on tall screens
-// Taps are clamped to this fraction of the screen so the alchemist never walks off the edge.
-const INSET_X = 0.9;
-const INSET_Y = 0.82;
+import { AZIMUTH, FOV, INSET_Y, frameCamera, playAreaFor, tapLimitX, walkable } from './playArea';
 
 // "Bruma" palette: muted, cool blue-green morning light. Glade: warm late-afternoon haze.
 const SKY = new THREE.Color(GLADE ? '#e3d6b4' : '#c9d3d1');
@@ -93,6 +84,8 @@ if (GLADE) sun.shadow.radius = 3.5;
 scene.add(sun, sun.target);
 
 const world = new World(scene);
+// Pieces go where this screen lets anyone walk; on screens wider than 16:9, inside that frame.
+world.area = () => playAreaFor(innerWidth / innerHeight);
 world.cover = initial.cover;
 const hero = new Character(world.obstacles);
 scene.add(hero.root);
@@ -104,11 +97,8 @@ const spells = new Spells(world.obstacles);
 scene.add(spells.root);
 
 const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 200);
-/** True when a ground point falls inside the playable part of the screen. */
-const onScreen = (p: THREE.Vector3) => {
-  const q = new THREE.Vector3(p.x, heightAt(p.x, p.z), p.z).project(camera);
-  return Math.abs(q.x) < INSET_X * 0.92 && Math.abs(q.y) < INSET_Y * 0.92;
-};
+/** True when a ground point falls inside the playable part of the screen (the 16:9 frame on wider ones). Rivals obey it too. */
+const onScreen = (p: THREE.Vector3) => walkable(new THREE.Vector3(p.x, heightAt(p.x, p.z), p.z).project(camera), camera.aspect);
 // Rivals draw fire and water like the player: only from a source on screen, the nearest one.
 const findSource = (element: 'fire' | 'water', from: THREE.Vector3) => {
   let best: THREE.Vector3 | null = null;
@@ -335,18 +325,7 @@ tiltButton.addEventListener('pointerdown', (e) => e.stopPropagation());
 function fitCamera() {
   const w = innerWidth;
   const h = innerHeight;
-  const aspect = w / h;
-  camera.aspect = aspect;
-  const viewHeight = Math.max(VIEW_HEIGHT_LANDSCAPE, VIEW_WIDTH_PORTRAIT / aspect);
-  const distance = viewHeight / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
-  camera.position.set(
-    Math.sin(AZIMUTH) * Math.cos(ELEVATION) * distance,
-    Math.sin(ELEVATION) * distance,
-    Math.cos(AZIMUTH) * Math.cos(ELEVATION) * distance,
-  );
-  camera.lookAt(0, 0, 0);
-  camera.updateProjectionMatrix();
-  camera.updateMatrixWorld();
+  const distance = frameCamera(camera, w / h);
   const fog = scene.fog as THREE.Fog;
   fog.near = distance * 1.2;
   fog.far = distance * 2.8;
@@ -395,7 +374,8 @@ const hit = new THREE.Vector3();
 
 /** Screen point (NDC) to a point on the terrain, refining against the height field. */
 function groundFromNdc(x: number, y: number, out: THREE.Vector3): boolean {
-  ndc.set(THREE.MathUtils.clamp(x, -INSET_X, INSET_X), THREE.MathUtils.clamp(y, -INSET_Y, INSET_Y));
+  const limitX = tapLimitX(camera.aspect);
+  ndc.set(THREE.MathUtils.clamp(x, -limitX, limitX), THREE.MathUtils.clamp(y, -INSET_Y, INSET_Y));
   raycaster.setFromCamera(ndc, camera);
   groundPlane.constant = 0;
   for (let i = 0; i < 3; i++) {
@@ -407,7 +387,7 @@ function groundFromNdc(x: number, y: number, out: THREE.Vector3): boolean {
 
 function keepHeroOnScreen() {
   const p = hero.root.position.clone().project(camera);
-  if (Math.abs(p.x) > INSET_X || Math.abs(p.y) > INSET_Y) {
+  if (Math.abs(p.x) > tapLimitX(camera.aspect) || Math.abs(p.y) > INSET_Y) {
     if (groundFromNdc(p.x, p.y, hit)) {
       hero.root.position.copy(hit);
       hero.setTarget(hit);
@@ -836,6 +816,7 @@ renderer.setAnimationLoop((time) => {
   if (quality.auto && !document.hidden && idx < TIERS.length - 1 && fpsGuard.tick(real)) setQuality(TIERS[idx + 1], 'fps');
   const dt = Math.min(clock.getDelta(), 1 / 20);
   if (!dev.open) world.update(dt);
+  world.fadeTrees(dt, combat.positions());
   tutorial.update(dt);
   if (!help.open && !dev.open && !board.open && !tutorial.paused) {
     steerHero();

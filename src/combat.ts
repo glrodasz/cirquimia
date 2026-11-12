@@ -682,6 +682,10 @@ export class Combat {
   private level: Difficulty = 'normal';
   private outcome: Outcome | null = null;
   private endTimer = 0;
+  /** Where everyone on the meadow stands: the alchemist, the rivals and the training scarecrows. */
+  positions(): THREE.Vector3[] {
+    return [this.hero.position, ...this.rivals.map((r) => r.position), ...this.dummies.map((d) => d.position)];
+  }
   /** Called once when the match is decided, after the falling body has landed. */
   onEnd: (outcome: Outcome) => void = () => {};
   /** Called whenever a fresh match is set up (new rivals, everyone at full health). */
