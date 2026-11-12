@@ -146,13 +146,13 @@ export function mountLeaderboard(): Leaderboard {
       `<div class="row">` +
       `<button type="button" class="preview" aria-label="${t.rank.preview}" title="${t.rank.preview}"><img alt=""></button>` +
       `<div class="acts" role="group" aria-label="${t.rank.share}">` +
-      `<button type="button" class="match-btn net brand" data-to="x" aria-label="${t.rank.postOnX} X">${xLogo()}<span class="cap"><span class="verb">${t.rank.postOnX} </span>X</span></button>` +
+      `<button type="button" class="match-btn net brand" data-to="x" aria-label="${t.rank.postOnX} X">${xLogo()}<span class="cap">${t.rank.post}</span></button>` +
       `<button type="button" class="match-btn net brand" data-to="discord">${discordLogo()}<span class="cap"><span class="verb">${t.rank.sendDiscord} </span>Discord</span></button>` +
-      `<button type="button" class="match-btn more" aria-expanded="false"><span class="cap">${t.rank.more}</span></button></div></div></div>` +
+      `<div class="trio">` +
+      `<button type="button" class="match-btn net brand chat" data-to="whatsapp" aria-label="WhatsApp" title="WhatsApp">${whatsappLogo()}</button>` +
+      `<button type="button" class="match-btn net brand chat" data-to="telegram" aria-label="Telegram" title="Telegram">${telegramLogo()}</button>` +
+      `<button type="button" class="match-btn more" aria-expanded="false"><span class="cap">${t.rank.more}</span></button></div></div></div></div>` +
       `<div class="more-menu" hidden>` +
-      `<div class="nets chats">` +
-      `<button type="button" class="match-btn net brand" data-to="whatsapp" aria-label="WhatsApp">${whatsappLogo()}<span class="cap">WhatsApp</span></button>` +
-      `<button type="button" class="match-btn net brand" data-to="telegram" aria-label="Telegram">${telegramLogo()}<span class="cap">Telegram</span></button></div>` +
       `<div class="nets">` +
       `<button type="button" class="match-btn net brand" data-to="bluesky" aria-label="Bluesky">${blueskyLogo()}<span class="cap">Bluesky</span></button>` +
       `<button type="button" class="match-btn net brand" data-to="threads" aria-label="Threads">${threadsLogo()}<span class="cap">Threads</span></button>` +
