@@ -1,5 +1,5 @@
 import { flaskTabIcon, gearIcon, pageTabIcon, pineTabIcon } from './icons';
-import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
+import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, materialOf, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
 import { LOOK, setLook } from './look';
 import { formatNumber, langLink, t } from './i18n';
@@ -323,11 +323,15 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
   const gen = el('details', { class: 'dev-fold' }) as HTMLDetailsElement;
   gen.append(el('summary', {}, t.dev.genControls));
   const inputs = new Map<keyof GenParams, { input: HTMLInputElement; show: () => void }>();
+  // Pieces the meadow must have (training's lagoon and campfire) keep their material's slider off 0.
+  const requiredNote = el('p', { class: 'dev-note' });
+  const floor = (key: keyof GenParams, min: number) => (world.required().some((k) => materialOf(k) === key) ? Math.max(min, 1) : min);
   let group = '';
   for (const spec of PARAM_SPECS) {
     if (spec.group !== group) {
       group = spec.group;
       gen.append(el('h4', {}, t.dev.groups[spec.group]));
+      if (group === 'Materiales') gen.append(requiredNote);
     }
     const row = el('label', { class: 'dev-slider' });
     const input = el('input', { type: 'range', min: String(spec.min), max: String(spec.max), step: String(spec.step) }) as HTMLInputElement;
@@ -338,7 +342,12 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
       const v = Number(input.value);
       out.textContent = spec.key === 'sendero' ? (v ? t.dev.yes : t.dev.no) : spec.unit === '×' ? `${v.toFixed(1)}×` : `${v}${spec.unit ?? ''}`;
     };
-    input.addEventListener('input', show);
+    // The track keeps its full range and the handle stops at the floor, so 0 stays visible but out of reach.
+    input.addEventListener('input', () => {
+      const min = floor(spec.key, spec.min);
+      if (Number(input.value) < min) input.value = String(min);
+      show();
+    });
     // Changing a parameter rebuilds the same seed, so you see exactly what that parameter does.
     input.addEventListener('change', () => {
       world.params[spec.key] = Number(input.value);
@@ -429,10 +438,14 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
   }
 
   function syncInputs() {
-    for (const [key, { input, show }] of inputs) {
-      input.value = String(world.params[key]);
+    for (const spec of PARAM_SPECS) {
+      const { input, show } = inputs.get(spec.key)!;
+      input.value = String(Math.max(floor(spec.key, spec.min), world.params[spec.key]));
       show();
     }
+    const why = world.requiredBy();
+    requiredNote.hidden = !why;
+    requiredNote.textContent = why ? t.dev.requiredNote[why] : '';
   }
 
   function stat(box: HTMLElement, rows: Array<[string, string, string?]>) {
@@ -445,6 +458,7 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
   }
 
   function render() {
+    syncInputs();
     const s = world.stats;
     seedInput.value = s.seed;
     const ok = s.walk.reachable >= world.params.caminableMin;

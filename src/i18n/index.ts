@@ -329,6 +329,10 @@ const es = {
     animated: 'Animados',
     tabs: { meadow: 'Pradera', data: 'Datos', tests: 'Pruebas' },
     genControls: 'Controles de generación',
+    requiredNote: {
+      training: 'Agua y fuego, mínimo 1: el entrenamiento siempre trae estanque y fogata.',
+      onboarding: 'Agua y fuego, mínimo 1: las primeras partidas siempre traen estanque y fogata.',
+    },
     thisMeadow: 'Esta pradera',
     performance: 'Rendimiento',
     testsNote: 'Lo que el juego recuerda en este navegador. Cada botón lo deja como al principio y recarga.',
@@ -626,6 +630,10 @@ const en: Strings = {
     animated: 'Animated',
     tabs: { meadow: 'Meadow', data: 'Data', tests: 'Tests' },
     genControls: 'Generation controls',
+    requiredNote: {
+      training: 'Water and fire, at least 1: training always brings a lagoon and a campfire.',
+      onboarding: 'Water and fire, at least 1: the first matches always bring a lagoon and a campfire.',
+    },
     thisMeadow: 'This meadow',
     performance: 'Performance',
     testsNote: 'What the game remembers in this browser. Each button puts it back to the start and reloads.',

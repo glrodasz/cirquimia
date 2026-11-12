@@ -165,6 +165,8 @@ export class World {
   cover = 1;
   /** Kinds every meadow must have right now: training always brings a campfire and a lagoon to draw from. */
   required: () => Kind[] = () => [];
+  /** Why `required` asks for pieces right now, so the dev panel can say why their sliders cannot reach 0. */
+  requiredBy: () => 'training' | 'onboarding' | null = () => null;
   /** Where the pieces may go: the walkable part of the screen the meadow is generated for (src/playArea.ts). */
   area: () => PlayArea = () => PORTRAIT_AREA;
   layout!: Layout;

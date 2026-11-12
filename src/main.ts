@@ -189,8 +189,9 @@ const sourceHints = new SourceHints({
 // the first matches, for the fire and water hints that follow the tutorial.
 // The first meadow is built before the HUD restores the match, so it reads the saved setting.
 let hudReady = false;
-world.required = () =>
-  (hudReady ? combat.rivalCount : savedRivals()) === 0 || !tutorial.done || sourceHints.active ? ['fogata', 'estanque'] : [];
+world.requiredBy = () =>
+  (hudReady ? combat.rivalCount : savedRivals()) === 0 ? 'training' : !tutorial.done || sourceHints.active ? 'onboarding' : null;
+world.required = () => (world.requiredBy() ? ['fogata', 'estanque'] : []);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
 const dev = mountDevTools(

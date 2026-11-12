@@ -180,6 +180,9 @@ export const PARAM_SPECS: ParamSpec[] = [
   { key: 'animadosMax', label: t.dev.paramLabels.animadosMax, min: 0, max: 6, step: 1, group: 'Límites' },
 ];
 
+/** The material a kind of piece is made of (its generator slider). */
+export const materialOf = (kind: Kind): Material => KINDS[kind].material;
+
 /** FNV-1a: any text works as a seed (later, the date will be the daily seed). */
 export function hashSeed(seed: string): number {
   let h = 0x811c9dc5;
