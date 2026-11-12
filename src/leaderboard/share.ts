@@ -301,7 +301,11 @@ export interface ShareLink {
   peek(): string | null;
 }
 
-export type Target = 'x' | 'discord' | 'bluesky' | 'threads' | 'mastodon' | 'image';
+export type Target = 'x' | 'discord' | 'bluesky' | 'threads' | 'mastodon' | 'whatsapp' | 'telegram' | 'image';
+/** The networks whose share page takes a prepared post. */
+export type Composer = 'x' | 'bluesky' | 'threads' | 'mastodon' | 'whatsapp' | 'telegram';
+export const isComposer = (to: string | null): to is Composer =>
+  to === 'x' || to === 'bluesky' || to === 'threads' || to === 'mastodon' || to === 'whatsapp' || to === 'telegram';
 
 const MASTODON_STORE = 'cirquimia.mastodon';
 
@@ -322,8 +326,12 @@ export function mastodonHost(raw: string): string | null {
 
 const enc = encodeURIComponent;
 
-/** Where each network takes a prepared post. Discord has no such page: it gets the image instead. */
-export function composeUrl(target: 'x' | 'bluesky' | 'threads' | 'mastodon', text: string, host = 'mastodon.social') {
+/**
+ * Where each network takes a prepared post. Discord has no such page: it gets the image instead. WhatsApp and
+ * Telegram open the app on phones (and their web or desktop app elsewhere) with the chat picker; Telegram wants the
+ * link apart from the text, so the text's own copy of it is left out there.
+ */
+export function composeUrl(target: Composer, text: string, host = 'mastodon.social', link?: string) {
   switch (target) {
     case 'x':
       return `https://x.com/intent/post?text=${enc(text)}`;
@@ -333,6 +341,13 @@ export function composeUrl(target: 'x' | 'bluesky' | 'threads' | 'mastodon', tex
       return `https://www.threads.net/intent/post?text=${enc(text)}`;
     case 'mastodon':
       return `https://${host}/share?text=${enc(text)}`;
+    case 'whatsapp':
+      return `https://wa.me/?text=${enc(text)}`;
+    case 'telegram': {
+      const url = link ?? text.match(/https?:\/\/\S+$/)?.[0] ?? '';
+      const rest = url && text.endsWith(url) ? text.slice(0, -url.length).trimEnd() : text;
+      return `https://t.me/share/url?url=${enc(url)}&text=${enc(rest)}`;
+    }
   }
 }
 
@@ -351,7 +366,7 @@ function download(blob: Blob, name: string) {
  * text only). Called straight from the tap so the new tab is not blocked: when the link is not ready yet, the tab
  * opens empty and is sent to the composer once the card is up, or with the bare game link if that fails.
  */
-export function openComposer(target: 'x' | 'bluesky' | 'threads' | 'mastodon', d: ShareData, link: ShareLink, host?: string) {
+export function openComposer(target: Composer, d: ShareData, link: ShareLink, host?: string) {
   if (target === 'mastodon' && host) {
     try {
       localStorage.setItem(MASTODON_STORE, host);

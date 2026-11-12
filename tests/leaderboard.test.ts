@@ -73,5 +73,7 @@ describe('share', () => {
     expect(composeUrl('bluesky', 'a')).toBe('https://bsky.app/intent/compose?text=a');
     expect(composeUrl('threads', 'a')).toBe('https://www.threads.net/intent/post?text=a');
     expect(composeUrl('mastodon', 'a', 'mas.to')).toBe('https://mas.to/share?text=a');
+    expect(composeUrl('whatsapp', 'a https://x.y/s/1')).toBe('https://wa.me/?text=a%20https%3A%2F%2Fx.y%2Fs%2F1');
+    expect(composeUrl('telegram', '⚗️ a https://x.y/s/1')).toBe('https://t.me/share/url?url=https%3A%2F%2Fx.y%2Fs%2F1&text=%E2%9A%97%EF%B8%8F%20a');
   });
 });

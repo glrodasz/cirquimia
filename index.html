@@ -787,12 +787,15 @@
       #match-end .scored .nets [data-to="bluesky"] { background: #0285ff; }
       #match-end .scored .nets [data-to="threads"] { background: #000; }
       #match-end .scored .nets [data-to="mastodon"] { background: #6364ff; }
+      #match-end .scored .nets [data-to="whatsapp"] { background: #1a9e4f; }
+      #match-end .scored .nets [data-to="telegram"] { background: #229ed9; }
+      #match-end .scored .nets.chats .match-btn { flex: 1 1 0; }
       #match-end .scored .nets .save-img { flex: 0 0 34px; padding: 0; }
       #match-end .nets .brand-mark { width: 14px; height: 14px; }
       #match-end .nets .save-img .brand-mark { width: 19px; height: 19px; }
       #match-end .scored .nets .brand:active { transform: scale(.97); }
       @media (hover: hover) { #match-end .scored .nets .brand:hover { filter: brightness(1.15); } }
-      @media (max-width: 359px) { #match-end .scored .nets .brand .cap { display: none; } }
+      @media (max-width: 359px) { #match-end .scored .nets:not(.chats) .brand .cap { display: none; } }
       @media (max-width: 359px) { #match-end .scored .acts .brand .verb, #match-end .scored .acts [data-to="x"] .cap { display: none; } }
     </style>
   </head>

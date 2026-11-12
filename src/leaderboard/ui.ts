@@ -4,9 +4,9 @@
  */
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
-import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, threadsLogo, trophyIcon, xLogo } from '../icons';
+import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, telegramLogo, threadsLogo, trophyIcon, whatsappLogo, xLogo } from '../icons';
 import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, uploadCard, type Entry, type Period, type Runs } from './client';
-import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
+import { isComposer, mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
 import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -150,6 +150,9 @@ export function mountLeaderboard(): Leaderboard {
       `<button type="button" class="match-btn net brand" data-to="discord">${discordLogo()}<span class="cap"><span class="verb">${t.rank.sendDiscord} </span>Discord</span></button>` +
       `<button type="button" class="match-btn more" aria-expanded="false"><span class="cap">${t.rank.more}</span></button></div></div></div>` +
       `<div class="more-menu" hidden>` +
+      `<div class="nets chats">` +
+      `<button type="button" class="match-btn net brand" data-to="whatsapp" aria-label="WhatsApp">${whatsappLogo()}<span class="cap">WhatsApp</span></button>` +
+      `<button type="button" class="match-btn net brand" data-to="telegram" aria-label="Telegram">${telegramLogo()}<span class="cap">Telegram</span></button></div>` +
       `<div class="nets">` +
       `<button type="button" class="match-btn net brand" data-to="bluesky" aria-label="Bluesky">${blueskyLogo()}<span class="cap">Bluesky</span></button>` +
       `<button type="button" class="match-btn net brand" data-to="threads" aria-label="Threads">${threadsLogo()}<span class="cap">Threads</span></button>` +
@@ -240,7 +243,7 @@ export function mountLeaderboard(): Leaderboard {
     };
     const share = async (to: string) => {
       if (needsName()) return askName(to);
-      if (to === 'x' || to === 'bluesky' || to === 'threads') openComposer(to, data, link);
+      if (to === 'x' || to === 'bluesky' || to === 'threads' || to === 'whatsapp' || to === 'telegram') openComposer(to, data, link);
       else if (to === 'mastodon') mastodon(savedMastodon());
       else if (to === 'image') await saveImage(card, data);
       else if (to === 'preview') await shareImage(card, data, link);
@@ -286,7 +289,7 @@ export function mountLeaderboard(): Leaderboard {
       saveInitials(initials);
       save.disabled = input.disabled = true;
       caption.textContent = t.rank.saving;
-      if (then === 'x' || then === 'bluesky' || then === 'threads' || then === 'mastodon') void share(then);
+      if (isComposer(then)) void share(then);
       const id = await runs.current();
       const res = id ? await submitScore(id, initials, match.durationMs, match.damage) : 'unavailable';
       if (failed(res)) {
@@ -313,7 +316,7 @@ export function mountLeaderboard(): Leaderboard {
           .then(() => (ready = url));
       }
       settle(url);
-      const next = then && then !== 'x' && then !== 'bluesky' && then !== 'threads' && then !== 'mastodon'
+      const next = then && !isComposer(then)
         ? slot.querySelector<HTMLElement>(then === 'preview' ? '.preview' : `.net[data-to="${then}"]`)
         : null;
       if (next) say(`${t.rank.placed(res.rank.today, res.rank.all)}<br>${t.rank.readyToShare}`);
