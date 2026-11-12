@@ -383,7 +383,7 @@
       /* Walking lesson: a glowing ring on the ground with a hand tapping it, and (touch) a hand sliding on the stick. */
       #tutorial .mark, #tutorial .pad-hand { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; will-change: transform; }
       #tutorial[data-step="walk"] .mark, #tutorial[data-step="walk"][data-walk="alt"].with-pad .pad-hand { display: block; }
-      /* One way at a time: the hand taps the mark, then leaves it glowing while the stick (or the keys) lights up and sways. */
+      /* One way at a time: the stick (or the keys) lights up and sways while the mark glows, then the hand taps the mark. */
       #tutorial .mark svg { transition: opacity .25s; }
       #tutorial:not([data-walk="tap"]) .mark svg { opacity: 0; }
       #tutorial .mark i { position: absolute; left: -22px; top: -11px; width: 44px; height: 22px; border-radius: 50%; border: 2.5px solid #fff6e0; box-shadow: 0 0 10px rgba(255,246,224,.8), inset 0 0 8px rgba(255,246,224,.6); animation: mark-pulse 1.2s ease-in-out infinite; }

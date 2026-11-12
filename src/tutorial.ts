@@ -19,8 +19,8 @@ const DEMO_DRAW = 1.7; // s the demo hand takes to draw the shape
 const DEMO_HOLD = 0.8;
 const GOAL_REACH = 0.3; // world units from the mark that count as arrived
 const AFTER_WALK = 1.4; // s from arriving at the mark to the attack lesson
-const SHOW_TAP = 0.8; // s the walking lesson shows the tap on the mark (the hand presses once at ~0.6 s), short so the stick shows early
-const SHOW_ALT = 2.8; // s it then shows the stick (or the keys) swaying side to side, before the tap again
+const SHOW_ALT = 2.8; // s the walking lesson first shows the stick (or the keys) swaying side to side
+const SHOW_TAP = 1.8; // s it then shows the hand tapping the mark, before the stick again
 const STARTED = 0.12; // world units the alchemist has to move for the lesson to stop showing how
 
 type Lesson = 'move' | 'square' | 'circle';
@@ -288,8 +288,8 @@ export class Tutorial {
 
   /**
    * Each frame of the walking lesson: keep the mark on the ground and finish once the alchemist stands on it. Until it
-   * starts walking, the lesson shows one way at a time: the hand tapping the mark, then the stick (or the keys) lit up
-   * and swaying side to side, and over again, so either one reads as enough.
+   * starts walking, the lesson shows one way at a time: the stick (or the keys) lit up and swaying side to side, then
+   * the hand tapping the mark, and over again, so either one reads as enough.
    */
   private walkLesson(dt: number) {
     const goal = this.goal!;
@@ -299,8 +299,8 @@ export class Tutorial {
     if (this.walkShow !== 'go' && this.from && Math.hypot(hero.x - this.from.x, hero.z - this.from.z) > STARTED) this.show('go');
     let spot = { x: at.x, y: at.y, r: 70 };
     if (this.walkShow !== 'go' && this.alt) {
-      this.timer = (this.timer + dt) % (SHOW_TAP + SHOW_ALT);
-      const next: WalkShow = this.timer < SHOW_TAP ? 'tap' : 'alt';
+      this.timer = (this.timer + dt) % (SHOW_ALT + SHOW_TAP);
+      const next: WalkShow = this.timer < SHOW_ALT ? 'alt' : 'tap';
       if (next !== this.walkShow) this.show(next);
       if (next === 'alt') {
         const r = this.alt.getBoundingClientRect();
@@ -332,7 +332,9 @@ export class Tutorial {
     if (what === 'go') return;
     const move = t.tutorial.move;
     const touch = !hasKeyboard();
-    this.say(move.title, what === 'tap' ? (touch ? move.tap : move.click) : padEnabled() ? move.pad : move.keys);
+    // The tap comes second ("Or tap…") when there is a stick or keys to show first.
+    const tap = this.alt ? (touch ? move.orTap : move.orClick) : touch ? move.tap : move.click;
+    this.say(move.title, what === 'tap' ? tap : padEnabled() ? move.pad : move.keys);
   }
 
   /** Ends the walking lesson's show: the stick or the keys go back to how they were. */
@@ -355,7 +357,7 @@ export class Tutorial {
       this.alt = this.altWay();
       const hero = this.host.hero();
       this.from = { x: hero.x, z: hero.z };
-      this.show('tap');
+      this.show(this.alt ? 'alt' : 'tap');
       return;
     }
     const text = TEXT[this.lesson as Shape];

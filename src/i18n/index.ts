@@ -88,9 +88,11 @@ interface Lesson {
 
 interface MoveLesson {
   title: string;
-  /** First the tap (or click) on the mark, then, where there is one, the stick or the keys: either one walks. */
+  /** First, where there is one, the stick or the keys, then the tap (or click) on the mark: either one walks. */
   tap: string;
   click: string;
+  orTap: string;
+  orClick: string;
   pad: string;
   keys: string;
   done: string;
@@ -193,8 +195,10 @@ const es = {
       title: 'Muévete hasta la marca',
       tap: 'Toca el suelo donde brilla.',
       click: 'Haz clic en el suelo donde brilla.',
-      pad: 'O deja el dedo en el aro y deslízalo.',
-      keys: 'O camina con WASD o las flechas.',
+      orTap: 'O toca el suelo donde brilla.',
+      orClick: 'O haz clic en el suelo donde brilla.',
+      pad: 'Deja el dedo en el aro y deslízalo.',
+      keys: 'Camina con WASD o las flechas.',
       done: '¡Bien! Ahora a pelear.',
     },
     square: {
@@ -438,8 +442,10 @@ const en: Strings = {
       title: 'Walk to the mark',
       tap: 'Tap the ground where it glows.',
       click: 'Click the ground where it glows.',
-      pad: 'Or rest your finger on the ring and slide it.',
-      keys: 'Or walk with WASD or the arrow keys.',
+      orTap: 'Or tap the ground where it glows.',
+      orClick: 'Or click the ground where it glows.',
+      pad: 'Rest your finger on the ring and slide it.',
+      keys: 'Walk with WASD or the arrow keys.',
       done: 'Nice! Now, to battle.',
     },
     square: {
