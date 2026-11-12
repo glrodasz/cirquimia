@@ -17,6 +17,7 @@ import type { Difficulty } from '../combat';
 import { isDifficulty, validInitials, formatTime } from './score';
 import { ensureSchema, fail, json, setup, type Ctx } from './server';
 import { ID_PATTERN } from './shareId';
+import { CHALLENGE_PARAM, challengeValue } from './challengeLink';
 
 /** The card is a 1200×630 JPEG, usually 80–150 KB; anything far larger is not ours. */
 export const MAX_IMAGE = 600 * 1024;
@@ -64,6 +65,16 @@ export interface ShareRow {
   damage: number;
   rivals: number;
   difficulty: string;
+  /** The match's meadow; null on scores saved before it was recorded. */
+  seed: string | null;
+}
+
+/** Where the link sends people: the game, in the sharer's language, set up with the challenger's match (src/challenge.ts). */
+export function challengeUrl(row: Pick<ShareRow, 'locale' | 'rivals' | 'difficulty' | 'seed'>, origin: string) {
+  const locale: Locale = isLocale(row.locale) ? row.locale : 'en';
+  const url = new URL(localizePath('/', locale), origin);
+  if (isDifficulty(row.difficulty)) url.searchParams.set(CHALLENGE_PARAM, challengeValue(row.rivals, row.difficulty, row.seed));
+  return url.href;
 }
 
 const COPY = {
@@ -101,7 +112,7 @@ export function sharePage(row: ShareRow, origin: string) {
   const body = c.body(row.rivals, level, formatTime(row.duration_ms));
   const page = `${origin}/s/${row.id}`;
   const image = row.card ? `${origin}/s/${row.id}.jpg?v=${row.card}` : `${origin}/og/${locale}.jpg`;
-  const play = new URL(localizePath('/', locale), origin).href;
+  const play = challengeUrl(row, origin);
   const meta = (attr: 'name' | 'property', key: string, value: string) => `<meta ${attr}="${key}" content="${esc(value)}">`;
   return `<!doctype html>
 <html lang="${locale}">
@@ -166,7 +177,7 @@ export async function serveShare(ctx: Ctx, param: string): Promise<Response> {
   }
   const row = await db
     .prepare(
-      `SELECT s.share_id AS id, s.locale, s.initials, s.score, s.duration_ms, s.damage, s.rivals, s.difficulty, i.created_at AS card
+      `SELECT s.share_id AS id, s.locale, s.initials, s.score, s.duration_ms, s.damage, s.rivals, s.difficulty, s.seed, i.created_at AS card
        FROM scores s LEFT JOIN share_images i ON i.share_id = s.share_id WHERE s.share_id = ?`,
     )
     .bind(id)
@@ -175,8 +186,7 @@ export async function serveShare(ctx: Ctx, param: string): Promise<Response> {
   // The answer depends on who asks, so no shared cache may keep it.
   const vary = { 'Cache-Control': 'private, no-store', Vary: 'User-Agent' };
   if (!isPreviewBot(ctx.request.headers.get('User-Agent'))) {
-    const locale: Locale = isLocale(row.locale) ? row.locale : 'en';
-    return new Response(null, { status: 302, headers: { Location: new URL(localizePath('/', locale), origin).href, ...vary } });
+    return new Response(null, { status: 302, headers: { Location: challengeUrl(row, origin), ...vary } });
   }
   return new Response(sharePage(row, origin), { headers: { 'Content-Type': 'text/html; charset=utf-8', ...vary } });
 }

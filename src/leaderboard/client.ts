@@ -63,7 +63,7 @@ export class Runs {
   private match = 0;
 
   /** A match started; `ranked` says whether its victory may enter the ranking. */
-  start(rivals: number, difficulty: Difficulty, ranked: boolean) {
+  start(rivals: number, difficulty: Difficulty, seed: string, ranked: boolean) {
     const match = ++this.match;
     clearTimeout(this.timer);
     if (!ranked) {
@@ -74,7 +74,7 @@ export class Runs {
     this.pending = new Promise((r) => (resolve = r));
     // Changing rivals and difficulty restarts the match more than once in a row: wait for it to settle.
     this.timer = window.setTimeout(async () => {
-      const res = await call<{ id: string }>('/runs', { method: 'POST', body: JSON.stringify({ rivals, difficulty }) });
+      const res = await call<{ id: string }>('/runs', { method: 'POST', body: JSON.stringify({ rivals, difficulty, seed }) });
       resolve(match === this.match && !failed(res) ? res.id : null);
     }, 300);
   }

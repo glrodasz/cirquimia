@@ -8,6 +8,7 @@
  */
 import { classifyDevice, type DeviceHints } from './device';
 import { newShareId } from './shareId';
+import { validSeed } from './challengeLink';
 import { dayOf, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
 
 /** The slice of Cloudflare's D1 API used here. */
@@ -95,6 +96,9 @@ const MIGRATIONS = [
   // The public id of a score's share link (/s/<share_id>): random, so the links cannot be walked through.
   'ALTER TABLE scores ADD COLUMN share_id TEXT',
   'CREATE UNIQUE INDEX IF NOT EXISTS scores_share ON scores (share_id)',
+  // The meadow of the match, so a share link can replay it (src/leaderboard/challengeLink.ts).
+  'ALTER TABLE runs ADD COLUMN seed TEXT',
+  'ALTER TABLE scores ADD COLUMN seed TEXT',
 ];
 
 let ready: Promise<unknown> | null = null;
@@ -159,7 +163,8 @@ export async function startRun(ctx: Ctx): Promise<Response> {
   const recent = await s.db.prepare('SELECT COUNT(*) AS n FROM runs WHERE ip_hash = ? AND created_at > ?').bind(s.ip, now - WINDOW_MS).first<{ n: number }>();
   if ((recent?.n ?? 0) >= MAX_RUNS_PER_WINDOW) return fail('too-many', 429);
   const id = crypto.randomUUID();
-  await s.db.prepare('INSERT INTO runs (id, created_at, rivals, difficulty, ip_hash) VALUES (?, ?, ?, ?, ?)').bind(id, now, rivals, difficulty, s.ip).run();
+  const seed = validSeed(body?.seed) ? body.seed : null;
+  await s.db.prepare('INSERT INTO runs (id, created_at, rivals, difficulty, ip_hash, seed) VALUES (?, ?, ?, ?, ?, ?)').bind(id, now, rivals, difficulty, s.ip, seed).run();
   // Now and then, forget runs nobody finished.
   if (Math.random() < 0.05) await s.db.prepare('DELETE FROM runs WHERE created_at < ?').bind(now - 24 * 60 * 60 * 1000).run();
   return json({ id }, 201);
@@ -204,9 +209,9 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   if ((recent?.n ?? 0) >= MAX_SCORES_PER_WINDOW) return fail('too-many', 429);
 
   const run = await s.db
-    .prepare('SELECT created_at, rivals, difficulty, used FROM runs WHERE id = ?')
+    .prepare('SELECT created_at, rivals, difficulty, used, seed FROM runs WHERE id = ?')
     .bind(runId)
-    .first<{ created_at: number; rivals: number; difficulty: string; used: number }>();
+    .first<{ created_at: number; rivals: number; difficulty: string; used: number; seed: string | null }>();
   if (!run || run.used || now - run.created_at > RUN_TTL_MS) return fail('unknown-run', 409);
   if (!isDifficulty(run.difficulty) || !plausible(run.rivals, run.difficulty, durationMs, damage)) return fail('implausible', 422);
   const duration = Math.round(durationMs as number);
@@ -233,8 +238,8 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
 
   const inserted = await s.db
     .prepare(
-      `INSERT INTO scores (share_id, run_id, initials, score, duration_ms, damage, rivals, difficulty, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO scores (share_id, run_id, initials, score, duration_ms, damage, rivals, difficulty, seed, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .bind(
       shareId,
@@ -245,6 +250,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       dealt,
       run.rivals,
       run.difficulty,
+      run.seed ?? null,
       device.category,
       device.os,
       device.device,
