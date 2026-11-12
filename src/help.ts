@@ -5,7 +5,7 @@ import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
 import { LANGUAGE_NAMES } from './i18n/locale';
-import { bookIcon, dropIcon, flameIcon, turnArrowIcon } from './icons';
+import { bookIcon, circleTabIcon, dropIcon, flameIcon, quillTabIcon, turnArrowIcon } from './icons';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
@@ -133,8 +133,8 @@ function bookCard() {
     `<span class="folio" aria-live="polite"><span aria-hidden="true"></span><span class="sr"></span></span>` +
     `<button type="button" class="go"><span class="cap"></span>${turnArrowIcon()}</button></div>` +
     `<div class="foot"><div class="tabs">` +
-    `<button type="button" class="tab" data-to="symbols">${t.help.symbolsButton}</button>` +
-    `<button type="button" class="tab" data-to="guide">${t.help.howTo}</button>` +
+    `<button type="button" class="tab" data-to="symbols">${circleTabIcon()}<span>${t.help.symbolsButton}</span></button>` +
+    `<button type="button" class="tab" data-to="guide">${quillTabIcon()}<span>${t.help.howTo}</span></button>` +
     `</div><div class="langs" role="group" aria-label="${t.help.language}"></div></div></div>`
   );
 }
