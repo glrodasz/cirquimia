@@ -332,25 +332,30 @@ function groundCrack(c: BaseAudioContext) {
   return buffer;
 }
 
-/** A flare: a roar that bursts in, flutters as the flame licks and dies down, with no tone in it at all. */
+/**
+ * A burst of flame: a dark, turbulent whoosh that swells for half a second and is gone by 0.8 s. The flicker is
+ * fast (new level every 5–25 ms), which is what makes noise sound like fire rather than wind.
+ */
 function flameRoar(c: BaseAudioContext) {
   const rate = c.sampleRate;
-  const length = 1.7;
+  const length = 1;
   const buffer = c.createBuffer(1, Math.floor(rate * length), rate);
   const data = buffer.getChannelData(0);
   let flutter = 1;
   let target = 1;
   let next = 0;
+  let dark = 0;
   for (let i = 0; i < data.length; i++) {
     const t = i / rate;
-    // The flame licks: deep, uneven swells 8–20 times a second.
     if (t >= next) {
-      target = 0.15 + Math.random() * 0.85;
-      next = t + 0.05 + Math.random() * 0.08;
+      target = 0.3 + Math.random() * 0.7;
+      next = t + 0.005 + Math.random() * 0.02;
     }
-    flutter += (target - flutter) * 0.0015;
-    const env = Math.min(1, t / 0.12) ** 2 * Math.exp(-Math.max(0, t - 0.2) / 0.55);
-    data[i] = (Math.random() * 2 - 1) * env * flutter;
+    flutter += (target - flutter) * 0.01;
+    const white = Math.random() * 2 - 1;
+    dark += 0.08 * (white - dark);
+    const env = Math.min(1, t / 0.1) * (0.75 + 0.25 * Math.min(1, t / 0.45)) * (t < 0.5 ? 1 : Math.exp(-(t - 0.5) / 0.12));
+    data[i] = (dark * 3 + white * 0.35) * env * flutter;
   }
   return buffer;
 }
@@ -485,16 +490,12 @@ export function strike(element: Element, at: Where) {
     texture(o, t, pick(cracks), { type: 'lowpass', from: 2400, to: 700, at: 0.14 }, 0.45 * gain, 0.85, 0.15);
   };
   const flare = (gain: number) => {
-    // Fwoomp: the flame catching, a soft low gust of air.
-    hiss(o, t, 0.4, { type: 'lowpass', from: 180, to: 600, q: 0.8 }, { attack: 0.06, peak: 0.7 * gain });
-    // The whoosh sweeping up as the flame leaps, then the roar licking and settling, darker as it dies.
-    const f = texture(o, t, pick(roars), { type: 'bandpass', from: 300, q: 0.9 }, 1.2 * gain);
-    f.frequency.exponentialRampToValueAtTime(2400, t + 0.22);
-    f.frequency.exponentialRampToValueAtTime(700, t + 1.5);
-    texture(o, t, pick(roars), { type: 'lowpass', from: 260, q: 0.5 }, 0.8 * gain, 0.55);
-    // Crackling all through it.
-    texture(o, t + 0.08, pick(pops), { type: 'highpass', from: 1500 }, 0.45 * gain);
-    texture(o, t + 0.5, pick(pops), { type: 'highpass', from: 2200 }, 0.25 * gain, 1.2);
+    // The flame bursting up: a dark, flickering whoosh with its weight low down, a little brighter at the start.
+    texture(o, t, pick(roars), { type: 'lowpass', from: 1600, to: 600, at: 0.8, q: 0.5 }, 1.3 * gain);
+    // The air it pulls in: a soft low gust underneath.
+    hiss(o, t, 0.6, { type: 'lowpass', from: 200, to: 140, q: 0.7 }, { attack: 0.1, peak: 0.8 * gain });
+    // The spark that lights it, and a few snaps inside the burst.
+    texture(o, t, pick(pops), { type: 'highpass', from: 2000 }, 0.3 * gain, 1, 0.5);
   };
   const splash = (gain: number) => {
     // The slap and the spray falling back, kept in the middle of the range with nothing hissing on top.
