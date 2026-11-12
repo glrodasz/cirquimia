@@ -10,18 +10,35 @@ const SIN = Math.sin(AZIMUTH);
 export function toWorld(u: number, v: number): [number, number] {
   return [u * COS - v * SIN, -u * SIN - v * COS];
 }
+/** The inverse of toWorld (the same rotation undoes itself): world x/z to screen-aligned u/v. */
+export function toScreenAligned(x: number, z: number): [number, number] {
+  return toWorld(x, z);
+}
+
+/** Where a meadow's pieces may go, in screen-aligned ground units: a trapezoid, as the screen shows more ground further away. */
+export interface PlayArea {
+  vMin: number;
+  vMax: number;
+  /** Half the walkable width at depth v. */
+  halfWidthAt(v: number): number;
+  /** Ring the sides and the back with a band of forest, so the edge of the arena reads as the edge of a clearing. */
+  forest: boolean;
+}
 
 /**
- * The game is portrait only. This is what a 9:16 to 9:21 phone shows around the spawn (the narrow
- * near edge is about 4.4 units wide); the alchemist can only walk where the screen shows.
+ * What a 9:16 to 9:21 phone shows around the spawn (the narrow near edge is about 4.4 units wide): the default
+ * when no screen is known (tests). The game asks src/playArea.ts for the screen it runs on.
  */
-export const PLAY_AREA = { uMin: -2.2, uMax: 2.2, vMin: -4, vMax: 5.6 };
+export const PORTRAIT_AREA: PlayArea = { vMin: -4, vMax: 5.6, halfWidthAt: (v) => 2.1 + (v + 4) * 0.08, forest: false };
+/** Spacing of the ground mesh's vertices (meadow.ts: 90 units in 80 segments), which a pond's hollow must line up with. */
+export const GROUND_CELL = 90 / 80;
 /** How far a feature may spill past the side edges (bushes, chips), in world units. */
 const SIDE_SLACK = 0.1;
-/** Half the visible width at depth v: the screen shows more ground further from the camera. */
-function halfWidthAt(v: number): number {
-  return 2.1 + (v - PLAY_AREA.vMin) * 0.08;
-}
+/**
+ * Water, fire and rune circles are places to draw from or stand in, so the whole of them stays inside the
+ * walkable area (as far as their visible edge), never half off screen or under the HUD.
+ */
+const WHOLLY_INSIDE: Kind[] = ['estanque', 'fogata', 'runas', 'cristales'];
 const SPAWN_CLEAR = 0.9;
 
 export type Material = 'roca' | 'tierra' | 'agua' | 'fuego' | 'magia' | 'restos';
@@ -64,7 +81,8 @@ const KINDS: Record<Kind, KindSpec> = {
   penascos: { material: 'roca', weight: 1.4, radius: (s) => 1.2 * s, size: [0.8, 1.2], solid: true, animates: false },
   monticulo: { material: 'tierra', weight: 1, radius: (s) => 1.5 * s, size: [0.8, 1.1], solid: false, animates: false },
   tierraSuelta: { material: 'tierra', weight: 1, radius: (s) => 1.2 * s, size: [0.8, 1.2], solid: false, animates: false },
-  estanque: { material: 'agua', weight: 1, radius: (s) => 1.6 * s, size: [0.55, 0.8], solid: true, animates: false },
+  // A lagoon big enough to read as one (water about 1.7 to 2.1 units across), never a puddle.
+  estanque: { material: 'agua', weight: 1, radius: (s) => 1.6 * s, size: [0.7, 0.85], solid: true, animates: false },
   fogata: { material: 'fuego', weight: 1.3, radius: () => 0.7, size: [1, 1], solid: true, animates: true },
   // Weight 0: a blast crater looks out of place in a meadow, so fire is always a campfire here (kept for other biomes).
   crater: { material: 'fuego', weight: 0, radius: (s) => 2.4 * s, size: [0.6, 0.75], solid: false, animates: false },
@@ -97,6 +115,8 @@ export interface Layout {
   /** Requested but did not fit, or dropped to keep the meadow walkable. */
   skipped: string[];
   trail: Array<[number, number]> | null;
+  /** The walkable area it was laid out in. */
+  area: PlayArea;
 }
 
 export interface GenParams {
@@ -220,7 +240,7 @@ function makeTrail(rand: () => number): Array<[number, number]> {
  * Decides what goes where. Pure data: building meshes happens in meadow.ts / features.ts.
  * `required` kinds are always asked for, placed first and given more tries, so they make it onto the screen.
  */
-export function generateLayout(seed: string, params: GenParams, required: Kind[] = []): Layout {
+export function generateLayout(seed: string, params: GenParams, required: Kind[] = [], area: PlayArea = PORTRAIT_AREA): Layout {
   const seedNum = hashSeed(seed);
   const rand = mulberry32(seedNum);
   const trail = params.sendero >= 1 ? makeTrail(rand) : null;
@@ -252,7 +272,9 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
     wanted.push({ kind, size: lo + rand() * (hi - lo), rot: rand() * Math.PI * 2, seed: Math.floor(rand() * 2 ** 31) });
   }
   // Required pieces first, then big ones, so they still find room.
-  const must = (k: Kind) => (required.includes(k) ? 1 : 0);
+  // Water (the hardest to fit, as it sits on the ground grid), fire and runes come next: without them half the
+  // symbols have nothing to draw from, and the runes are a goal.
+  const must = (k: Kind) => (required.includes(k) ? 3 : k === 'estanque' ? 2 : WHOLLY_INSIDE.includes(k) ? 1 : 0);
   wanted.sort((a, b) => must(b.kind) - must(a.kind) || KINDS[b.kind].radius(b.size) - KINDS[a.kind].radius(a.size));
 
   const features: Feature[] = [];
@@ -262,20 +284,31 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
     const spec = KINDS[w.kind];
     const r = spec.radius(w.size);
     // Sideways the whole piece must stay on screen; up and down there is more room, so allow some overlap.
-    const insetU = r * 0.85 - SIDE_SLACK;
-    const insetV = r * 0.5;
-    if (halfWidthAt(PLAY_AREA.vMax) < insetU) {
+    // Sources and rune circles stay wholly inside either way.
+    const whole = WHOLLY_INSIDE.includes(w.kind);
+    const insetU = whole ? r * 0.85 : r * 0.85 - SIDE_SLACK;
+    const insetV = whole ? r * 0.85 : r * 0.5;
+    if (area.halfWidthAt(area.vMax) < insetU || area.vMax - area.vMin < insetV * 2) {
       skipped.push(`${KIND_LABEL[w.kind]} (${t.dev.noRoomPortrait})`);
       continue;
     }
     let placed: Feature | null = null;
-    const tries = required.includes(w.kind) ? 400 : 80;
+    const tries = must(w.kind) ? 400 : 80;
     for (let attempt = 0; attempt < tries && !placed; attempt++) {
-      const v = THREE.MathUtils.lerp(PLAY_AREA.vMin + insetV, PLAY_AREA.vMax - insetV, rand());
-      const room = halfWidthAt(v) - insetU;
+      let v = THREE.MathUtils.lerp(area.vMin + insetV, area.vMax - insetV, rand());
+      // The near edge is the narrowest: a round piece must clear the side at its own nearest depth.
+      const room = area.halfWidthAt(whole ? v - insetV : v) - insetU;
       if (room < 0) continue;
-      const u = (rand() * 2 - 1) * room;
-      const [x, z] = toWorld(u, v);
+      let u = (rand() * 2 - 1) * room;
+      let [x, z] = toWorld(u, v);
+      if (w.kind === 'estanque') {
+        // The ground mesh is a coarse grid: a pond between its vertices gets no hollow and the water sinks out of
+        // sight. Centred on a vertex, the hollow always dips under the water line. Then it must still fit.
+        x = Math.round(x / GROUND_CELL) * GROUND_CELL;
+        z = Math.round(z / GROUND_CELL) * GROUND_CELL;
+        [u, v] = toScreenAligned(x, z);
+        if (v - insetV < area.vMin || v + insetV > area.vMax || Math.abs(u) > area.halfWidthAt(v - insetV) - insetU) continue;
+      }
       const spawnGap = spec.solid ? r * 0.8 + SPAWN_CLEAR : r * 0.5 + SPAWN_CLEAR;
       if (x * x + z * z < spawnGap * spawnGap) continue;
       if (spec.solid && trail && distToPath(x, z, trail) < r * 0.35) continue; // the narrow screen leaves little room beside the trail
@@ -307,7 +340,7 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
     }
     features.push(placed);
   }
-  return { seed, seedNum, features, skipped, trail };
+  return { seed, seedNum, features, skipped, trail, area };
 }
 
 /** Terrain carving each feature needs (ponds, craters, mounds). */

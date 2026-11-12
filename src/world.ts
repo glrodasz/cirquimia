@@ -6,7 +6,7 @@ import { t } from './i18n';
 import {
   DEFAULT_PARAMS,
   KIND_LABEL,
-  PLAY_AREA,
+  PORTRAIT_AREA,
   dentsFor,
   generateLayout,
   paintFor,
@@ -14,12 +14,15 @@ import {
   type GenParams,
   type Kind,
   type Layout,
+  type PlayArea,
 } from './generator';
 
 /** Same as the alchemist's body radius: a cell is walkable if the alchemist fits there. */
 const BODY_RADIUS = 0.12;
 const CELL = 0.25;
 const MAX_DROPS = 4;
+/** Water and fire are never dropped to free the walk: without them half the symbols have nothing to draw from. */
+const SOURCES: Kind[] = ['estanque', 'fogata'];
 /**
  * The camera never moves, so props farther than this from the spawn are never on screen and never
  * shadow anything that is: the widest screens (about 3:1) see 17 units out and tall trees cast about 2.5.
@@ -49,16 +52,23 @@ export interface WorldStats {
 }
 
 /** Grid over the playable area; flood fill from the spawn tells how much of it can be walked. */
-export function measureWalkability(obstacles: Obstacle[]): Walkability {
-  const cols = Math.round((PLAY_AREA.uMax - PLAY_AREA.uMin) / CELL);
-  const rows = Math.round((PLAY_AREA.vMax - PLAY_AREA.vMin) / CELL);
+export function measureWalkability(obstacles: Obstacle[], area: PlayArea = PORTRAIT_AREA): Walkability {
+  const reach = Math.max(area.halfWidthAt(area.vMin), area.halfWidthAt(area.vMax));
+  const cols = Math.round((reach * 2) / CELL);
+  const rows = Math.round((area.vMax - area.vMin) / CELL);
   const free = new Uint8Array(cols * rows);
+  const inside = new Uint8Array(cols * rows);
   const world: Array<[number, number]> = [];
   for (let j = 0; j < rows; j++) {
+    const v = area.vMin + (j + 0.5) * CELL;
+    const half = area.halfWidthAt(v);
     for (let i = 0; i < cols; i++) {
-      const [x, z] = toWorld(PLAY_AREA.uMin + (i + 0.5) * CELL, PLAY_AREA.vMin + (j + 0.5) * CELL);
+      const u = -reach + (i + 0.5) * CELL;
+      const [x, z] = toWorld(u, v);
       world.push([x, z]);
-      free[j * cols + i] = obstacles.every((o) => (o.x - x) ** 2 + (o.z - z) ** 2 > (o.r + BODY_RADIUS) ** 2) ? 1 : 0;
+      const k = j * cols + i;
+      inside[k] = Math.abs(u) <= half ? 1 : 0;
+      free[k] = inside[k] && obstacles.every((o) => (o.x - x) ** 2 + (o.z - z) ** 2 > (o.r + BODY_RADIUS) ** 2) ? 1 : 0;
     }
   }
   // Start from the free cell nearest to the spawn point (0, 0).
@@ -90,11 +100,13 @@ export function measureWalkability(obstacles: Obstacle[]): Walkability {
       }
     }
   }
-  const total = cols * rows;
+  let total = 0;
   const islands: Array<[number, number]> = [];
   const blockedCells: Array<[number, number]> = [];
   let blocked = 0;
-  for (let k = 0; k < total; k++) {
+  for (let k = 0; k < cols * rows; k++) {
+    if (!inside[k]) continue;
+    total++;
     if (!free[k]) {
       blocked++;
       blockedCells.push(world[k]);
@@ -152,8 +164,12 @@ export class World {
   cover = 1;
   /** Kinds every meadow must have right now: training always brings a campfire and a lagoon to draw from. */
   required: () => Kind[] = () => [];
+  /** Where the pieces may go: the walkable part of the screen the meadow is generated for (src/playArea.ts). */
+  area: () => PlayArea = () => PORTRAIT_AREA;
   layout!: Layout;
   stats!: WorldStats;
+  /** The area the meadow on screen was generated for. */
+  playArea: PlayArea = PORTRAIT_AREA;
   private root = new THREE.Group();
   private coverGroup: THREE.Group | null = null;
   private debug: THREE.Group | null = null;
@@ -172,7 +188,8 @@ export class World {
     this.obstacles.length = 0;
 
     const required = this.required();
-    const layout = generateLayout(seed, this.noRunes() ? { ...this.params, magia: 0 } : this.params, required);
+    const area = (this.playArea = this.area());
+    const layout = generateLayout(seed, this.noRunes() ? { ...this.params, magia: 0 } : this.params, required, area);
     const drops: string[] = [];
     let built: { features: ReturnType<typeof buildFeatures>; solids: THREE.Group; walk: Walkability };
     // Build what blocks the walk, check it, and drop the most blocking piece until enough is walkable.
@@ -181,14 +198,14 @@ export class World {
       const paint = paintFor(layout);
       const features = buildFeatures(layout, this.obstacles);
       const solids = buildSolids(layout, this.params, paint, this.obstacles);
-      const walk = measureWalkability(this.obstacles);
+      const walk = measureWalkability(this.obstacles, area);
       built = { features, solids, walk };
       if (walk.reachable >= this.params.caminableMin || drops.length >= MAX_DROPS || !layout.features.some((f) => f.solid)) break;
       let worst = -1;
       features.blockedArea.forEach((a, i) => {
-        if (layout.features[i].solid && !required.includes(layout.features[i].kind) && (worst < 0 || a > features.blockedArea[worst])) worst = i;
+        if (layout.features[i].solid && !required.includes(layout.features[i].kind) && !SOURCES.includes(layout.features[i].kind) && (worst < 0 || a > features.blockedArea[worst])) worst = i;
       });
-      if (worst < 0) break; // only required pieces left to drop: keep them
+      if (worst < 0) break; // only required pieces and sources left to drop: keep them
       const [removed] = layout.features.splice(worst, 1);
       drops.push(`${KIND_LABEL[removed.kind]} (${t.dev.blockedPath})`);
       dispose(features.group);
@@ -297,11 +314,12 @@ export class World {
         ringPts.push(ax, y(ax, az), az, bx, y(bx, bz), bz);
       }
     }
+    const { vMin, vMax, halfWidthAt } = this.playArea;
     const corners = [
-      toWorld(PLAY_AREA.uMin, PLAY_AREA.vMin),
-      toWorld(PLAY_AREA.uMax, PLAY_AREA.vMin),
-      toWorld(PLAY_AREA.uMax, PLAY_AREA.vMax),
-      toWorld(PLAY_AREA.uMin, PLAY_AREA.vMax),
+      toWorld(-halfWidthAt(vMin), vMin),
+      toWorld(halfWidthAt(vMin), vMin),
+      toWorld(halfWidthAt(vMax), vMax),
+      toWorld(-halfWidthAt(vMax), vMax),
     ];
     corners.forEach(([x, z], i) => {
       const [nx, nz] = corners[(i + 1) % 4];
