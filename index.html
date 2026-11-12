@@ -324,7 +324,7 @@
       #help .turn .go.seal:active .cap { transform: scale(.95); }
       #help .folio { color: var(--brass); opacity: .85; font: 600 15px/1 'EB Garamond Variable', Garamond, Georgia, serif; font-variant-numeric: lining-nums tabular-nums; letter-spacing: .08em; }
       /* The symbols manual. */
-      #help .manual .page { justify-content: center; min-height: 340px; }
+      #help .page.symbols { justify-content: center; min-height: 340px; }
       #help .fig { display: inline-block; flex: none; width: 58px; height: 58px; margin-bottom: 2px; border-radius: 50%; background: radial-gradient(circle, rgba(255,250,235,.85) 55%, rgba(255,250,235,0) 72%); color: #9a6418; }
       #help .fig svg { fill: currentColor; }
       #help .fig .glyph { fill: currentColor; opacity: .92; }
@@ -339,15 +339,6 @@
       #help .val-dmg { color: #9f2f24 !important; } #help .val-heal { color: #2c6a36 !important; } #help .val-root { color: #3f6a2c !important; }
       #help .shapes .src { position: absolute; top: -4px; left: calc(50% + 16px); width: 26px; height: 26px; border-radius: 50%; background: #fbf3de; box-shadow: 0 1px 2px rgba(60,40,15,.3); }
       #help .src .ring { opacity: 0; }
-      #help .combo { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; }
-      #help .combo + .combo { margin-top: 8px; }
-      #help .combo .op { font: 800 26px/1 'EB Garamond Variable', Garamond, Georgia, serif; color: var(--ink); opacity: .7; }
-      #help .combo .out { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 4px; min-width: 136px; }
-      #help .combo b { font-size: 19px; }
-      #help .combo .val { font: 800 18px/1.1 'EB Garamond Variable', Garamond, Georgia, serif; font-variant-numeric: lining-nums tabular-nums; }
-      #help .combo .val small { font-size: 14px; font-weight: 600; }
-      #help .combo.tried .out::after { content: '✓'; position: absolute; top: -4px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: #3f9a52; color: #fff; font: 800 13px/22px system-ui, -apple-system, sans-serif; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
-      #help .combo.todo .out .fig { opacity: .55; }
       #help .combo-note { margin-top: 14px; font-size: 18px; line-height: 1.3; text-align: center; }
       #help .notes { display: flex; flex-direction: column; gap: 16px; width: 100%; margin-top: 10px; text-align: left; font-size: 18px; line-height: 1.3; }
       #help .notes li { display: flex; align-items: center; gap: 12px; }
@@ -597,7 +588,7 @@
       #help .turn .go.seal .cap { min-height: 44px; padding: 0 22px; border-radius: 0; background: var(--g-red); color: var(--g-paper); text-shadow: none; box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7); }
       #help .folio { color: var(--g-red); opacity: 1; font: italic 500 17px/1 var(--g-font); letter-spacing: .04em; }
       /* The symbols manual as a grimoire index. */
-      #help .manual .page { justify-content: flex-start; min-height: 300px; }
+      #help .page.symbols { justify-content: flex-start; min-height: 300px; }
       #help .fig { width: 40px; height: 40px; margin: 0; border-radius: 0; background: none; }
       #help .fig .glyph { opacity: 1; }
       :is(#help .fig, #help .mini) { color: var(--g-ink); }
@@ -605,7 +596,7 @@
       #help :is(.fig, .mini):is(.triangle, .hourglass) { color: var(--g-red); }
       #help .fig.charged:is(.triangle, .triangleDown), #help .fig.hourglass { background: none; }
       #help .turn button { white-space: nowrap; }
-      #help .manual .turn button { font-size: 17px; }
+      #help .book[data-sec=symbols] .turn button { font-size: 17px; }
       #help .shot .badge rect { rx: 0; ry: 0; }
       #match-end .again:focus-visible { outline: 1px solid var(--g-ink); outline-offset: 3px; }
       #help .shapes { display: flex; flex-direction: column; gap: 2px; width: 100%; counter-reset: none; }
@@ -620,6 +611,19 @@
       #help .val-root { color: #7a5320 !important; }
       #help :is(.fig, .mini):is(.spiral, .waterStar) { color: var(--g-ink); } #help :is(.fig, .mini).fireStar { color: var(--g-red); }
       #help :is(.fig, .mini):is(.fireStar, .waterStar) { background: none; }
+      /* The combinations, under a rule in the same index: the merged symbol, then its recipe small beside its name. */
+      #help .sep { display: flex; align-items: center; gap: 10px; width: 100%; margin: 10px 0 4px; color: var(--g-red); font: 500 16px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .18em; }
+      #help .sep::before, #help .sep::after { content: ''; flex: 1; height: 1px; background: var(--g-ink); opacity: .6; }
+      #help .shapes .name { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+      #help .combos b { font-size: 18px; }
+      #help .shapes .recipe { display: inline-flex; align-items: center; gap: 1px; color: var(--g-soft); }
+      #help .shapes .recipe i { font: 400 13px/1 var(--g-font); font-style: normal; opacity: .8; }
+      #help .shapes .recipe .mini { display: inline-block; width: 15px; height: 15px; }
+      #help .shapes .recipe .mini svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+      #help .shapes .recipe .ring { opacity: 0; }
+      #help .combos .lead { min-width: 10px; }
+      @media (max-width: 440px) { #help .combos b { font-size: 15px !important; letter-spacing: .02em; } #help .shapes .recipe .mini { width: 12px; height: 12px; } #help .shapes .recipe i { font-size: 11px; } #help .shapes .name { gap: 4px; } #help .combos .lead { min-width: 6px; } }
+      @media (max-height: 760px) { #help .shapes li { padding-top: 0; padding-bottom: 0; } #help .shapes .fig { width: 30px; height: 30px; } #help .shapes b { font-size: 18px; } #help .combos b { font-size: 16px; } #help .shapes .val { font-size: 19px; } #help .sep { margin: 6px 0 2px; } #help .legend { margin-top: 4px; } }
       #help .legend { margin: 8px 0 0; font: italic 400 16px/1 var(--g-font); color: var(--g-soft); }
       #help .legend::before { content: none !important; }
       #help .shapes:has(li.tried, li.todo) li { padding-left: 26px; }
@@ -627,17 +631,11 @@
       #help .shapes li.tried::after { top: 50%; right: auto; left: 0; width: 18px; height: 18px; margin-top: -9px; border-radius: 0; background: var(--g-green); font: 600 12px/18px var(--g-font); box-shadow: none; }
       #help .shapes li.todo .fig { opacity: .45; }
       #help .training { margin: 0 0 8px; font: italic 500 17px/1.2 var(--g-font); color: var(--g-green); }
-      #help .page > h3:first-child { display: flex; width: 100%; color: var(--g-red); font-size: 18px; letter-spacing: .18em; }
-      #help .page > h3:first-child::before, #help .page > h3:first-child::after { content: ''; flex: 1; height: 1px; background: var(--g-ink); opacity: .6; }
-      #help .combo { gap: 2px; margin-top: 18px; }
-      #help .combo .fig { width: 48px; height: 48px; }
-      #help .combo .op { font: 400 28px/1 var(--g-font); opacity: .8; }
-      #help .combo b { font-size: 20px; font-weight: 500; font-variant-caps: small-caps; }
-      #help .combo .val { font: 500 22px/1.1 var(--g-font); }
-      #help .combo .val small { font: italic 400 15px/1 var(--g-font); }
-      #help .combo.tried .out::after { border-radius: 0; background: var(--g-green); font: 600 12px/22px var(--g-font); box-shadow: none; }
+      #help :is(.page > h3:first-child, .page.symbols > h3) { display: flex; width: 100%; color: var(--g-red); font-size: 18px; letter-spacing: .18em; }
+      #help :is(.page > h3:first-child, .page.symbols > h3)::before, #help :is(.page > h3:first-child, .page.symbols > h3)::after { content: ''; flex: 1; height: 1px; background: var(--g-ink); opacity: .6; }
       #help .combo-note { font-size: 18px; color: var(--g-soft); font-style: italic; }
       #help .notes { gap: 14px; font-size: 18px; }
+      #help .notes + h3 { margin-top: 14px; }
       #help .notes .src { width: 40px; height: 40px; border-radius: 0; background: none; box-shadow: inset 0 0 0 1px rgba(31,26,21,.4); }
       #help .notes .rune { color: var(--g-red); font-size: 22px; }
       #help .fire { fill: var(--g-red); } #help .water { fill: #2f5f7a; }
