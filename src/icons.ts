@@ -84,6 +84,22 @@ export const turnArrowIcon = () => `<svg class="arrow" viewBox="0 0 40 20" aria-
 /** The transmutation seal on the graphics-card notice: a ring around a triangle with a circle cut in it. */
 export const sealIcon = () =>
   `<svg class="gpu-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill-rule="evenodd" d="M24 4.5A19.5 19.5 0 1 1 24 43.5A19.5 19.5 0 1 1 24 4.5ZM24 7.2A16.8 16.8 0 1 0 24 40.8A16.8 16.8 0 1 0 24 7.2ZM24 11 37.2 34.4H10.8ZM24 20.2A5 5 0 1 0 24 30.2A5 5 0 1 0 24 20.2Z"/></svg>`;
+/* ---- Book divider tab icons: small solid marks that sit before each tab's label, inked like the label. ---- */
+/** Symbols: a transmutation circle, a ring round a triangle with a circle cut in it. */
+export const circleTabIcon = () =>
+  solid('M12 1.5A10.5 10.5 0 1 1 12 22.5A10.5 10.5 0 1 1 12 1.5ZM12 3.4A8.6 8.6 0 1 0 12 20.6A8.6 8.6 0 1 0 12 3.4ZM12 5.2 18.4 16.6H5.6ZM12 10.6A2.5 2.5 0 1 0 12 15.6A2.5 2.5 0 1 0 12 10.6Z');
+/** How to play: a quill, since every lesson ends in drawing a symbol. */
+export const quillTabIcon = () =>
+  solid('M21 2.6C14.4 3 8.6 7.6 7 15.4L8.6 17C16.4 15.4 21 9.6 21 2.6ZM18.6 5.2 8.9 14.9 9.3 15.3 19 5.6ZM7.3 16.2 8 16.9 3.9 21.4H2.6V20.1Z');
+/** Meadow: a tiered pine on a short trunk. */
+export const pineTabIcon = () => solid('M12 1.8 17.2 8.8H14.6L19 15H13.2V19.6H15.2V21.8H8.8V19.6H10.8V15H5L9.4 8.8H6.8Z');
+/** Data: a written page with a folded corner. */
+export const pageTabIcon = () =>
+  solid('M4.8 1.8H14.6L19.2 6.4V22.2H4.8ZM14.1 3.4V6.9H17.6ZM7.8 10H16.2V11.6H7.8ZM7.8 13.6H16.2V15.2H7.8ZM7.8 17.2H13V18.8H7.8Z');
+/** Tests: an alchemist's flask, half full. */
+export const flaskTabIcon = () =>
+  solid('M8.6 1.8H15.4V3.8H14.2V8.9L19.8 18.6C20.7 20.2 19.6 22.2 17.8 22.2H6.2C4.4 22.2 3.3 20.2 4.2 18.6L9.8 8.9V3.8H8.6ZM11.4 3.8V9.4L5.9 18.9C5.6 19.5 5.9 20.4 6.6 20.4H17.4C18.1 20.4 18.4 19.5 18.1 18.9L12.6 9.4V3.8ZM8.6 14.4H15.4L17.2 17.6C17.5 18.1 17.2 18.8 16.6 18.8H7.4C6.8 18.8 6.5 18.1 6.8 17.6Z');
+
 /** A gear: toothed wheel with a hole. */
 export const gearIcon = () =>
   solid('M19.4 13A7.6 7.6 0 0 0 19.4 11L21.4 9.4 19.4 6 17 7A7.4 7.4 0 0 0 15.3 6L15 3.5H11L10.6 6A7.4 7.4 0 0 0 8.9 7L6.5 6 4.5 9.4 6.5 11A7.6 7.6 0 0 0 6.5 13L4.5 14.6 6.5 18 8.9 17A7.4 7.4 0 0 0 10.6 18L11 20.5H15L15.4 18A7.4 7.4 0 0 0 17.1 17L19.5 18 21.5 14.6ZM12 9A3 3 0 1 0 12 15A3 3 0 1 0 12 9Z');

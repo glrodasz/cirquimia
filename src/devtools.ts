@@ -1,4 +1,4 @@
-import { gearIcon } from './icons';
+import { flaskTabIcon, gearIcon, pageTabIcon, pineTabIcon } from './icons';
 import { DEFAULT_PARAMS, KIND_LABEL, MATERIAL_LABEL, PARAM_SPECS, randomSeed, type GenParams, type Material } from './generator';
 import type { World } from './world';
 import { LOOK, setLook } from './look';
@@ -82,6 +82,7 @@ export const devHooks: {
 
 type Tab = 'meadow' | 'data' | 'tests';
 const TABS: Tab[] = ['meadow', 'data', 'tests'];
+const TAB_ICONS: Record<Tab, () => string> = { meadow: pineTabIcon, data: pageTabIcon, tests: flaskTabIcon };
 
 function stored(key: string): string | null {
   try {
@@ -258,7 +259,9 @@ export function mountDevTools(world: World, onGenerated: () => void, quality: Qu
   const tabList = el('div', { class: 'tabs', role: 'tablist' });
   const tabButtons = new Map<Tab, HTMLButtonElement>();
   for (const tab of TABS) {
-    const button = el('button', { type: 'button', class: 'tab', role: 'tab', id: `dev-tab-${tab}`, 'aria-controls': `dev-page-${tab}` }, t.dev.tabs[tab]) as HTMLButtonElement;
+    const button = el('button', { type: 'button', class: 'tab', role: 'tab', id: `dev-tab-${tab}`, 'aria-controls': `dev-page-${tab}` }) as HTMLButtonElement;
+    button.innerHTML = TAB_ICONS[tab]();
+    button.append(el('span', {}, t.dev.tabs[tab]));
     button.addEventListener('click', () => showTab(tab));
     tabButtons.set(tab, button);
     tabList.append(button);
