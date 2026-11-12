@@ -243,10 +243,10 @@
       #match-time[hidden] { display: none; }
       #match-time svg { display: block; width: 17px; height: 17px; flex: none; }
       #match-time .ink { fill: var(--hud-ink); }
-      /* Phones: the HUD row is full, so the time sits at the bottom right, clear of the stick (bottom left) and above the
-         home-bar swipe margin. */
+      /* Phones: the HUD row is full, so the time sits low at the bottom right, clear of the stick (bottom left). It takes no
+         touches, so it can sit inside the home-bar swipe margin, just above the bar itself. */
       @media (max-width: 699.98px) {
-        #match-time { top: auto; left: auto; transform: none; bottom: var(--edge-bottom); right: max(12px, env(safe-area-inset-right)); height: 36px; font-size: 20px; }
+        #match-time { top: auto; left: auto; transform: none; bottom: max(14px, calc(env(safe-area-inset-bottom) + 6px)); right: max(12px, env(safe-area-inset-right)); height: 36px; font-size: 20px; }
       }
       @media (min-width: 700px) {
         #match-time { top: var(--edge-top); height: 40px; padding: 0 12px 0 9px; font-size: 20px; }

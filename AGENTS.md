@@ -40,4 +40,4 @@ Keep the summary short, imperative and in English; put the details in the PR bod
 ## Version in the game
 
 - The build stamps the version from `git describe --tags` (`vite.config.ts`, `__GAME_VERSION__`): `0.3.0` on a release, `0.3.0-2-gabc1234` on later builds (previews, local). `GAME_VERSION=...` overrides it.
-- Read it from `src/version.ts` (`VERSION`). On screen it only shows with `?dev`, as a small label over the top edge.
+- Read it from `src/version.ts` (`VERSION`). On screen it only shows with `?dev`, as a small label at the bottom centre.

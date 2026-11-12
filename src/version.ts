@@ -1,14 +1,14 @@
 /** The game version, stamped at build time from the latest git tag (see vite.config.ts). */
 export const VERSION: string = __GAME_VERSION__;
 
-/** Tiny version label over the top edge of the screen, for developers only (?dev). */
+/** Tiny version label at the bottom centre of the screen, just above the home bar, for developers only (?dev). */
 export function mountVersionBadge() {
   const badge = document.createElement('div');
   badge.id = 'version';
   badge.textContent = `v${VERSION}`;
   Object.assign(badge.style, {
     position: 'fixed',
-    top: 'calc(env(safe-area-inset-top, 0px) + 2px)',
+    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 2px)',
     left: '50%',
     transform: 'translateX(-50%)',
     zIndex: '1000',
