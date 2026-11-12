@@ -164,18 +164,18 @@ const es = {
   help: {
     title: 'Cómo jugar',
     slides: [
-      ['Muévete', 'Toca el suelo y el alquimista <b>camina</b> hasta allí.'],
+      ['Muévete', 'Toca el <b>suelo</b>|Tu alquimista camina hasta allí'],
       ['Dibuja un símbolo', 'Traza el símbolo para lanzar|Un símbolo nuevo reemplaza el anterior'],
-      ['Lánzalo', 'Toca al <b>rival</b> para lanzarlo. Toca a tu alquimista para soltarlo.'],
+      ['Lánzalo', 'Toca al <b>rival</b> para lanzarlo|Toca a tu alquimista para soltarlo'],
     ],
     // Pages 2 and 3 with a mouse.
-    desk: ['Traza el símbolo para lanzar|Un símbolo nuevo reemplaza el anterior', 'Haz clic en el <b>rival</b> para lanzarlo. Haz clic en tu alquimista para soltarlo.'],
-    // The two ways to walk, each a short heading and one line: pointing at the map, and the stick or the keys.
+    desk: ['Traza el símbolo para lanzar|Un símbolo nuevo reemplaza el anterior', 'Haz clic en el <b>rival</b> para lanzarlo|Haz clic en tu alquimista para soltarlo'],
+    // The two ways to walk, one step each: pointing at the map, and the stick or the keys.
     moveWays: {
-      tap: ['Toca el mapa', 'Tu alquimista camina hasta donde toques.'],
-      click: ['Haz clic en el mapa', 'Tu alquimista camina hasta donde hagas clic.'],
-      stick: ['Usa el joystick', 'Deja el dedo en el aro y deslízalo.'],
-      keys: ['Usa el teclado', 'Camina con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas.'],
+      tap: 'Toca el <b>mapa</b> para caminar hasta allí',
+      click: 'Haz clic en el <b>mapa</b> para caminar hasta allí',
+      stick: 'O usa el <b>joystick</b>: desliza el dedo en el aro',
+      keys: 'O camina con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas',
     },
     slideOf: (n: number, total: number) => `Paso ${n} de ${total}`,
     pageOf: (n: number, total: number) => `Página ${n} de ${total}`,
@@ -463,16 +463,16 @@ const en: Strings = {
   help: {
     title: 'How to play',
     slides: [
-      ['Move', 'Tap the ground and the alchemist <b>walks</b> there.'],
+      ['Move', 'Tap the <b>ground</b>|Your alchemist walks there'],
       ['Draw a symbol', 'Trace the symbol to cast|A new symbol replaces the last one'],
-      ['Cast it', 'Tap the <b>rival</b> to cast it. Tap your alchemist to drop it.'],
+      ['Cast it', 'Tap the <b>rival</b> to cast it|Tap your alchemist to drop it'],
     ],
-    desk: ['Trace the symbol to cast|A new symbol replaces the last one', 'Click the <b>rival</b> to cast it. Click your alchemist to drop it.'],
+    desk: ['Trace the symbol to cast|A new symbol replaces the last one', 'Click the <b>rival</b> to cast it|Click your alchemist to drop it'],
     moveWays: {
-      tap: ['Tap the map', 'Your alchemist walks to where you tap.'],
-      click: ['Click the map', 'Your alchemist walks to where you click.'],
-      stick: ['Use the joystick', 'Rest your finger on the ring and slide it.'],
-      keys: ['Use the keyboard', 'Walk with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys.'],
+      tap: 'Tap the <b>map</b> to walk there',
+      click: 'Click the <b>map</b> to walk there',
+      stick: 'Or use the <b>joystick</b>: slide your finger on the ring',
+      keys: 'Or walk with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys',
     },
     slideOf: (n: number, total: number) => `Step ${n} of ${total}`,
     pageOf: (n: number, total: number) => `Page ${n} of ${total}`,
