@@ -12,7 +12,7 @@ export interface TimerSource {
 }
 
 /**
- * The time of the match in play, top centre: level with the HUD where the row has room, just under it on phones.
+ * The time of the match in play: top centre, level with the HUD, where the row has room; bottom right on phones.
  * It stops when the match is decided, so it reads the same time the victory card shows.
  */
 export function mountMatchTimer(source: TimerSource) {
