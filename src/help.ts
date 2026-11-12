@@ -59,17 +59,16 @@ const padRing = `<g class="pad"><circle cx="58" cy="178" r="34"/><circle class="
 
 /** A teardrop: the tip, down one side, round the belly and back up. */
 
-const SHAPES: Array<{ kind: ShapeKind; effect?: 'dmg' | 'heal' | 'root'; value: string; source?: 'fire' | 'water' }> = [
-  { kind: 'circle', value: t.help.defence },
-  { kind: 'square', effect: 'dmg', value: '20' },
-  { kind: 'triangle', effect: 'dmg', value: '35', source: 'fire' },
-  { kind: 'triangleDown', effect: 'dmg', value: '35', source: 'water' },
-  { kind: 'rhombus', effect: 'heal', value: '25' },
-  { kind: 'pentagram', effect: 'dmg', value: '5×10' },
-  // The vine's point is holding the target still, not its 5 damage.
-  { kind: 'spiral', effect: 'root', value: '2 s' },
+/** Every shape in the order of the index; fire and water ones show where they get charged. No numbers: players find out how hard each one hits. */
+const SHAPES: Array<{ kind: ShapeKind; source?: 'fire' | 'water' }> = [
+  { kind: 'circle' },
+  { kind: 'square' },
+  { kind: 'triangle', source: 'fire' },
+  { kind: 'triangleDown', source: 'water' },
+  { kind: 'rhombus' },
+  { kind: 'pentagram' },
+  { kind: 'spiral' },
 ];
-const EFFECT = { dmg: t.help.damage, heal: t.help.healing, root: t.help.rooting };
 
 /** What training asks the player to try on the scarecrow: each attack, and any of them from a rune circle. */
 export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
@@ -142,43 +141,41 @@ function guide() {
  * same index; then where fire and water get charged, runes, and how combining works.
  */
 function symbols() {
-  // An index, like the contents of an old grimoire: numeral, the symbol in a fine nib, its name, a dotted leader, its value.
+  // An index, like the contents of an old grimoire: numeral, the symbol in a fine nib, what it does.
   const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
   const shapes = SHAPES.map(
     (s, i) =>
-      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}><span class="rn">${ROMAN[i]}</span>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.names[s.kind]}</b>` +
+      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}><span class="rn">${ROMAN[i]}</span>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.roles[s.kind]}</b>` +
       (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>` : '') +
-      `<span class="lead"></span><span class="val${s.effect ? ` val-${s.effect}` : ' val-def'}">${s.effect === 'heal' ? '+' : ''}${s.value}</span></li>`,
+      `</li>`,
   ).join('');
-  // Two symbols merged in hand: fire + water = the hourglass (blast), the star + fire or water = a fire or water star.
-  const mini = (kind: ShapeKind) => `<span class="mini ${kind}">${shapeIcon(kind, true)}</span>`;
+  // Two symbols merged in hand, drawn as the strokes that make them: fire + water = the blast, the star + fire or water = a fire or water star.
   const combos = (
     [
-      ['triangle', 'triangleDown', 'hourglass', '45'],
-      ['pentagram', 'triangle', 'fireStar', '5×20'],
-      ['pentagram', 'triangleDown', 'waterStar', '5×20'],
+      ['triangle', 'triangleDown', 'hourglass'],
+      ['pentagram', 'triangle', 'fireStar'],
+      ['pentagram', 'triangleDown', 'waterStar'],
     ] as const
   )
     .map(
-      ([a, b, out, value], i) =>
-        `<li${drillClass(out)}><span class="rn">${ROMAN[SHAPES.length + i]}</span>${fig(out, shapeIcon(out, true))}` +
-        `<span class="name"><b>${t.help.names[out]}</b><span class="recipe">${mini(a)}<i>+</i>${mini(b)}</span></span>` +
-        `<span class="lead"></span><span class="val val-dmg">${value}</span></li>`,
+      ([a, b, out], i) =>
+        `<li${drillClass(out)}><span class="rn">${ROMAN[SHAPES.length + i]}</span>` +
+        `<span class="recipe">${fig(a, shapeIcon(a, true))}<i>+</i>${fig(b, shapeIcon(b, true))}<i>=</i>${fig(out, shapeIcon(out, true))}</span>` +
+        `<b>${t.help.roles[out]}</b></li>`,
     )
     .join('');
-  const legend = `<p class="legend"><span class="val-dmg">${EFFECT.dmg}</span> · <span class="val-heal">${EFFECT.heal}</span> · <span class="val-root">${EFFECT.root}</span></p>`;
   const tried = practice ? DRILLS.filter((d) => practice!.has(d)).length : 0;
   const progress = practice
     ? `<p class="training">${tried === DRILLS.length ? t.practice.allDone : t.practice.progress(tried, DRILLS.length)}</p>`
     : '';
   const index =
     `${progress}<ol class="shapes">${shapes}</ol>` +
-    `<h4 class="sep">${t.help.comboTitle}</h4><ol class="shapes combos">${combos}</ol>${legend}`;
+    `<h4 class="sep">${t.help.comboTitle}</h4><ol class="shapes combos">${combos}</ol>` +
+    `<ul class="notes rune-note"><li${drillClass('rune')}><span class="src rune">${runeIcon()}</span><span>${t.help.runesNote}</span></li></ul>`;
   const notes =
     `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
     `<li><span class="src">${flameIcon()}</span><span>${t.help.fireNote}</span></li>` +
-    `<li><span class="src">${dropIcon()}</span><span>${t.help.waterNote}</span></li>` +
-    `<li${drillClass('rune')}><span class="src rune">${runeIcon()}</span><span>${t.help.runesNote}</span></li></ul>` +
+    `<li><span class="src">${dropIcon()}</span><span>${t.help.waterNote}</span></li></ul>` +
     `<h3>${t.help.comboTitle}</h3><p class="combo-note">${t.help.comboNote}</p>`;
   return [index, notes];
 }
