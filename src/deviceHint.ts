@@ -1,5 +1,6 @@
 import { t } from './i18n';
 import { phoneIcon } from './icons';
+import { devHooks } from './devtools';
 
 /** How long the screen must have been free of other notes before the desktop note shows. */
 const CLEAR_MS = 3000;
@@ -68,6 +69,14 @@ export function mountDeviceHint(clear: () => boolean) {
     el.hidden = true;
     if (hint === 'portrait') show('portrait');
     else if (hint === 'touch' && !toldDesktop) waitForClear();
+  };
+  // The dev panel can queue the desktop note again, to test it without a new visit.
+  devHooks.desktopNote = {
+    state: () => (shown !== 'touch' ? null : waiting ? 'queued' : toldDesktop),
+    replay() {
+      toldDesktop = false;
+      if (shown === 'touch') waitForClear();
+    },
   };
   touch.addEventListener('change', update);
   landscape.addEventListener('change', update);

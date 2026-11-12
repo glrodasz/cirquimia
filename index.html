@@ -36,37 +36,6 @@
       #dev-modal { position: fixed; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: rgba(35,50,42,.35); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); touch-action: none; animation: dev-fade .2s ease-out; }
       #dev-modal[hidden] { display: none; }
       @keyframes dev-fade { from { opacity: 0; } }
-      #dev-panel { position: relative; width: min(360px, 100%); max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 0 14px 12px; border-radius: 16px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(20,28,24,.3); font: 400 12.5px/1.35 system-ui, -apple-system, sans-serif; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-      #dev-panel header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; margin: 0 -14px 6px; padding: 10px 10px 8px 14px; font-size: 13.5px; background: var(--hud-solid); border-bottom: 1px solid var(--hud-border); }
-      #dev-panel section { border-top: 1px solid var(--hud-border); padding: 10px 0 4px; }
-      #dev-panel h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
-      #dev-panel h4 { margin: 10px 0 4px; font-size: 11.5px; font-weight: 600; }
-      #dev-panel button { font: inherit; color: inherit; background: transparent; border: 1px solid var(--hud-border); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
-      #dev-panel button:hover { border-color: currentColor; }
-      #dev-panel button:focus-visible, #dev-panel input:focus-visible, #dev-gear:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
-      #dev-panel .dev-close { border: 0; font-size: 20px; line-height: 1; padding: 2px 8px; }
-      #dev-panel .dev-primary { width: 100%; padding: 9px 10px; font-weight: 600; background: #3f5a57; color: #f1f5f2; border-color: #3f5a57; margin-bottom: 8px; }
-      #dev-panel .dev-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
-      #dev-panel .dev-row input[type=text] { flex: 1; min-width: 0; font: 500 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: inherit; background: transparent; border: 1px solid var(--hud-border); border-radius: 8px; padding: 6px 8px; }
-      #dev-panel .dev-stats { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 6px 0; }
-      #dev-panel .dev-stats dt { opacity: .75; }
-      #dev-panel .dev-stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
-      #dev-panel .dev-ok { color: #3f8a5c; }
-      #dev-panel .dev-warn { color: #c0562f; }
-      #dev-panel ul { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
-      #dev-panel .dev-mat { display: inline-block; min-width: 54px; margin-right: 6px; font-weight: 600; }
-      #dev-panel .dev-roca { color: #6f7b7e; } #dev-panel .dev-tierra { color: #8a7454; } #dev-panel .dev-agua { color: #3f7f8f; }
-      #dev-panel .dev-fuego { color: #c0562f; } #dev-panel .dev-magia { color: #3d9a8a; } #dev-panel .dev-restos { color: #7a6656; }
-      #dev-panel .dev-note { margin: 4px 0; opacity: .7; font-size: 11.5px; }
-      #dev-panel .dev-slider { display: grid; grid-template-columns: 1fr 96px 38px; gap: 8px; align-items: center; margin: 3px 0; }
-      #dev-panel .dev-slider input { width: 100%; accent-color: #3f5a57; }
-      #dev-panel .dev-slider output { text-align: right; font-variant-numeric: tabular-nums; }
-      #dev-panel .dev-row > label { min-width: 62px; }
-      #dev-panel .dev-toggle { flex: 1; padding: 6px 4px; }
-      #dev-panel .dev-toggle[aria-pressed="true"], #dev-panel .dev-toggle[aria-current="page"] { background: #3f5a57; color: #f1f5f2; border-color: #3f5a57; }
-      #dev-panel a.dev-toggle { color: inherit; text-align: center; text-decoration: none; border: 1px solid var(--hud-border); border-radius: 8px; }
-      #dev-panel a.dev-toggle:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
-      #dev-panel .dev-check { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
       #match { position: fixed; top: var(--edge-top); left: max(12px, env(safe-area-inset-left)); display: flex; gap: 8px; z-index: 3; }
       .match-btn { display: flex; align-items: center; gap: 4px; height: 40px; box-sizing: border-box; padding: 0 12px 0 4px; border: 0; border-radius: 999px; background: var(--hud-bg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 8px rgba(20,28,24,.16); color: var(--hud-fg); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; font: 600 13px/1 system-ui, -apple-system, sans-serif; white-space: nowrap; transition: box-shadow .15s, transform .15s; }
       #match.snug { gap: 6px; }
@@ -449,8 +418,6 @@
       .has-pad #tutorial .tip { bottom: calc(var(--edge-bottom) + 132px); }
       #fps { position: fixed; top: calc(var(--edge-top) + 50px); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
       #fps[hidden] { display: none; }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; } }
-      :root[data-theme="dark"] #dev-panel .dev-primary { background: #9fbcb4; color: #14201c; border-color: #9fbcb4; }
       #ink { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
       /* The HUD buttons sit along the bottom, kept well clear of the edge, where iOS/iPadOS reserve the swipe-up
          home gesture. Tablets get more room. */
@@ -610,16 +577,71 @@
       #help .turn button { color: var(--g-ink); text-shadow: none; font: 500 19px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; }
       #help .turn .go { color: var(--g-red); }
       /* The foot of the book: its two sections as tabs on the left, the language on the right. */
-      #help .foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -6px; padding: 6px 0 10px; border-top: 1px solid rgba(31,26,21,.35); }
-      #help .foot :is(.tabs, .langs) { display: flex; }
-      #help .foot :is(.tab, .lang) { display: grid; place-items: center; min-height: 40px; padding: 0 10px; border: 1px solid rgba(31,26,21,.45); background: transparent; color: var(--g-ink); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; white-space: nowrap; text-decoration: none; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-      #help .foot :is(.tab, .lang) + :is(.tab, .lang) { border-left: 0; }
-      #help .foot .lang { min-width: 40px; padding: 0 8px; font-variant-caps: normal; font-size: 15px; letter-spacing: .08em; }
-      #help .foot [aria-current] { background: var(--g-red); border-color: var(--g-red); color: var(--g-paper); cursor: default; }
-      #help .foot .lang[aria-current] { background: var(--g-ink); border-color: var(--g-ink); }
-      #help .foot :is(.tab, .lang):not([aria-current]):active { background: rgba(31,26,21,.08); }
-      @media (hover: hover) { #help .foot :is(.tab, .lang):not([aria-current]):hover { background: rgba(31,26,21,.06); } }
-      @media (max-width: 360px) { #help .foot :is(.tab, .lang) { padding: 0 7px; font-size: 15px; } #help .foot .lang { min-width: 34px; font-size: 13px; } }
+      /* Book divider tabs: the sections hang below the sheet's bottom edge. The open one is the same paper as the
+         sheet and runs on from it; the others sit a little behind, darker, shaded where the sheet overlaps them
+         and where each tab tucks under its neighbour. Used by the book and the dev panel. */
+      #help .book { margin-bottom: 46px; max-height: calc(100% - 46px); }
+      #help .foot, #dev-panel .dev-foot { position: absolute; top: 100%; left: 18px; right: 18px; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0; padding: 0; border: 0; pointer-events: none; }
+      :is(#help .foot, #dev-panel .dev-foot) :is(.tabs, .langs) { display: flex; align-items: flex-start; pointer-events: auto; }
+      :is(#help .foot, #dev-panel .dev-foot) :is(.tab, .lang) { position: relative; display: grid; place-items: center; box-sizing: border-box; min-height: 0; height: 40px; margin: 0; padding: 2px 14px 0; border: 1px solid rgba(31,26,21,.5); border-top: 0; border-radius: 0 0 3px 3px; background: linear-gradient(180deg, rgba(31,26,21,.32), rgba(31,26,21,.1) 5px, transparent 13px), #e4d9c0; color: var(--g-soft); box-shadow: 0 5px 7px -3px rgba(0,0,0,.45); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; white-space: nowrap; text-decoration: none; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      :is(#help .foot, #dev-panel .dev-foot) :is(.tab, .lang) + :is(.tab, .lang):not([aria-current]) { margin-left: -2px; background: linear-gradient(180deg, rgba(31,26,21,.32), rgba(31,26,21,.1) 5px, transparent 13px), linear-gradient(90deg, rgba(31,26,21,.2), transparent 8px), #e4d9c0; }
+      :is(#help .foot, #dev-panel .dev-foot) :is(.tab, .lang) + [aria-current] { margin-left: -2px; }
+      #help .foot .lang { min-width: 40px; padding: 2px 9px 0; font-variant-caps: normal; font-size: 14px; letter-spacing: .08em; }
+      :is(#help .foot, #dev-panel .dev-foot) [aria-current] { z-index: 2; height: 47px; margin-top: -7px; padding-top: 9px; background: var(--g-paper); border-color: var(--g-ink); color: var(--g-red); box-shadow: 0 6px 9px -3px rgba(0,0,0,.5); cursor: default; }
+      :is(#help .foot, #dev-panel .dev-foot) .lang[aria-current] { color: var(--g-ink); font-weight: 600; }
+      :is(#help .foot, #dev-panel .dev-foot) :is(.tab, .lang):not([aria-current]):active { background: #ece3cd; }
+      @media (hover: hover) { :is(#help .foot, #dev-panel .dev-foot) :is(.tab, .lang):not([aria-current]):hover { color: var(--g-ink); background: linear-gradient(180deg, rgba(31,26,21,.28), rgba(31,26,21,.08) 5px, transparent 13px), #ece3cd; } }
+      @media (max-width: 360px) { :is(#help .foot, #dev-panel .dev-foot) :is(.tab, .lang) { padding: 2px 9px 0; font-size: 15px; } #help .foot .lang { min-width: 32px; padding: 2px 6px 0; font-size: 13px; } }
+      /* The dev panel is a grimoire sheet too: red title over a double rule, small caps, square ink controls. */
+      #dev-modal { background: rgba(14,20,16,.55); backdrop-filter: none; -webkit-backdrop-filter: none; }
+      #dev-panel { position: relative; display: flex; flex-direction: column; width: min(420px, 100%); height: min(700px, calc(100% - 46px)); margin-bottom: 46px; box-sizing: border-box; padding: 0 18px; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), var(--g-lift); font: 400 17px/1.3 var(--g-font); font-variant-numeric: lining-nums; touch-action: pan-y; }
+      #dev-panel::before, #dev-panel::after { content: ''; position: absolute; width: 9px; height: 9px; background: var(--g-red); transform: rotate(45deg); pointer-events: none; }
+      #dev-panel::before { left: -4px; top: -4px; } #dev-panel::after { right: -4px; bottom: -4px; }
+      #dev-panel h2 { flex: none; margin: 0 -6px; padding: 18px 40px 10px; color: var(--g-red); font: 500 clamp(21px, 6vw, 26px)/1.1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .08em; text-align: center; border-bottom: 1px solid var(--g-ink); box-shadow: 0 2px 0 var(--g-paper), 0 2.6px 0 rgba(31,26,21,.6); }
+      #dev-panel .dev-close { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--g-soft); font: 300 30px/1 var(--g-font); cursor: pointer; }
+      #dev-panel .dev-body { flex: 1; min-height: 0; overflow-y: auto; margin: 6px -18px 0; padding: 6px 22px 18px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+      #dev-panel .dev-page[hidden] { display: none; }
+      #dev-panel section { padding: 10px 0 4px; }
+      #dev-panel h3 { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; color: var(--g-red); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .12em; }
+      #dev-panel h3::after { content: ''; flex: 1; height: 1px; background: var(--g-ink); opacity: .4; }
+      #dev-panel h4 { margin: 12px 0 4px; font: italic 500 16px/1.2 var(--g-font); color: var(--g-soft); }
+      #dev-panel button, #dev-panel a.dev-toggle { box-sizing: border-box; min-height: 36px; padding: 4px 12px; border: 1px solid rgba(31,26,21,.55); border-radius: 0; background: transparent; color: var(--g-ink); font: 500 16px/1.1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .04em; text-align: center; text-decoration: none; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      @media (hover: hover) { #dev-panel button:not(.tab):not(.dev-close):hover { background: rgba(31,26,21,.06); } }
+      #dev-panel :is(button, a, input, summary):focus-visible, #dev-gear:focus-visible { outline: 2px solid var(--g-red); outline-offset: 2px; }
+      #dev-panel .dev-primary { width: 100%; min-height: 46px; margin: 4px 0 10px; border: 0; background: var(--g-red); color: var(--g-paper); box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7); font-size: 19px; letter-spacing: .08em; }
+      @media (hover: hover) { #dev-panel .dev-primary:hover { background: #8e2017; } }
+      #dev-panel .dev-wide { width: 100%; margin-top: 12px; }
+      #dev-panel .dev-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+      #dev-panel .dev-row > label { min-width: 70px; font-style: italic; color: var(--g-soft); }
+      #dev-panel .dev-row input[type=text] { flex: 1; min-width: 0; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid rgba(31,26,21,.55); border-radius: 0; background: #fbf7ec; color: var(--g-ink); font: 500 15px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      #dev-panel .dev-toggle { flex: 1; padding: 4px 4px; }
+      #dev-panel .dev-toggle + .dev-toggle { margin-left: -7px; }
+      #dev-panel .dev-toggle[aria-pressed="true"], #dev-panel .dev-toggle[aria-current="page"] { background: var(--g-ink); border-color: var(--g-ink); color: var(--g-paper); }
+      #dev-panel #tilt { position: static; height: 36px; }
+      #dev-panel .dev-check { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
+      #dev-panel input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--g-red); }
+      #dev-panel .dev-note { margin: 2px 0 10px; font-size: 15px; font-style: italic; color: var(--g-soft); }
+      #dev-panel .dev-fold { margin-top: 10px; border-top: 1px solid rgba(31,26,21,.4); border-bottom: 1px solid rgba(31,26,21,.4); }
+      #dev-panel .dev-fold > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--g-red); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .1em; list-style: none; cursor: pointer; }
+      #dev-panel .dev-fold > summary::-webkit-details-marker { display: none; }
+      #dev-panel .dev-fold > summary::before { content: ''; width: 0; height: 0; border: 5px solid transparent; border-left: 7px solid var(--g-red); border-right: 0; transition: transform .2s; }
+      #dev-panel .dev-fold[open] > summary::before { transform: rotate(90deg); }
+      #dev-panel .dev-fold[open] { padding-bottom: 14px; }
+      #dev-panel .dev-slider { display: grid; grid-template-columns: 1fr 104px 40px; gap: 8px; align-items: center; margin: 2px 0; font-size: 16px; }
+      #dev-panel .dev-slider input { width: 100%; accent-color: var(--g-red); }
+      #dev-panel .dev-slider output, #dev-panel .dev-stats dd { text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+      #dev-panel .dev-stats { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 0 0 8px; }
+      #dev-panel .dev-stats dt { font-style: italic; color: var(--g-soft); }
+      #dev-panel .dev-stats dd { margin: 0; font-weight: 600; }
+      #dev-panel .dev-ok { color: var(--g-green); } #dev-panel .dev-warn { color: var(--g-red); }
+      #dev-panel ul { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+      #dev-panel .dev-mat { display: inline-block; min-width: 76px; margin-right: 6px; font-weight: 500; font-variant-caps: small-caps; letter-spacing: .04em; }
+      #dev-panel .dev-roca { color: #5d6668; } #dev-panel .dev-tierra { color: #7a5f3c; } #dev-panel .dev-agua { color: #2f6878; }
+      #dev-panel .dev-fuego { color: var(--g-red); } #dev-panel .dev-magia { color: #2f7a6c; } #dev-panel .dev-restos { color: #6a5546; }
+      #dev-panel .dev-flag { display: flex; align-items: center; gap: 6px; padding: 7px 0; border-bottom: 1px dotted rgba(31,26,21,.35); }
+      #dev-panel .dev-flag-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
+      #dev-panel .dev-flag-text i { font-size: 14px; color: var(--g-soft); overflow-wrap: anywhere; }
+      #dev-panel .dev-flag button { flex: none; min-height: 34px; padding: 2px 10px; font-size: 15px; }
       #help .turn .go.seal .cap { min-height: 44px; padding: 0 22px; border-radius: 0; background: var(--g-red); color: var(--g-paper); text-shadow: none; box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7); }
       #help .folio { color: var(--g-red); opacity: 1; font: italic 500 17px/1 var(--g-font); letter-spacing: .04em; }
       /* The symbols manual as a grimoire index. */
