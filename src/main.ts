@@ -235,13 +235,15 @@ const matchHud = mountMatchControls({
   restart: () => dev.newMeadow(),
 });
 hudReady = true;
-// The running time of a real match (not training, not the tutorial), stopped when it is decided.
+// The running time of a real match (not training, not the tutorial's match), stopped when it is decided. The tutorial's
+// whole match stays untimed, even after its last lesson: its notes take the timer's spot on phones.
+let tutorialMatch = !tutorial.done;
 const matchTimer = mountMatchTimer({
   get elapsedMs() {
     return combat.elapsedMs;
   },
   get timed() {
-    return combat.rivalCount > 0 && tutorial.done;
+    return combat.rivalCount > 0 && tutorial.done && !tutorialMatch;
   },
   get over() {
     return combat.over;
@@ -260,6 +262,7 @@ const hudFade = mountHudFade({
 let rankedMatch = false;
 combat.onStart = () => {
   hudFade.reset();
+  tutorialMatch = !tutorial.done;
   rankedMatch = combat.rivalCount > 0 && tutorial.done && !DEV;
   runs.start(combat.rivalCount, combat.difficulty, rankedMatch);
 };
