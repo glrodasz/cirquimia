@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { defineConfig, type Plugin } from 'vite';
 import { pageLocale, type Locale } from './src/i18n/locale';
 import { seoFor } from './src/i18n/seo';
@@ -38,8 +39,27 @@ function localizedPages(): Plugin {
   };
 }
 
+/**
+ * The game version comes from the latest release tag that semantic-release created (v0.3.1 -> "0.3.1").
+ * Builds after that tag carry the distance and commit too ("0.3.1-4-gabc1234"); GAME_VERSION overrides it.
+ */
+function gameVersion() {
+  if (process.env.GAME_VERSION) return process.env.GAME_VERSION;
+  const git = (cmd: string) => execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  try {
+    return git('git describe --tags --match "v[0-9]*"').replace(/^v/, '');
+  } catch {
+    try {
+      return `0.0.0-${git('git rev-parse --short HEAD')}`;
+    } catch {
+      return '0.0.0-dev';
+    }
+  }
+}
+
 export default defineConfig({
   base: './',
+  define: { __GAME_VERSION__: JSON.stringify(gameVersion()) },
   // One bundle: boot.ts imports the game lazily (only once the GPU check passes) but it ships in the same file.
   build: { target: 'es2022', chunkSizeWarningLimit: 900, rollupOptions: { output: { inlineDynamicImports: true } } },
   plugins: [localizedPages()],

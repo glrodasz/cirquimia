@@ -4,6 +4,7 @@ import { World } from './world';
 import { DEV, mountDevTools, savedQuality } from './devtools';
 import { mountMatchControls, savedRivals } from './match';
 import { mountMatchTimer } from './matchTimer';
+import { mountVersionBadge } from './version';
 import { mountHudFade } from './hudFade';
 import { mountHelp } from './help';
 import { Tutorial } from './tutorial';
@@ -213,6 +214,7 @@ const dev = mountDevTools(
     },
   },
 );
+if (DEV) mountVersionBadge();
 
 // Rivals and difficulty live in the HUD, bottom left; any change restarts the match, and every new match is a new meadow.
 const matchHud = mountMatchControls({
