@@ -25,7 +25,6 @@ let marker: AudioBuffer;
 let cracks: AudioBuffer[] = [];
 let roars: AudioBuffer[] = [];
 let pops: AudioBuffer[] = [];
-let tears: AudioBuffer[] = [];
 let splashes: AudioBuffer[] = [];
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
@@ -74,7 +73,6 @@ function unlock() {
     cracks = [0, 1, 2].map(() => groundCrack(ctx!));
     roars = [0, 1, 2].map(() => flameRoar(ctx!));
     pops = [0, 1, 2].map(() => emberPops(ctx!));
-    tears = [0, 1, 2].map(() => groundTear(ctx!));
     splashes = [0, 1, 2].map(() => waterSplash(ctx!));
     startMeadow();
   }
@@ -205,6 +203,29 @@ function tone(dest: AudioNode, t: number, length: number, type: OscillatorType, 
   o.stop(t + length + 0.05);
 }
 
+/**
+ * A body landing: a sine that drops in pitch, hits at once, holds for a moment and then dies away fast
+ * (`decay` is the time constant, s), with nothing ringing after it.
+ */
+function thud(dest: AudioNode, t: number, from: number, to: number, peak: number, decay: number) {
+  const c = ctx!;
+  const o = c.createOscillator();
+  o.frequency.setValueAtTime(from, t);
+  o.frequency.exponentialRampToValueAtTime(to, t + 0.25);
+  const g = c.createGain();
+  const hold = t + 0.004 + decay * 0.4;
+  const end = hold + decay * 5;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.004);
+  g.gain.setValueAtTime(peak, hold);
+  g.gain.setTargetAtTime(0, hold, decay);
+  g.gain.setValueAtTime(peak * Math.exp(-5), end);
+  g.gain.linearRampToValueAtTime(0, end + 0.03);
+  o.connect(g).connect(dest);
+  o.start(t);
+  o.stop(end + 0.05);
+}
+
 // ---------------------------------------------------------------- the ink
 
 /**
@@ -311,38 +332,6 @@ function groundCrack(c: BaseAudioContext) {
   return buffer;
 }
 
-/**
- * The ground tearing open: a low, grinding groan made of slow, uneven swells of dark noise, with clods breaking
- * off inside it. Played slow and low-passed it is felt more than heard.
- */
-function groundTear(c: BaseAudioContext) {
-  const rate = c.sampleRate;
-  const length = 1.3;
-  const buffer = c.createBuffer(1, Math.floor(rate * length), rate);
-  const data = buffer.getChannelData(0);
-  let low = 0;
-  let swell = 1;
-  let target = 1;
-  let next = 0;
-  for (let i = 0; i < data.length; i++) {
-    const t = i / rate;
-    if (t >= next) {
-      target = 0.3 + Math.random() * 0.7;
-      next = t + 0.04 + Math.random() * 0.12;
-    }
-    swell += (target - swell) * 0.001;
-    low += 0.08 * (Math.random() * 2 - 1 - low);
-    const env = Math.min(1, t / 0.05) * Math.exp(-Math.max(0, t - 0.15) / 0.3);
-    data[i] = low * 4 * env * swell;
-  }
-  // Clods breaking off: soft, dull knocks (long, low grains) through the tear.
-  for (let t = 0.02; t < 0.5; ) {
-    t += -Math.log(1 - Math.random()) / (30 * Math.exp(-t / 0.2) + 5);
-    grain(data, rate, t, 0.008 + Math.random() * 0.015, 0.2 + Math.random() * 0.25);
-  }
-  return buffer;
-}
-
 /** A flare: a roar that bursts in, flutters as the flame licks and dies down, with no tone in it at all. */
 function flameRoar(c: BaseAudioContext) {
   const rate = c.sampleRate;
@@ -378,20 +367,36 @@ function emberPops(c: BaseAudioContext) {
   return buffer;
 }
 
-/** Water thrown hard: a wet burst, then smaller splashes as it falls back, then drips. */
+/**
+ * Water hit hard: a slap on the surface, then the spray falling back for most of a second (hundreds of small
+ * splashes, densest half a second in), then a thin trickle.
+ */
 function waterSplash(c: BaseAudioContext) {
   const rate = c.sampleRate;
-  const buffer = c.createBuffer(1, Math.floor(rate * 1), rate);
+  const buffer = c.createBuffer(1, Math.floor(rate * 2), rate);
   const data = buffer.getChannelData(0);
+  // Each splash is softened (two one-pole low-passes, about 4 kHz): water has no sizzle on top.
   const burst = (at: number, decay: number, peak: number) => {
     const start = Math.floor(at * rate);
+    let a = 0;
+    let b = 0;
     for (let k = 0; start + k < data.length && k < rate * decay * 5; k++) {
       const t = k / rate;
-      data[start + k] += (Math.random() * 2 - 1) * peak * Math.min(1, t / 0.004) * Math.exp(-t / decay);
+      a += 0.45 * (Math.random() * 2 - 1 - a);
+      b += 0.45 * (a - b);
+      data[start + k] += b * 2 * peak * Math.min(1, t / 0.004) * Math.exp(-t / decay);
     }
   };
-  burst(0, 0.11, 1);
-  for (let i = 0; i < 6; i++) burst(0.08 + Math.random() * 0.4, 0.02 + Math.random() * 0.03, 0.15 + Math.random() * 0.3);
+  burst(0, 0.03, 0.8);
+  for (let t = 0.3; t < 1.4; ) {
+    const fade = Math.exp(-Math.max(0, t - 0.5) / 0.5);
+    t += -Math.log(1 - Math.random()) / (140 * fade + 10);
+    burst(t, 0.01 + Math.random() * 0.04, (0.12 + Math.random() * 0.3) * fade * Math.min(1, (t - 0.3) / 0.15));
+  }
+  for (let t = 1.1; t < 1.95; ) {
+    t += -Math.log(1 - Math.random()) / 30;
+    burst(t, 0.005 + Math.random() * 0.015, 0.05 + Math.random() * 0.08);
+  }
   return buffer;
 }
 
@@ -471,12 +476,13 @@ export function strike(element: Element, at: Where) {
   const t = ctx!.currentTime;
   const o = out(0.75, at);
   const ground = (gain: number) => {
-    // The earth opening: a deep grinding groan that swells in with the crack muffled inside it. One layer of each, no
-    // repeats: a second crack a moment later read as an echo.
-    texture(o, t, pick(tears), { type: 'lowpass', from: 700, to: 260, at: 0.9, q: 0.8 }, 1.1 * gain, 0.7);
-    texture(o, t + 0.02, pick(cracks), { type: 'lowpass', from: 1800, to: 500, at: 0.5 }, 0.55 * gain, 0.7, 0.5);
-    tone(o, t, 0.7, 'sine', 62, 38, 0.35 * gain, 0.04);
-    hiss(o, t, 0.5, { type: 'lowpass', from: 220, to: 90, q: 0.7 }, { attack: 0.04, peak: 0.55 * gain });
+    // A heavy stomp, dry: a deep thud whose pitch drops as it lands, an octave above it so phone speakers carry it,
+    // and a short crunch of earth on top. All of it is gone in half a second: the groan and the falling debris that
+    // used to follow read as echo.
+    thud(o, t, 74, 34, 1.1 * gain, 0.09);
+    thud(o, t, 150, 70, 0.4 * gain, 0.045);
+    hiss(o, t, 0.16, { type: 'lowpass', from: 1800, to: 250, q: 0.7 }, { attack: 0.003, peak: 0.6 * gain });
+    texture(o, t, pick(cracks), { type: 'lowpass', from: 2400, to: 700, at: 0.14 }, 0.45 * gain, 0.85, 0.15);
   };
   const flare = (gain: number) => {
     // Fwoomp: the flame catching, a soft low gust of air.
@@ -491,11 +497,16 @@ export function strike(element: Element, at: Where) {
     texture(o, t + 0.5, pick(pops), { type: 'highpass', from: 2200 }, 0.25 * gain, 1.2);
   };
   const splash = (gain: number) => {
-    texture(o, t, pick(splashes), { type: 'bandpass', from: 2600, to: 1100, at: 0.5, q: 0.6 }, 1.1 * gain);
-    for (let i = 0; i < 4; i++) {
-      const drop = t + 0.15 + Math.random() * 0.45;
-      const f = 500 + Math.random() * 700;
-      tone(o, drop, 0.05, 'sine', f, f * 2.4, 0.18 * gain);
+    // The slap and the spray falling back, kept in the middle of the range with nothing hissing on top.
+    texture(o, t, pick(splashes), { type: 'bandpass', from: 1700, to: 1100, at: 1.5, q: 0.5 }, 2 * gain);
+    // The plunge: a deep whomp as the water swallows the blow.
+    thud(o, t + 0.1, 70, 40, 0.8 * gain, 0.12);
+    hiss(o, t + 0.1, 0.4, { type: 'lowpass', from: 300, to: 120, q: 0.7 }, { attack: 0.03, peak: 0.45 * gain });
+    // A couple of bubbles in the trickle.
+    for (let i = 0; i < 2; i++) {
+      const drop = t + 0.9 + Math.random() * 0.6;
+      const f = 600 + Math.random() * 500;
+      tone(o, drop, 0.04, 'sine', f, f * 1.6, 0.07 * gain);
     }
   };
   switch (element) {
@@ -510,7 +521,7 @@ export function strike(element: Element, at: Where) {
       break;
     case 'water':
     case 'waterStar':
-      ground(0.45);
+      ground(0.3);
       splash(1);
       break;
     case 'blast':
