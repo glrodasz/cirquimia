@@ -1,15 +1,26 @@
 /**
- * Every sound in the game, synthesized with Web Audio at play time: no files to load and no licences to track.
+ * Every sound in the game is synthesized with Web Audio at play time, except the earth, fire and water strikes and
+ * healing, which are short recorded clips Guillermo picked (src/assets/sfx, from Pixabay's free sound library); until they have
+ * loaded, or if they fail to, the synthesized versions play instead.
  * Effects are short shaped noise and tones (marker, stone, flame, splash, chimes); underneath, a very quiet meadow:
  * wind in gusts and a bird now and then. Nothing plays until the first touch or key (browsers require a
  * gesture), and the on/off choice is kept between visits.
  */
 
 import type { Element } from './spells';
+import earthClip from './assets/sfx/earth.mp3';
+import fireClip from './assets/sfx/fire.mp3';
+import waterClip from './assets/sfx/water.mp3';
+import healClip from './assets/sfx/heal.mp3';
 
 const KEY = 'cirquimia.sound';
 const SFX_LEVEL = 0.8;
 const AMBIENCE_LEVEL = 0.5;
+/** Levels of the recorded clips, matched in loudness to the synthesized strikes they replace. */
+const EARTH_CLIP = 1;
+const FIRE_CLIP = 1;
+const WATER_CLIP = 0.5;
+const HEAL_CLIP = 1;
 
 type Where = { x: number; z: number };
 /** Screen pan (-1 left … 1 right) and loudness (0 … 1) for a point in the meadow, set by the scene. */
@@ -27,6 +38,8 @@ let rocks: AudioBuffer[] = [];
 let roars: AudioBuffer[] = [];
 let pops: AudioBuffer[] = [];
 let splashes: AudioBuffer[] = [];
+type Clip = 'earth' | 'fire' | 'water' | 'heal';
+const clips: Partial<Record<Clip, AudioBuffer>> = {};
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
 let ambienceTimer = 0;
@@ -76,9 +89,37 @@ function unlock() {
     roars = [0, 1, 2].map(() => flameRoar(ctx!));
     pops = [0, 1, 2].map(() => emberPops(ctx!));
     splashes = [0, 1, 2].map(() => waterSplash(ctx!));
+    loadClips(ctx);
     startMeadow();
   }
   wake();
+}
+
+/** Fetches and decodes the recorded clips in the background; a clip that fails just leaves its synth in place. */
+function loadClips(c: AudioContext) {
+  const urls = { earth: earthClip, fire: fireClip, water: waterClip, heal: healClip };
+  for (const [name, url] of Object.entries(urls) as [Clip, string][]) {
+    fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((data) => c.decodeAudioData(data))
+      .then((buffer) => (clips[name] = buffer))
+      .catch(() => {});
+  }
+}
+
+/** Plays a recorded clip at `t`, slightly varied in pitch so repeats don't sound identical; false if not loaded. */
+function clip(name: Clip, dest: AudioNode, t: number, gain: number) {
+  const buffer = clips[name];
+  if (!buffer) return false;
+  const c = ctx!;
+  const src = c.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = 0.95 + Math.random() * 0.1;
+  const g = c.createGain();
+  g.gain.value = gain;
+  src.connect(g).connect(dest);
+  src.start(t);
+  return true;
 }
 
 /**
@@ -521,6 +562,7 @@ export function strike(element: Element, at: Where) {
   const t = ctx!.currentTime;
   const o = out(0.75, at);
   const ground = (gain: number) => {
+    if (gain >= 1 && clip('earth', o, t, EARTH_CLIP)) return;
     // Rocks crumbling: the ground gives way with a short, deep thud and stones clatter off it.
     // No rolling rumble and no ringing: both made it sound like thunder, or like an echo. Under fire or water
     // (gain < 1) the stones fall back faster than the thud, so they don't clutter the flame or the splash.
@@ -529,6 +571,7 @@ export function strike(element: Element, at: Where) {
     thud(o, t, 140, 75, 0.3 * gain, 0.03);
   };
   const flare = (gain: number) => {
+    if (clip('fire', o, t, FIRE_CLIP * gain)) return;
     // The flame bursting up: a dark, flickering whoosh with its weight low down, a little brighter at the start.
     texture(o, t, pick(roars), { type: 'lowpass', from: 1600, to: 600, at: 0.8, q: 0.5 }, 1.3 * gain);
     // The air it pulls in: a soft low gust underneath.
@@ -537,6 +580,7 @@ export function strike(element: Element, at: Where) {
     texture(o, t, pick(pops), { type: 'highpass', from: 2000 }, 0.3 * gain, 1, 0.5);
   };
   const splash = (gain: number) => {
+    if (clip('water', o, t, WATER_CLIP * gain)) return;
     // The slap and the spray falling back, kept in the middle of the range with nothing hissing on top.
     texture(o, t, pick(splashes), { type: 'bandpass', from: 1700, to: 1100, at: 1.5, q: 0.5 }, 2 * gain);
     // The plunge: a deep whomp as the water swallows the blow.
@@ -556,12 +600,13 @@ export function strike(element: Element, at: Where) {
       break;
     case 'fire':
     case 'fireStar':
-      ground(0.45);
+      // The recorded clips already have their impact in them; the synth ones get the ground under them.
+      if (!clips.fire) ground(0.45);
       flare(1);
       break;
     case 'water':
     case 'waterStar':
-      ground(0.3);
+      if (!clips.water) ground(0.3);
       splash(1);
       break;
     case 'blast':
@@ -619,6 +664,7 @@ export function healChord(at: Where) {
   if (!ready('heal', 0.2)) return;
   const t = ctx!.currentTime;
   const o = out(0.35, at);
+  if (clip('heal', o, t, HEAL_CLIP)) return;
   for (const [i, n] of [5, 7, 9].entries()) tone(o, t + i * 0.06, 1.2, 'sine', note(n), note(n), 0.35, 0.15);
 }
 
