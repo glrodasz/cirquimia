@@ -335,52 +335,39 @@ function groundCrack(c: BaseAudioContext) {
 }
 
 /**
- * Rocks crumbling: stones of every size knocking as they break away and tumble (each a short burst ringing at its
- * own pitch, bigger and lower first), gravel trickling between them and a low rolling rumble underneath. Every knock
- * is different and they thin out steadily, so it reads as one collapse, never as an echo.
+ * Rocks crumbling: stones clattering against each other in dry clacks (no ringing, no rolling rumble), about
+ * half a second of it.
  */
 function rockfall(c: BaseAudioContext) {
   const rate = c.sampleRate;
-  const length = 1.1;
+  const length = 0.8;
   const buffer = c.createBuffer(1, Math.floor(rate * length), rate);
   const data = buffer.getChannelData(0);
-  const knock = (at: number, freq: number, decay: number, peak: number) => {
+  // A stone hitting stone: a dry click a few milliseconds long, brighter for small ones, with a little body.
+  const clack = (at: number, size: number, peak: number) => {
     const start = Math.floor(at * rate);
-    const r = Math.exp(-1 / (decay * rate));
-    const a1 = 2 * r * Math.cos((2 * Math.PI * freq) / rate);
-    const a2 = -r * r;
-    const hit = Math.floor(0.003 * rate);
-    let y1 = 0;
-    let y2 = 0;
-    for (let k = 0; start + k < data.length && k < decay * rate * 6; k++) {
-      const x = k < hit ? (Math.random() * 2 - 1) * (1 - k / hit) : 0;
-      const y = x + a1 * y1 + a2 * y2;
-      y2 = y1;
-      y1 = y;
-      data[start + k] += y * (1 - r) * 6 * peak;
+    const n = Math.floor((0.002 + size * 0.006) * rate);
+    const smooth = 0.9 - size * 0.6;
+    let v = 0;
+    for (let k = 0; k < n && start + k < data.length; k++) {
+      v += smooth * (Math.random() * 2 - 1 - v);
+      data[start + k] += v * peak * Math.exp((-4 * k) / n);
     }
   };
-  // The rumble of the mass giving way, rolling unevenly and dying out.
-  let low = 0;
-  let roll = 1;
-  for (let i = 0; i < data.length; i++) {
-    const t = i / rate;
-    if (i % 600 === 0) roll = 0.5 + Math.random() * 0.5;
-    low += 0.03 * (Math.random() * 2 - 1 - low);
-    data[i] += low * 3 * roll * Math.min(1, t / 0.01) * Math.exp(-t / 0.35);
-  }
-  // Stones: dozens per second at first, the big ones early.
-  for (let t = 0; t < 0.95; ) {
-    const fade = Math.exp(-t / 0.4);
-    t += -Math.log(1 - Math.random()) / (70 * fade + 8);
-    const size = Math.random() * fade;
-    knock(t, 1800 - size * 1500 + Math.random() * 300, 0.012 + size * 0.04, (0.25 + size * 0.75) * (0.3 + 0.7 * fade));
-  }
-  // Gravel: fine grit trickling all through it.
-  for (let t = 0; t < 1; ) {
-    const fade = Math.exp(-t / 0.25);
-    t += -Math.log(1 - Math.random()) / (400 * fade + 20);
-    grain(data, rate, t, 0.0005 + Math.random() * 0.0015, (0.05 + Math.random() * 0.15) * fade);
+  // One continuous clatter, never a gap: a second burst after a silence is exactly what an echo sounds like. It
+  // surges unevenly (stones catching and letting go) and the stones get smaller as it settles.
+  const end = 0.35 + Math.random() * 0.15;
+  let surge = 1;
+  let next = 0;
+  for (let t = 0; t < end; ) {
+    if (t >= next) {
+      surge = 0.35 + Math.random() * 0.65;
+      next = t + 0.03 + Math.random() * 0.05;
+    }
+    t += -Math.log(1 - Math.random()) / (60 + 200 * surge);
+    const settle = 1 - t / end;
+    const size = Math.random() ** 2 * (0.3 + 0.7 * settle);
+    clack(t, size, (0.3 + size * 0.7) * (0.4 + 0.6 * settle) * surge);
   }
   return buffer;
 }
@@ -534,12 +521,12 @@ export function strike(element: Element, at: Where) {
   const t = ctx!.currentTime;
   const o = out(0.75, at);
   const ground = (gain: number) => {
-    // Rocks crumbling: the ground gives way with a deep thud and breaks into stones that tumble and settle. One
-    // collapse that thins out, with no second crack or long groan after it (those read as echo). Under fire or
-    // water (gain < 1) the stones fade back faster than the thud, so they don't clutter the flame or the splash.
-    texture(o, t, pick(rocks), { type: 'lowpass', from: 4500, to: 1800, at: 0.9, q: 0.6 }, 2.4 * gain * gain);
-    thud(o, t, 70, 36, 0.8 * gain, 0.08);
-    thud(o, t, 140, 70, 0.3 * gain, 0.04);
+    // Rocks crumbling: the ground gives way with a short, deep thud and stones clatter off it.
+    // No rolling rumble and no ringing: both made it sound like thunder, or like an echo. Under fire or water
+    // (gain < 1) the stones fall back faster than the thud, so they don't clutter the flame or the splash.
+    texture(o, t, pick(rocks), { type: 'lowpass', from: 5000, q: 0.5 }, 2.6 * gain * gain);
+    thud(o, t, 70, 38, 0.8 * gain, 0.06);
+    thud(o, t, 140, 75, 0.3 * gain, 0.03);
   };
   const flare = (gain: number) => {
     // The flame bursting up: a dark, flickering whoosh with its weight low down, a little brighter at the start.
