@@ -3,6 +3,8 @@ import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { DEV, mountDevTools, savedQuality } from './devtools';
 import { mountMatchControls, savedRivals } from './match';
+import { mountMatchTimer } from './matchTimer';
+import { mountHudFade } from './hudFade';
 import { mountHelp } from './help';
 import { Tutorial } from './tutorial';
 import { Character } from './character';
@@ -241,12 +243,31 @@ const matchHud = mountMatchControls({
   restart: () => dev.newMeadow(),
 });
 hudReady = true;
+// The running time of a real match (not training, not the tutorial), stopped when it is decided.
+const matchTimer = mountMatchTimer({
+  get elapsedMs() {
+    return combat.elapsedMs;
+  },
+  get timed() {
+    return combat.rivalCount > 0 && tutorial.done;
+  },
+  get over() {
+    return combat.over;
+  },
+});
 // Global ranking: a won match against rivals counts, once the tutorial is behind and outside dev mode.
 const board = mountLeaderboard();
 const runs = new Runs();
+// The HUD steps back while the player is busy in the meadow (src/hudFade.ts).
+const hudFade = mountHudFade({
+  get playing() {
+    return tutorial.done && !combat.over && !help.open && !dev.open && !board.open;
+  },
+});
 // Decided when the match starts: the tutorial finishes during its own match, and that match never counts.
 let rankedMatch = false;
 combat.onStart = () => {
+  hudFade.reset();
   rankedMatch = combat.rivalCount > 0 && tutorial.done && !DEV;
   runs.start(combat.rivalCount, combat.difficulty, rankedMatch);
 };
@@ -582,9 +603,11 @@ function onGesture(g: GestureEvent) {
   } else if (g.type === 'drawStart') {
     ink.begin(g.points);
     inkSound.begin();
+    for (const p of g.points) hudFade.stroke(p.x, p.y);
     penAt = { ...g.points[g.points.length - 1], t: performance.now() };
   } else if (g.type === 'drawPoint') {
     ink.add(g.point);
+    hudFade.stroke(g.point.x, g.point.y);
     const now = performance.now();
     const dt = Math.max(1, now - penAt.t) / 1000;
     inkSound.move(Math.hypot(g.point.x - penAt.x, g.point.y - penAt.y) / dt);
@@ -628,6 +651,7 @@ canvas.addEventListener('pointerdown', (e) => {
   // Stops the browser from starting a text selection or drag that would follow the stroke across the HUD.
   e.preventDefault();
   usingMouse = e.pointerType === 'mouse';
+  hudFade.played();
   const onPad = e.pointerType !== 'mouse' && pad.down(e.pointerId, e.clientX, e.clientY, performance.now());
   if (router.down(sample(e), onGesture) || onPad) canvas.setPointerCapture(e.pointerId);
 });
@@ -752,6 +776,7 @@ function steerHero() {
     if (inside && !onScreen(ahead)) continue;
     hero.steer(d.x, d.z);
     steering = true;
+    hudFade.played();
     return;
   }
   if (steering) hero.halt();
@@ -824,6 +849,8 @@ renderer.setAnimationLoop((time) => {
     combat.update(dt);
   }
   practice.set(combat.rivalCount === 0);
+  matchTimer.update();
+  hudFade.update();
   sourceHints.update(dt);
   aimReticle(dt);
   ink.update(dt);

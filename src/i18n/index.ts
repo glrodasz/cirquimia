@@ -99,6 +99,7 @@ const es = {
   difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' },
   match: {
     toolbar: 'Partida',
+    time: 'Tiempo de partida',
     rivalsCap: (n: number) => (n === 0 ? 'Entrenamiento' : `<b>${n}</b> ${n === 1 ? 'rival' : 'rivales'}`),
     rivalsAria: (n: number) =>
       `${n === 0 ? 'Entrenamiento, sin rivales' : `Rivales: ${n}`}. Toca para cambiar y reiniciar la partida`,
@@ -344,6 +345,7 @@ const en: Strings = {
   difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard' },
   match: {
     toolbar: 'Match',
+    time: 'Match time',
     rivalsCap: (n) => (n === 0 ? 'Training' : `<b>${n}</b> ${n === 1 ? 'rival' : 'rivals'}`),
     rivalsAria: (n) => `${n === 0 ? 'Training, no rivals' : `Rivals: ${n}`}. Tap to change and restart the match`,
     levelAria: (level) => `Difficulty: ${level}. Tap to change and restart the match`,

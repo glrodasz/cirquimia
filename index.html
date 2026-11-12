@@ -72,11 +72,8 @@
       #match.snug { gap: 6px; }
       #match.snug .match-btn { padding-right: 10px; }
       #match.snug .match-btn .cap::after { content: none; }
-      #match.small { gap: 5px; }
-      #match.small .match-btn { gap: 2px; padding-right: 8px; font-size: 12px; letter-spacing: -.01em; }
-      #match.small .match-btn .disc { width: 30px; height: 30px; }
-      #match.tight .level .cap { display: none; }
-      #match.tight .level { padding-right: 4px; }
+      #match.icons .match-btn .cap { display: none; }
+      #match.icons .match-btn { width: 40px; justify-content: center; padding: 0; }
       .match-btn:hover { box-shadow: 0 3px 12px rgba(20,28,24,.26); }
       .match-btn:active { transform: scale(.95); }
       .match-btn:focus-visible { outline: 2px solid #c98a2e; outline-offset: 2px; }
@@ -242,6 +239,30 @@
       #match .hud-icon .red { fill: var(--hud-red); } #match .hud-icon .green { fill: #3d6b3a; } #match .hud-icon .plum { fill: #6a3f7a; }
       #match.spot .match-btn { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 0 0 2px var(--hud-red), 0 0 16px 3px rgba(163,39,28,.45); animation-name: hud-spot; }
       @keyframes hud-spot { to { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 0 0 3px var(--hud-red), 0 0 24px 6px rgba(163,39,28,.6); transform: translateY(-2px); } }
+      /* Match time: a small plaque of the same paper, top centre. Level with the HUD row where it has room; on phones the row
+         is full, so it hangs just under it (and the restart toast drops one row lower to leave it readable). */
+      #match-time { position: fixed; top: calc(var(--edge-top) + 48px); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none; display: flex; align-items: center; gap: 4px; height: 32px; box-sizing: border-box; padding: 0 10px 0 7px; background: var(--hud-paper); color: var(--hud-ink); border: 1px solid var(--hud-ink); box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 2px 6px rgba(20,28,24,.18); font: 500 19px/1 'EB Garamond Variable', Garamond, Georgia, serif; font-variant-numeric: lining-nums tabular-nums; letter-spacing: .02em; }
+      #match-time[hidden] { display: none; }
+      #match-time svg { display: block; width: 17px; height: 17px; flex: none; }
+      #match-time .ink { fill: var(--hud-ink); }
+      /* Phones: the HUD row is full, so the time sits at the bottom right, clear of the stick (bottom left) and above the
+         home-bar swipe margin. */
+      @media (max-width: 699.98px) {
+        #match-time { top: auto; left: auto; transform: none; bottom: var(--edge-bottom); right: max(12px, env(safe-area-inset-right)); height: 36px; font-size: 20px; }
+      }
+      @media (min-width: 700px) {
+        #match-time { top: var(--edge-top); height: 40px; padding: 0 12px 0 9px; font-size: 20px; }
+        #match-time svg { width: 19px; height: 19px; }
+        /* The note on where else the game plays sits in the same spot for a moment: the time steps down below it meanwhile. */
+        body:has(#device-hint:not([hidden])) #match-time { top: calc(var(--edge-top) + 48px); height: 32px; }
+      }
+      /* Quiet HUD (src/hudFade.ts): once the player walks or draws the controls fade to 40 %, touching one lights them
+         up again, and a stroke passing close to one fades it almost away. Opacity only, so they stay clickable. */
+      :is(#match, #match-time) { transition: opacity .5s ease; }
+      :is(#help-btn, #book-btn, #rank-btn, #sound-btn) { transition: transform .15s, opacity .5s ease; }
+      #dev-gear { transition: opacity .5s ease, transform .3s; }
+      body :is(#match, #match-time, #help-btn, #book-btn, #rank-btn, #sound-btn, #dev-gear).hud-dim { opacity: .4; }
+      body :is(#match, #match-time, #help-btn, #book-btn, #rank-btn, #sound-btn, #dev-gear).hud-near { opacity: .12; transition-duration: .2s; }
       /* The help is an alchemist's book: leather cover, gold-stamped title, parchment pages that flip over from the spine.
          It stays parchment in dark mode too, like a real book. Sized to the visible viewport (--seen, set from
          visualViewport) so mobile toolbars never cover the page-turn buttons. */
@@ -630,9 +651,7 @@
       /* HUD compaction (narrow phones, four buttons on the right): the grimoire pills shrink the same way. */
       #match.snug .match-btn { padding-right: 8px; }
       #match.snug .match-btn .cap::after { content: none; }
-      #match.small .match-btn { gap: 2px; padding: 0 6px 0 4px; font-size: 14px; letter-spacing: 0; }
-      #match.small .match-btn .disc { width: 22px; height: 22px; }
-      #match.tight .level { padding-right: 4px; }
+      #match.icons .match-btn { padding: 0; }
       /* The ranking as a page of the grimoire: a register of names, places in red, scores in old-style figures. */
       #rank .card { max-height: min(640px, calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); border-radius: 0; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), var(--g-lift); padding: 20px 18px 14px; font-family: var(--g-font); backdrop-filter: none; -webkit-backdrop-filter: none; }
       #rank .card > h2#rank-title { margin: 2px 36px 12px; padding-bottom: 10px; border-bottom: 3px double var(--g-ink); font: 500 25px/1.1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .14em; color: var(--g-red); }

@@ -144,17 +144,17 @@ export function mountMatchControls(match: MatchControls) {
     fit();
   };
 
-  // Narrow phones: the pills give up the ↻ hint first, then shrink a little, then drop the level's name (its bars still show it),
+  // Narrow phones: the pills give up the ↻ hint first, then their words, leaving only the icons (rivals' figures, level bars),
   // so they never run under the buttons on the right.
   const fit = () => {
-    box.classList.remove('snug', 'small', 'tight');
+    box.classList.remove('snug', 'icons');
     const right = () => {
       const lefts = ['sound-btn', 'rank-btn', 'book-btn', 'help-btn', 'dev-gear']
         .map((id) => document.getElementById(id)?.getBoundingClientRect().left ?? Infinity)
         .filter((x) => x > 0);
       return Math.min(innerWidth, ...lefts) - 8;
     };
-    for (const step of ['snug', 'small', 'tight']) {
+    for (const step of ['snug', 'icons']) {
       if (box.getBoundingClientRect().right <= right()) return;
       box.classList.add(step);
     }
