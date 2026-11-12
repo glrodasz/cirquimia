@@ -23,6 +23,7 @@ let ambienceBus: GainNode;
 let noise: AudioBuffer;
 let marker: AudioBuffer;
 let cracks: AudioBuffer[] = [];
+let rocks: AudioBuffer[] = [];
 let roars: AudioBuffer[] = [];
 let pops: AudioBuffer[] = [];
 let splashes: AudioBuffer[] = [];
@@ -71,6 +72,7 @@ function unlock() {
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     marker = markerGlide(ctx);
     cracks = [0, 1, 2].map(() => groundCrack(ctx!));
+    rocks = [0, 1, 2].map(() => rockfall(ctx!));
     roars = [0, 1, 2].map(() => flameRoar(ctx!));
     pops = [0, 1, 2].map(() => emberPops(ctx!));
     splashes = [0, 1, 2].map(() => waterSplash(ctx!));
@@ -333,6 +335,57 @@ function groundCrack(c: BaseAudioContext) {
 }
 
 /**
+ * Rocks crumbling: stones of every size knocking as they break away and tumble (each a short burst ringing at its
+ * own pitch, bigger and lower first), gravel trickling between them and a low rolling rumble underneath. Every knock
+ * is different and they thin out steadily, so it reads as one collapse, never as an echo.
+ */
+function rockfall(c: BaseAudioContext) {
+  const rate = c.sampleRate;
+  const length = 1.1;
+  const buffer = c.createBuffer(1, Math.floor(rate * length), rate);
+  const data = buffer.getChannelData(0);
+  const knock = (at: number, freq: number, decay: number, peak: number) => {
+    const start = Math.floor(at * rate);
+    const r = Math.exp(-1 / (decay * rate));
+    const a1 = 2 * r * Math.cos((2 * Math.PI * freq) / rate);
+    const a2 = -r * r;
+    const hit = Math.floor(0.003 * rate);
+    let y1 = 0;
+    let y2 = 0;
+    for (let k = 0; start + k < data.length && k < decay * rate * 6; k++) {
+      const x = k < hit ? (Math.random() * 2 - 1) * (1 - k / hit) : 0;
+      const y = x + a1 * y1 + a2 * y2;
+      y2 = y1;
+      y1 = y;
+      data[start + k] += y * (1 - r) * 6 * peak;
+    }
+  };
+  // The rumble of the mass giving way, rolling unevenly and dying out.
+  let low = 0;
+  let roll = 1;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / rate;
+    if (i % 600 === 0) roll = 0.5 + Math.random() * 0.5;
+    low += 0.03 * (Math.random() * 2 - 1 - low);
+    data[i] += low * 3 * roll * Math.min(1, t / 0.01) * Math.exp(-t / 0.35);
+  }
+  // Stones: dozens per second at first, the big ones early.
+  for (let t = 0; t < 0.95; ) {
+    const fade = Math.exp(-t / 0.4);
+    t += -Math.log(1 - Math.random()) / (70 * fade + 8);
+    const size = Math.random() * fade;
+    knock(t, 1800 - size * 1500 + Math.random() * 300, 0.012 + size * 0.04, (0.25 + size * 0.75) * (0.3 + 0.7 * fade));
+  }
+  // Gravel: fine grit trickling all through it.
+  for (let t = 0; t < 1; ) {
+    const fade = Math.exp(-t / 0.25);
+    t += -Math.log(1 - Math.random()) / (400 * fade + 20);
+    grain(data, rate, t, 0.0005 + Math.random() * 0.0015, (0.05 + Math.random() * 0.15) * fade);
+  }
+  return buffer;
+}
+
+/**
  * A burst of flame: a dark, turbulent whoosh that swells for half a second and is gone by 0.8 s. The flicker is
  * fast (new level every 5–25 ms), which is what makes noise sound like fire rather than wind.
  */
@@ -481,13 +534,12 @@ export function strike(element: Element, at: Where) {
   const t = ctx!.currentTime;
   const o = out(0.75, at);
   const ground = (gain: number) => {
-    // A heavy stomp, dry: a deep thud whose pitch drops as it lands, an octave above it so phone speakers carry it,
-    // and a short crunch of earth on top. All of it is gone in half a second: the groan and the falling debris that
-    // used to follow read as echo.
-    thud(o, t, 74, 34, 1.1 * gain, 0.09);
-    thud(o, t, 150, 70, 0.4 * gain, 0.045);
-    hiss(o, t, 0.16, { type: 'lowpass', from: 1800, to: 250, q: 0.7 }, { attack: 0.003, peak: 0.6 * gain });
-    texture(o, t, pick(cracks), { type: 'lowpass', from: 2400, to: 700, at: 0.14 }, 0.45 * gain, 0.85, 0.15);
+    // Rocks crumbling: the ground gives way with a deep thud and breaks into stones that tumble and settle. One
+    // collapse that thins out, with no second crack or long groan after it (those read as echo). Under fire or
+    // water (gain < 1) the stones fade back faster than the thud, so they don't clutter the flame or the splash.
+    texture(o, t, pick(rocks), { type: 'lowpass', from: 4500, to: 1800, at: 0.9, q: 0.6 }, 2.4 * gain * gain);
+    thud(o, t, 70, 36, 0.8 * gain, 0.08);
+    thud(o, t, 140, 70, 0.3 * gain, 0.04);
   };
   const flare = (gain: number) => {
     // The flame bursting up: a dark, flickering whoosh with its weight low down, a little brighter at the start.
