@@ -3,6 +3,7 @@ import { heightAt, mulberry32, patchAt } from './noise';
 import { GROUND_CELL, toScreenAligned, toWorld, type GenParams, type GroundPaint, type Layout } from './generator';
 import { GLADE } from './look';
 import { stylize } from './glade';
+import { withFade } from './treeFade';
 
 export interface Obstacle {
   x: number;
@@ -208,14 +209,20 @@ function forestEdge(layout: Layout, paint: GroundPaint): Array<[number, number]>
   return spots;
 }
 
-/** True for a loose tree whose crown would hang over the side of a wide screen's frame (the forest band stands clear of it). */
-function hangsOverEdge(layout: Layout, x: number, z: number): boolean {
+/**
+ * True for a loose tree that would stand in the way of the arena: in front of it (its crown rises into it on screen)
+ * or, on phones, anywhere in it, as the narrow portrait arena has no room to spare (only the screen's side margins). Wide screens keep a few trees
+ * inside but none on the side edges, where the forest band stands clear. Anyone still under a crown sees it fade.
+ */
+function crowdsArena(layout: Layout, x: number, z: number): boolean {
   const { vMin, vMax, halfWidthAt, forest } = layout.area;
-  if (!forest) return false;
   const [u, v] = toScreenAligned(x, z);
-  if (v < vMin - 2 || v > vMax) return false;
-  const out = Math.abs(u) - halfWidthAt(v);
-  return out > -0.9 && out < 1.35;
+  if (v < vMin - 2.6 || v > vMax) return false;
+  const out = Math.abs(u) - halfWidthAt(Math.max(v, vMin));
+  if (out > 1.35) return false;
+  if (v < vMin) return out < 0.9;
+  // Phones keep trees only at the very sides of the screen, framing the arena with their crowns half off screen.
+  return forest ? out > -0.9 : out < 0.7;
 }
 
 /** Trees and big rocks: the scatter that blocks the walk, so it is built before checking walkability. */
@@ -231,20 +238,21 @@ export function buildSolids(layout: Layout, params: GenParams, paint: GroundPain
     rand,
     Math.round(46 * params.arboles),
     3.2,
-    (x, z) => clearOfSpawn(x, z) && !onFeature(layout, paint, x, z, 0.6) && !hangsOverEdge(layout, x, z),
+    (x, z) => clearOfSpawn(x, z) && !onFeature(layout, paint, x, z, 0.6) && !crowdsArena(layout, x, z),
   );
   const wood = forestEdge(layout, paint);
   treeSpots.push(...wood.filter(([x, z]) => treeSpots.every(([tx, tz]) => (tx - x) ** 2 + (tz - z) ** 2 > 0.8)));
-  const trunk = instanced(new THREE.CylinderGeometry(0.12, 0.18, 1, 5), lambert({ color: GLADE ? '#6b5038' : '#5c4f48' }), treeSpots.length, { cast: true });
-  const pineLow = instanced(new THREE.ConeGeometry(0.9, 1.5, 6), lambert(), treeSpots.length, { cast: true });
-  const pineHigh = instanced(new THREE.ConeGeometry(0.65, 1.2, 6), lambert(), treeSpots.length, { cast: true });
-  const round = instanced(new THREE.IcosahedronGeometry(0.85, 0), lambert(), treeSpots.length, { cast: true });
+  // Every tree part can fade (src/treeFade.ts) when someone walks behind it.
+  const trunk = withFade(instanced(new THREE.CylinderGeometry(0.12, 0.18, 1, 5), lambert({ color: GLADE ? '#6b5038' : '#5c4f48' }), treeSpots.length, { cast: true }));
+  const pineLow = withFade(instanced(new THREE.ConeGeometry(0.9, 1.5, 6), lambert(), treeSpots.length, { cast: true }));
+  const pineHigh = withFade(instanced(new THREE.ConeGeometry(0.65, 1.2, 6), lambert(), treeSpots.length, { cast: true }));
+  const round = withFade(instanced(new THREE.IcosahedronGeometry(0.85, 0), lambert(), treeSpots.length, { cast: true }));
   // Glade crowns: a cluster of smooth puffs, darker underneath, instead of one faceted ball.
   // They carry a painted leaf-clump texture.
   const PUFFS = 7;
   const puffMat = stylize(soft({ vertexColors: true }), { paint: { scale: 3.4, amount: 0.6 } });
   const puffs = GLADE
-    ? instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.5, 1.2), puffMat, treeSpots.length * PUFFS, { cast: true, receive: true })
+    ? withFade(instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.5, 1.2), puffMat, treeSpots.length * PUFFS, { cast: true, receive: true }))
     : null;
   const puffRand = mulberry32(layout.seedNum ^ 0x9a1d);
   let puffCount = 0;

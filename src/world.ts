@@ -3,6 +3,7 @@ import { heightAt, setTerrain } from './noise';
 import { buildCover, buildSolids, type Obstacle } from './meadow';
 import { buildFeatures } from './features';
 import { t } from './i18n';
+import { TreeFade } from './treeFade';
 import {
   DEFAULT_PARAMS,
   KIND_LABEL,
@@ -175,6 +176,7 @@ export class World {
   private debug: THREE.Group | null = null;
   private showDebug = false;
   private updateFeatures: (dt: number) => void = () => {};
+  private readonly trees = new TreeFade();
   readonly listeners: Array<(world: World) => void> = [];
 
   constructor(private readonly scene: THREE.Scene) {
@@ -220,6 +222,7 @@ export class World {
     this.coverGroup = buildCover(layout, coverParams, paint, this.obstacles);
     this.root.add(this.coverGroup, built.solids, built.features.group);
     cullUnseen(this.root);
+    this.trees.track(this.root);
     this.scene.add(this.root);
     this.updateFeatures = built.features.update;
     this.layout = layout;
@@ -255,6 +258,11 @@ export class World {
 
   update(dt: number) {
     this.updateFeatures(dt);
+  }
+
+  /** Lets the trees in front of these people turn see-through, so nobody is lost under a crown. */
+  fadeTrees(dt: number, people: THREE.Vector3[]) {
+    this.trees.update(dt, people);
   }
 
   /**

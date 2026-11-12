@@ -802,6 +802,7 @@ renderer.setAnimationLoop((time) => {
   if (quality.auto && !document.hidden && idx < TIERS.length - 1 && fpsGuard.tick(real)) setQuality(TIERS[idx + 1], 'fps');
   const dt = Math.min(clock.getDelta(), 1 / 20);
   if (!dev.open) world.update(dt);
+  world.fadeTrees(dt, combat.positions());
   tutorial.update(dt);
   if (!help.open && !dev.open && !board.open && !tutorial.paused) {
     steerHero();
