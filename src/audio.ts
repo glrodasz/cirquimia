@@ -1,6 +1,6 @@
 /**
- * Every sound in the game is synthesized with Web Audio at play time, except the earth, fire and water strikes and
- * healing, which are short recorded clips Guillermo picked (src/assets/sfx, from Pixabay's free sound library); until they have
+ * Every sound in the game is synthesized with Web Audio at play time, except the earth, fire and water strikes,
+ * healing and a strike a wall blocks, which are short recorded clips Guillermo picked (src/assets/sfx, from Pixabay's free sound library); until they have
  * loaded, or if they fail to, the synthesized versions play instead.
  * Effects are short shaped noise and tones (marker, stone, flame, splash, chimes); underneath, a very quiet meadow:
  * wind in gusts and a bird now and then. Nothing plays until the first touch or key (browsers require a
@@ -12,6 +12,7 @@ import earthClip from './assets/sfx/earth.mp3';
 import fireClip from './assets/sfx/fire.mp3';
 import waterClip from './assets/sfx/water.mp3';
 import healClip from './assets/sfx/heal.mp3';
+import blockClip from './assets/sfx/block.mp3';
 
 const KEY = 'cirquimia.sound';
 const SFX_LEVEL = 0.8;
@@ -21,6 +22,7 @@ const EARTH_CLIP = 1;
 const FIRE_CLIP = 1;
 const WATER_CLIP = 0.5;
 const HEAL_CLIP = 1;
+const BLOCK_CLIP = 0.5;
 
 type Where = { x: number; z: number };
 /** Screen pan (-1 left … 1 right) and loudness (0 … 1) for a point in the meadow, set by the scene. */
@@ -38,7 +40,7 @@ let rocks: AudioBuffer[] = [];
 let roars: AudioBuffer[] = [];
 let pops: AudioBuffer[] = [];
 let splashes: AudioBuffer[] = [];
-type Clip = 'earth' | 'fire' | 'water' | 'heal';
+type Clip = 'earth' | 'fire' | 'water' | 'heal' | 'block';
 const clips: Partial<Record<Clip, AudioBuffer>> = {};
 let locate: Locate = () => ({ pan: 0, near: 1 });
 let enabled = readEnabled();
@@ -97,7 +99,7 @@ function unlock() {
 
 /** Fetches and decodes the recorded clips in the background; a clip that fails just leaves its synth in place. */
 function loadClips(c: AudioContext) {
-  const urls = { earth: earthClip, fire: fireClip, water: waterClip, heal: healClip };
+  const urls = { earth: earthClip, fire: fireClip, water: waterClip, heal: healClip, block: blockClip };
   for (const [name, url] of Object.entries(urls) as [Clip, string][]) {
     fetch(url)
       .then((r) => r.arrayBuffer())
@@ -622,11 +624,12 @@ export function strike(element: Element, at: Where) {
   }
 }
 
-/** A strike that a wall stops: a dry clack on stone. */
+/** A strike that a wall stops: a fast whoosh as it glances off (a dry clack on stone until the clip loads). */
 export function clack(at: Where) {
   if (!ready('clack')) return;
   const t = ctx!.currentTime;
   const o = out(0.55, at);
+  if (clip('block', o, t, BLOCK_CLIP)) return;
   hiss(o, t, 0.08, { type: 'bandpass', from: 2400, q: 3 }, { attack: 0.002, peak: 0.8 });
   tone(o, t, 0.12, 'triangle', 380, 260, 0.35);
 }
