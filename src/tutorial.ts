@@ -19,7 +19,7 @@ const DEMO_DRAW = 1.7; // s the demo hand takes to draw the shape
 const DEMO_HOLD = 0.8;
 const GOAL_REACH = 0.3; // world units from the mark that count as arrived
 const AFTER_WALK = 1.4; // s from arriving at the mark to the attack lesson
-const SHOW_TAP = 2.4; // s the walking lesson shows the tap on the mark (two taps of the hand)
+const SHOW_TAP = 1.2; // s the walking lesson shows the tap on the mark (one tap of the hand), short so the stick shows early
 const SHOW_ALT = 2.8; // s it then shows the stick (or the keys) swaying side to side, before the tap again
 const STARTED = 0.12; // world units the alchemist has to move for the lesson to stop showing how
 
