@@ -52,7 +52,7 @@ export class Practice {
     const left = this.on && this.done.size < DRILLS.length;
     book.classList.toggle('train', left);
     if (this.on) book.setAttribute('aria-label', t.practice.bookAria);
-    else book.setAttribute('aria-label', t.help.symbolsButton);
+    else book.setAttribute('aria-label', t.help.bookButton);
   }
 
   /** The book glows green and a note pops over it, with an arrow down into it: that attack is ticked in there. */
