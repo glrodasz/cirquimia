@@ -143,6 +143,7 @@ const es = {
     saveImage: 'Guardar imagen',
     dare: (score: string, points: string) => `¿Quién supera tus ${score} ${points}?`,
     postOnX: 'Publicar en', // + X
+    post: 'Publicar', // beside the X logo
     sendDiscord: 'Enviar a', // + Discord
     preview: 'Tu tarjeta: toca para guardarla',
     discordCopied: 'Imagen copiada: pégala en Discord.',
@@ -446,6 +447,7 @@ const en: Strings = {
     saveImage: 'Save image',
     dare: (score, points) => `Who can beat your ${score} ${points}?`,
     postOnX: 'Post on',
+    post: 'Post',
     sendDiscord: 'Send to',
     preview: 'Your card: tap to save it',
     discordCopied: 'Image copied: paste it in Discord.',
