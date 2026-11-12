@@ -794,10 +794,14 @@
       #match-end .scored .acts [data-to="telegram"] { background: #229ed9; }
       #match-end .scored .trio .brand-mark { width: 22px; height: 22px; }
       #match-end .scored .trio .more { min-width: 0; }
-      @media (max-width: 359px) {
-        #match-end .trio { flex-wrap: wrap; }
-        #match-end .scored .trio .chat { flex: 1 1 0; aspect-ratio: auto; }
-        #match-end .scored .trio .more { flex-basis: 100%; }
+      /* Phones: the four networks as a 2×2 grid of marks, Más across the foot. */
+      @media (max-width: 699px) {
+        #match-end .scored .share .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        #match-end .trio { display: contents; }
+        #match-end .scored .acts .brand { width: auto; aspect-ratio: auto; padding: 0; }
+        #match-end .scored .acts .brand .cap { display: none; }
+        #match-end .scored .acts .brand .brand-mark { width: 24px; height: 24px; }
+        #match-end .scored .trio .more { grid-column: 1 / -1; width: auto; }
       }
       #match-end .scored .nets .save-img { flex: 0 0 34px; padding: 0; }
       #match-end .nets .brand-mark { width: 14px; height: 14px; }
