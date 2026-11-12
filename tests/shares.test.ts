@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ID_PATTERN, newShareId, sharePage, type ShareRow } from '../src/leaderboard/shares';
+import { ID_PATTERN, isPreviewBot, newShareId, sharePage, type ShareRow } from '../src/leaderboard/shares';
 import { resolveLocaleRedirect } from '../src/i18n/locale';
 
 const row: ShareRow = {
@@ -43,7 +43,31 @@ describe('share links', () => {
   it('never lets stored text into the markup', () => {
     const html = sharePage({ ...row, initials: '<b>', locale: '"><script>' }, 'https://cirquimia.pages.dev');
     expect(html).not.toContain('<b>');
-    expect(html).not.toContain('<script>');
+    expect(html).not.toContain('"><script>');
+  });
+
+  it('sends people to the game and shows the card only to link-preview robots', () => {
+    for (const ua of [
+      'Twitterbot/1.0',
+      'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      'Mozilla/5.0 (compatible; Bluesky Cardyb/1.1; +mailto:support@bsky.app)',
+      'http.rb/5.2.0 (Mastodon/4.3.0; +https://mastodon.social/)',
+      'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)',
+      'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)',
+      'TelegramBot (like TwitterBot)',
+      'WhatsApp/2.23.20.0',
+      'LinkedInBot/1.0',
+    ])
+      expect(isPreviewBot(ua), ua).toBe(true);
+    for (const ua of [
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36',
+    ])
+      expect(isPreviewBot(ua), ua).toBe(false);
+    expect(isPreviewBot(null)).toBe(false);
+    // Anyone who still lands on the page (an in-app browser that looks like a robot) is sent on at once.
+    expect(sharePage(row, 'https://cirquimia.pages.dev')).toContain('<meta http-equiv="refresh" content="0; url=https://cirquimia.pages.dev/es">');
   });
 
   it('keeps share pages out of the language redirect', () => {

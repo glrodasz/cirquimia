@@ -6,7 +6,7 @@
  * POST /api/shares (multipart: runId, image, durationMs, damage, initials?, locale) → {id, url}
  *   One card per run: sharing again (after saving the initials, say) replaces the image and keeps the link.
  *   The run must be a real ranked match opened by the server in the last hours; the score is recomputed here.
- * GET /s/<id>      → a small page with the card, the preview tags and a button to play.
+ * GET /s/<id>      → people go straight to the game; link-preview robots get the preview tags with the card.
  * GET /s/<id>.jpg  → the card.
  *
  * The images live in D1 next to the ranking (about 100 KB each), so nothing else needs to be set up.
@@ -126,7 +126,10 @@ const COPY = {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** The share page: the card big, a line about the match and a way into the game, plus what previews read. */
+/**
+ * What link previews read: the card as og:image and the match in one line. People never stay here: they are sent
+ * to the game at once (link-preview crawlers get this page, everyone else a redirect before it; see serveShare).
+ */
 export function sharePage(row: ShareRow, origin: string) {
   const locale: Locale = isLocale(row.locale) ? row.locale : 'en';
   const c = COPY[locale];
@@ -165,31 +168,25 @@ ${meta('name', 'twitter:title', title)}
 ${meta('name', 'twitter:description', body)}
 ${meta('name', 'twitter:image', image)}
 ${meta('name', 'twitter:image:alt', c.alt(score))}
-<meta name="theme-color" content="#f5efe0">
-<style>
-:root{color-scheme:light;--paper:#f5efe0;--ink:#1f1a15;--soft:#6b6258;--red:#a3271c}
-*{box-sizing:border-box}
-body{margin:0;min-height:100svh;display:grid;place-items:center;background:var(--paper);color:var(--ink);font:18px/1.45 'EB Garamond',Garamond,Georgia,serif;padding:24px 16px}
-main{width:100%;max-width:760px;text-align:center}
-img{display:block;width:100%;height:auto;aspect-ratio:1200/630;border:1px solid rgba(31,26,21,.25);box-shadow:0 10px 30px rgba(31,26,21,.18);background:#ece3cf}
-h1{font-weight:500;font-size:clamp(24px,5vw,34px);margin:22px 0 4px}
-p{margin:0 0 22px;color:var(--soft);font-style:italic}
-a{display:inline-block;padding:12px 28px;border:2px solid var(--ink);color:var(--ink);text-decoration:none;font-variant:small-caps;letter-spacing:.08em;font-size:22px;background:transparent}
-a:hover,a:focus-visible{background:var(--ink);color:var(--paper)}
-</style>
+<meta http-equiv="refresh" content="0; url=${esc(play)}">
 </head>
 <body>
-<main>
-<img src="${image}" width="1200" height="630" alt="${esc(c.alt(score))}">
-<h1>${esc(title)}</h1>
-<p>${esc(body)}</p>
-<a href="${play}">${esc(c.play)}</a>
-</main>
+<script>location.replace(${JSON.stringify(play).replace(/</g, '\\u003c')})</script>
+<a href="${esc(play)}">${esc(c.play)}</a>
 </body>
 </html>`;
 }
 
 const notFound = (origin: string) => Response.redirect(`${origin || SITE_URL}/`, 302);
+
+/**
+ * The robots that fetch link previews: X, Meta (Facebook, Threads, Instagram), Bluesky, Mastodon servers, Discord,
+ * Slack, Telegram, WhatsApp, LinkedIn, iMessage, search engines and the usual unfurlers.
+ */
+const PREVIEW_BOT =
+  /bot\b|bot\/|crawler|spider|facebookexternalhit|facebot|meta-externalagent|cardyb|mastodon|http\.rb|pleroma|misskey|whatsapp|telegram|slack|discord|linkedin|embedly|iframely|vkshare|skypeuripreview|redditbot|pinterest|tumblr|bitlybot|google-pagerenderer|applebot/i;
+
+export const isPreviewBot = (ua: string | null) => !!ua && PREVIEW_BOT.test(ua);
 
 /** GET /s/<id> and /s/<id>.jpg. Unknown links go to the game rather than to an error. */
 export async function serveShare(ctx: Ctx, param: string): Promise<Response> {
@@ -211,7 +208,11 @@ export async function serveShare(ctx: Ctx, param: string): Promise<Response> {
     .bind(id)
     .first<ShareRow>();
   if (!row) return notFound(origin);
-  return new Response(sharePage(row, origin), {
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
-  });
+  // The answer depends on who asks, so no shared cache may keep it.
+  const vary = { 'Cache-Control': 'private, no-store', Vary: 'User-Agent' };
+  if (!isPreviewBot(ctx.request.headers.get('User-Agent'))) {
+    const locale: Locale = isLocale(row.locale) ? row.locale : 'en';
+    return new Response(null, { status: 302, headers: { Location: new URL(localizePath('/', locale), origin).href, ...vary } });
+  }
+  return new Response(sharePage(row, origin), { headers: { 'Content-Type': 'text/html; charset=utf-8', ...vary } });
 }

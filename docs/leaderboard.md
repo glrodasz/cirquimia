@@ -51,8 +51,9 @@ npx wrangler pages dev dist --d1 DB=local-cirquimia
 
 When the player shares a ranked victory to X, Bluesky, Threads or Mastodon, the game uploads a 1200×630 JPEG
 of the card (`POST /api/shares`, `src/leaderboard/shares.ts`) and posts `/s/<id>` instead of the bare site. That
-page carries the card as `og:image`, so every network shows the card as the link's preview; humans who open it see
-the card and an "Accept the challenge" button into the game. One card per run: sharing again after saving the
+page carries the card as `og:image`, so every network shows the card as the link's preview. Only link-preview
+robots (by user agent) get that page; people who open the link are redirected straight to the game (302), and an
+in-app browser that looks like a robot is sent on by the page's own instant redirect. One card per run: sharing again after saving the
 initials replaces the image and keeps the link. Images live in D1 (`shares` table, ~100 KB each), so there is
 nothing to set up; if storage ever grows, the `image` column can move to an R2 bucket.
 Matches without a run (tutorial, training, offline) fall back to the plain site link.
