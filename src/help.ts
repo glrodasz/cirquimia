@@ -5,10 +5,11 @@ import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
 import { LANGUAGE_NAMES } from './i18n/locale';
-import { bookIcon, dropIcon, flameIcon, runeIcon, turnArrowIcon } from './icons';
+import { bookIcon, dropIcon, flameIcon, turnArrowIcon } from './icons';
 import moveShot from './assets/help/move.webp';
 import drawShot from './assets/help/draw.webp';
 import useShot from './assets/help/use.webp';
+import runeShot from './assets/help/rune.webp';
 
 function poly(points: Pt[]): Pt[] {
   return points.slice(1).flatMap((p, i) => segment(points[i], p).slice(i ? 1 : 0));
@@ -151,7 +152,10 @@ function guide() {
     const split = i === 0 && ways;
     const body = split
       ? ways.map(([head, line]) => `<p class="way"><b>${head}</b><span>${line}</span></p>`).join('')
-      : `<p>${keys && i > 0 ? t.help.desk[i - 1] : text}</p>`;
+      : (keys && i > 0 ? t.help.desk[i - 1] : text)
+          .split('|')
+          .map((step, n, all) => (all.length > 1 ? `<p class="way step"><span><i>${n + 1}.</i> ${step}</span></p>` : `<p>${step}</p>`))
+          .join('');
     return (
       `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
       `<svg viewBox="0 0 312 234" aria-hidden="true">${split ? splitMove(rand, keys) : OVERLAYS[i](rand)}</svg></figure>` +
@@ -195,7 +199,7 @@ function symbols() {
   const index =
     `${progress}<ol class="shapes">${shapes}</ol>` +
     `<h4 class="sep">${t.help.comboTitle}</h4><ol class="shapes combos">${combos}</ol>` +
-    `<ul class="notes rune-note"><li${drillClass('rune')}><span class="src rune">${runeIcon()}</span><span>${t.help.runesNote}</span></li></ul>`;
+    `<ul class="notes rune-note"><li${drillClass('rune')}><img class="rune-shot" src="${runeShot}" alt="" draggable="false"><span>${t.help.runesNote}</span></li></ul>`;
   const notes =
     `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
     `<li><span class="src">${flameIcon()}</span><span>${t.help.fireNote}</span></li>` +

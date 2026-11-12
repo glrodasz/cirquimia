@@ -158,11 +158,11 @@ const es = {
     title: 'Cómo jugar',
     slides: [
       ['Muévete', 'Toca el suelo y el alquimista <b>camina</b> hasta allí.'],
-      ['Dibuja un símbolo', 'Traza la forma y queda <b>en tu mano</b>. Solo cabe uno a la vez.'],
+      ['Dibuja un símbolo', 'Traza el símbolo para lanzar|Un símbolo nuevo reemplaza el anterior'],
       ['Lánzalo', 'Toca al <b>rival</b> para lanzarlo. Toca a tu alquimista para soltarlo.'],
     ],
     // Pages 2 and 3 with a mouse.
-    desk: ['Traza la forma con el ratón y queda <b>en tu mano</b>. Solo cabe uno a la vez.', 'Haz clic en el <b>rival</b> para lanzarlo. Haz clic en tu alquimista para soltarlo.'],
+    desk: ['Traza el símbolo para lanzar|Un símbolo nuevo reemplaza el anterior', 'Haz clic en el <b>rival</b> para lanzarlo. Haz clic en tu alquimista para soltarlo.'],
     // The two ways to walk, each a short heading and one line: pointing at the map, and the stick or the keys.
     moveWays: {
       tap: ['Toca el mapa', 'Tu alquimista camina hasta donde toques.'],
@@ -404,10 +404,10 @@ const en: Strings = {
     title: 'How to play',
     slides: [
       ['Move', 'Tap the ground and the alchemist <b>walks</b> there.'],
-      ['Draw a symbol', 'Trace the shape and it stays <b>in your hand</b>. Only one at a time.'],
+      ['Draw a symbol', 'Trace the symbol to cast|A new symbol replaces the last one'],
       ['Cast it', 'Tap the <b>rival</b> to cast it. Tap your alchemist to drop it.'],
     ],
-    desk: ['Trace the shape with the mouse and it stays <b>in your hand</b>. Only one at a time.', 'Click the <b>rival</b> to cast it. Click your alchemist to drop it.'],
+    desk: ['Trace the symbol to cast|A new symbol replaces the last one', 'Click the <b>rival</b> to cast it. Click your alchemist to drop it.'],
     moveWays: {
       tap: ['Tap the map', 'Your alchemist walks to where you tap.'],
       click: ['Click the map', 'Your alchemist walks to where you click.'],

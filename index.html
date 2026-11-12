@@ -574,6 +574,8 @@
       #help .page p.way { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
       #help .page p.way + p.way::before { content: none; }
       #help .page p.way + p.way { margin-top: 6px; }
+      #help .page p.step i { font-style: normal; color: var(--g-red); }
+      #help .page p.step + p.step { margin-top: 2px; }
       #help .page p.way b { font-weight: 500; font-variant-caps: small-caps; letter-spacing: .05em; color: var(--g-red); }
       #help .shot .badge rect { fill: var(--g-red); } #help .shot .badge text { fill: var(--g-paper); font: 600 15px var(--g-font); }
       #help .page h3 { gap: 10px; font: 500 24px/1.15 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; }
@@ -633,10 +635,10 @@
       #help .combos .fig { width: 28px; height: 28px; }
       #help .combos b { margin-left: 6px; }
       #help .rune-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(31,26,21,.25); font-size: 17px; line-height: 1.25; }
-      #help .rune-note .src { width: 34px; height: 34px; padding: 6px; }
+      #help .rune-note .rune-shot { flex: none; width: 96px; height: 72px; object-fit: cover; box-shadow: 0 0 0 1px var(--g-ink), 0 0 0 3px var(--g-paper), 0 0 0 3.6px rgba(31,26,21,.5); }
       #help .combos b { white-space: nowrap; }
       @media (max-width: 400px) { #help .combos b { font-size: 16px !important; margin-left: 4px; } #help .combos .recipe i { font-size: 17px; } }
-      @media (max-height: 700px) { #help .shapes b { font-size: 17px !important; } #help .shapes li { min-height: 31px; } #help .rune-note { margin-top: 6px; padding-top: 6px; font-size: 16px; } }
+      @media (max-height: 700px) { #help .shapes b { font-size: 17px !important; } #help .shapes li { min-height: 31px; } #help .rune-note { margin-top: 6px; padding-top: 6px; font-size: 16px; } #help .rune-note .rune-shot { width: 80px; height: 60px; } }
       #help .legend { margin: 8px 0 0; font: italic 400 16px/1 var(--g-font); color: var(--g-soft); }
       #help .legend::before { content: none !important; }
       #help .shapes:has(li.tried, li.todo) li { padding-left: 26px; }
