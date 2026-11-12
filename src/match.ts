@@ -144,10 +144,16 @@ export function mountMatchControls(match: MatchControls) {
     fit();
   };
 
-  // Narrow phones: the pills give up the ↻ hint first, then their words, leaving only the icons (rivals' figures, level bars),
-  // so they never run under the buttons on the right.
+  // Phones always show the pills as icons only (rivals' figures, level bars), whatever the values, so they never change width
+  // when toggled. Wider screens (iPad, desktop) keep the words, giving up the ↻ hint first, then the words, only if the
+  // pills would run under the buttons on the right.
+  const phone = matchMedia('(max-width: 699.98px)');
   const fit = () => {
     box.classList.remove('snug', 'icons');
+    if (phone.matches) {
+      box.classList.add('icons');
+      return;
+    }
     const right = () => {
       const lefts = ['sound-btn', 'rank-btn', 'book-btn', 'dev-gear']
         .map((id) => document.getElementById(id)?.getBoundingClientRect().left ?? Infinity)
