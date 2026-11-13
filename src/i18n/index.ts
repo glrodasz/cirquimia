@@ -86,6 +86,13 @@ interface Lesson {
   done: string;
 }
 
+/** A lesson that is only read: a line on the card and a button to go on. */
+interface ReadLesson {
+  title: string;
+  body: string;
+  button: string;
+}
+
 interface MoveLesson {
   title: string;
   /** First, where there is one, the stick or the keys, then the tap (or click) on the mark: either one walks. */
@@ -202,29 +209,59 @@ const es = {
       orClick: 'O haz clic en el suelo donde brilla.',
       pad: 'Deja el dedo en el aro y deslízalo.',
       keys: 'Camina con WASD o las flechas.',
-      done: '¡Bien! Ahora a pelear.',
+      done: '¡Bien!',
+    },
+    goal: {
+      title: 'Este es tu rival',
+      body: 'Gana quien deja la barra de vida del otro en cero. Por ahora no se mueve: practica con él.',
+      button: 'Entendido',
     },
     square: {
       draw: ['Dibuja un cuadrado', 'Un cuadrado crea un ataque de tierra.'],
       aim: ['Toca al rival', 'El ataque de tierra sale justo donde toques.'],
       watch: '¡Golpe!',
-      done: 'Dibuja más formas para seguir atacando.',
+      done: 'Mira cómo baja su barra.',
     },
     circle: {
-      draw: ['¡Te golpearon! Dibuja un círculo', 'Un círculo levanta al instante un muro de tierra de cara al rival.'],
+      draw: ['Te va a atacar: dibuja un círculo', 'Un círculo levanta al instante un muro de tierra de cara al rival.'],
       aim: ['Toca hacia el rival', 'El muro se levanta a tu alrededor, de cara a donde toques.'],
       watch: 'Lo que cae dentro del muro no te daña.',
-      done: '¡Listo! Ya sabes atacar y defenderte.',
+      done: '¡Bloqueado!',
     },
+    triangle: {
+      draw: ['Dibuja un triángulo sobre la fogata', 'Así cargas un ataque de fuego.'],
+      aim: ['¡Fuego cargado! Toca al rival', 'Lánzalo donde toques.'],
+      watch: '¡Fuego!',
+      done: 'El fuego quita más vida que la tierra.',
+    },
+    triangleDown: {
+      draw: ['Dibuja un triángulo al revés sobre el agua', 'Así cargas un ataque de agua.'],
+      aim: ['¡Agua cargada! Toca al rival', 'Lánzala donde toques.'],
+      watch: '¡Agua!',
+      done: 'Truco: carga fuego y luego agua y se unen en una explosión.',
+    },
+    duel: {
+      title: '¿Listo para el duelo?',
+      body: 'Ahora el rival se mueve y te ataca. Los dos vuelven a tener la vida llena.',
+      button: '¡A pelear!',
+    },
+    duelGo: '¡Suerte!',
     wrong: {
       square: 'Eso no fue un cuadrado. Sigue la guía e inténtalo otra vez.',
       circle: 'Eso no fue un círculo. Sigue la guía e inténtalo otra vez.',
+      triangle: 'Eso no fue un triángulo. Sigue la guía e inténtalo otra vez.',
+      triangleDown: 'Eso no fue un triángulo al revés. Sigue la guía e inténtalo otra vez.',
     },
-  } as { move: MoveLesson; square: Lesson; circle: Lesson; wrong: Record<'square' | 'circle', string> },
-  sources: {
-    fire: ['¡Fuego cargado!', 'Toca al rival para lanzarlo.'],
-    water: ['¡Agua cargada!', 'Toca al rival para lanzarla.'],
-    both: 'Carga fuego y luego agua: se unen en una explosión.',
+  } as {
+    move: MoveLesson;
+    goal: ReadLesson;
+    square: Lesson;
+    circle: Lesson;
+    triangle: Lesson;
+    triangleDown: Lesson;
+    duel: ReadLesson;
+    duelGo: string;
+    wrong: Record<'square' | 'circle' | 'triangle' | 'triangleDown', string>;
   },
   sound: { mute: 'Silenciar sonido', unmute: 'Activar sonido' },
   practice: {
@@ -341,8 +378,7 @@ const es = {
     onlyDesktop: 'solo con ratón',
     queued: 'en cola',
     flags: {
-      tutorial: 'Tutorial (caminar, atacar, muro)',
-      sources: 'Pistas de fuego y agua',
+      tutorial: 'Tutorial (caminar, atacar, muro, fuego, agua)',
       hudspot: 'Aviso de rivales y nivel',
       keys: 'Teclas WASD',
       desktop: 'Nota «también en tu móvil»',
@@ -358,7 +394,11 @@ const es = {
     states: {
       none: 'sin guardar',
       moved: 'caminar hecho',
+      goal: 'objetivo visto',
       square: 'ataque hecho',
+      circle: 'muro hecho',
+      triangle: 'fuego hecho',
+      triangleDown: 'agua hecho',
       done: 'hecho',
       next: 'próxima partida',
       shown: 'visto',
@@ -498,29 +538,49 @@ const en: Strings = {
       orClick: 'Or click the ground where it glows.',
       pad: 'Rest your finger on the ring and slide it.',
       keys: 'Walk with WASD or the arrow keys.',
-      done: 'Nice! Now, to battle.',
+      done: 'Nice!',
+    },
+    goal: {
+      title: 'This is your rival',
+      body: "Whoever empties the other's health bar wins. It stands still for now: practise on it.",
+      button: 'Got it',
     },
     square: {
       draw: ['Draw a square', 'A square makes an earth attack.'],
       aim: ['Tap the rival', 'The earth attack bursts out right where you tap.'],
       watch: 'Hit!',
-      done: 'Draw more shapes to keep attacking.',
+      done: 'See its bar go down.',
     },
     circle: {
-      draw: ['You got hit! Draw a circle', 'A circle instantly raises an earth wall facing the rival.'],
+      draw: ["It's about to strike: draw a circle", 'A circle instantly raises an earth wall facing the rival.'],
       aim: ['Tap towards the rival', 'The wall rises around you, facing where you tap.'],
       watch: 'Anything that lands inside the wall does not hurt you.',
-      done: 'Done! Now you know how to attack and defend.',
+      done: 'Blocked!',
     },
+    triangle: {
+      draw: ['Draw a triangle over the campfire', 'That charges a fire attack.'],
+      aim: ['Fire charged! Tap the rival', 'It goes off where you tap.'],
+      watch: 'Fire!',
+      done: 'Fire takes more health than earth.',
+    },
+    triangleDown: {
+      draw: ['Draw an upside-down triangle over the water', 'That charges a water attack.'],
+      aim: ['Water charged! Tap the rival', 'It goes off where you tap.'],
+      watch: 'Splash!',
+      done: 'Tip: charge fire, then water, and they merge into a blast.',
+    },
+    duel: {
+      title: 'Ready for the duel?',
+      body: 'Now the rival moves and strikes back. You both start again at full health.',
+      button: 'Fight!',
+    },
+    duelGo: 'Good luck!',
     wrong: {
       square: "That wasn't a square. Follow the guide and try again.",
       circle: "That wasn't a circle. Follow the guide and try again.",
+      triangle: "That wasn't a triangle. Follow the guide and try again.",
+      triangleDown: "That wasn't an upside-down triangle. Follow the guide and try again.",
     },
-  },
-  sources: {
-    fire: ['Fire charged!', 'Tap the rival to cast it.'],
-    water: ['Water charged!', 'Tap the rival to cast it.'],
-    both: 'Charge fire, then water: they merge into a blast.',
   },
   sound: { mute: 'Mute sound', unmute: 'Turn sound on' },
   practice: {
@@ -637,8 +697,7 @@ const en: Strings = {
     onlyDesktop: 'mouse only',
     queued: 'queued',
     flags: {
-      tutorial: 'Tutorial (walk, attack, wall)',
-      sources: 'Fire and water hints',
+      tutorial: 'Tutorial (walk, attack, wall, fire, water)',
       hudspot: 'Rivals and level spotlight',
       keys: 'WASD keys',
       desktop: '“Also on your phone” note',
@@ -654,7 +713,11 @@ const en: Strings = {
     states: {
       none: 'not saved',
       moved: 'walk done',
+      goal: 'goal seen',
       square: 'attack done',
+      circle: 'wall done',
+      triangle: 'fire done',
+      triangleDown: 'water done',
       done: 'done',
       next: 'next match',
       shown: 'seen',
