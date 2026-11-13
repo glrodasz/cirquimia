@@ -271,7 +271,7 @@ combat.onEnd = (outcome) => {
   const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs, damage: combat.heroDamage };
   matchHud.showEnd(outcome);
   // Score, initials and sharing only where the score can be saved.
-  if (outcome === 'victory' && rankedMatch) board.fillEnd(matchHud.scoreSlot, runs, match, snapshotMeadow());
+  if (outcome === 'victory' && rankedMatch) board.fillEnd(matchHud.endSlots, runs, match, snapshotMeadow());
 };
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
 const practice = new Practice();

@@ -235,11 +235,14 @@ export function mountMatchControls(match: MatchControls) {
   end.setAttribute('aria-modal', 'true');
   end.innerHTML =
     '<div class="card"><h2></h2><p></p><div class="scored" hidden></div>' +
-    `<button type="button" class="match-btn again"><span class="cap">${t.match.again}</span></button></div>`;
+    `<div class="ends"><button type="button" class="match-btn again"><span class="cap">${t.match.again}</span></button></div>` +
+    '<section class="scored shared" hidden></section></div>';
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) end.addEventListener(type, (e) => e.stopPropagation());
   document.body.append(end);
   const again = end.querySelector<HTMLButtonElement>('.again')!;
   const scored = end.querySelector<HTMLElement>('.scored')!;
+  const ends = end.querySelector<HTMLElement>('.ends')!;
+  const shared = end.querySelector<HTMLElement>('.shared')!;
   again.addEventListener('click', () => {
     closeEnd();
     match.restart();
@@ -258,11 +261,14 @@ export function mountMatchControls(match: MatchControls) {
   if (spotState() === 'next') window.setTimeout(spotNext, 1200);
 
   return {
-    /** The victory card's score block, filled by the ranking for a match that counts. */
-    scoreSlot: scored,
+    /** The victory card's score, button row and share section, filled by the ranking for a match that counts. */
+    endSlots: { score: scored, actions: ends, share: shared },
     showEnd(outcome: Outcome) {
-      scored.hidden = true;
-      scored.innerHTML = '';
+      for (const slot of [scored, shared]) {
+        slot.hidden = true;
+        slot.innerHTML = '';
+      }
+      for (const extra of ends.querySelectorAll('.match-btn:not(.again)')) extra.remove();
       const n = match.rivals;
       const level = DIFFICULTY_LABEL[match.difficulty];
       const won = outcome === 'victory';
@@ -276,7 +282,8 @@ export function mountMatchControls(match: MatchControls) {
       end.hidden = false;
       void end.offsetWidth; // let the fade-in start from hidden
       end.classList.add('show');
-      again.focus({ preventScroll: true });
+      // Focused for the keyboard, without a ring on touch (focusVisible is ignored where unsupported).
+      again.focus({ preventScroll: true, focusVisible: false } as FocusOptions);
       if (won && spotState() === null) setSpot('next');
     },
   };
