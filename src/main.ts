@@ -29,7 +29,6 @@ import { mountKeysHint } from './keysHint';
 import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 import { mountPad } from './pad';
 import { Practice } from './practice';
-import { SourceHints } from './sourceHints';
 import { mountLeaderboard } from './leaderboard/ui';
 import { Runs } from './leaderboard/client';
 import { chime, fizzle, inkSound, sound } from './audio';
@@ -135,7 +134,8 @@ function toScreen(p: THREE.Vector3, lift: number) {
   const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
   return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
 }
-// The first match walks through the square (attack) and, after the first hit taken, the circle (wall).
+// The first match walks through walking, the goal, the square (attack), the circle (wall), fire and water against a
+// rival that stands still, then the duel starts.
 const tutorial = new Tutorial({
   covered: () => help.open || dev.open || combat.over,
   foe: () => combat.foe(),
@@ -144,12 +144,15 @@ const tutorial = new Tutorial({
   deselect: () => hold(null),
   hold: (on) => combat.hold(on),
   provoke: () => combat.provoke(),
-  ambush: () => combat.ambush(),
   hero: () => hero.root.position,
   walkGoal: () => walkGoal(),
-  finished: () => sourceHints.start(),
+  source: (element) => findSource(element, hero.root.position),
+  duel: () => {
+    combat.refresh();
+    combat.spar(false);
+  },
 });
-combat.onHeroHit = () => tutorial.hurt();
+combat.spar(!tutorial.done);
 // The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
 world.noRunes = () => !tutorial.done;
 
@@ -177,20 +180,12 @@ function walkGoal(): THREE.Vector3 | null {
   return null;
 }
 
-// Fire, then water: the triangle traced over its source after the first match's wall lesson, until each is charged once.
-const sourceHints = new SourceHints({
-  find: (element) => findSource(element, hero.root.position),
-  toScreen,
-  // Waits for the tutorial's card to fade, so the demo is never under it and comes one thing at a time.
-  covered: () => help.open || dev.open || board.open || combat.over || !tutorial.done || tutorial.showing,
-});
-
-// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow; so do
-// the first matches, for the fire and water hints that follow the tutorial.
+// Training meadows always have a campfire and a lagoon, so fire and water can be practised on the scarecrow; so does
+// the tutorial's meadow, for its fire and water lessons.
 // The first meadow is built before the HUD restores the match, so it reads the saved setting.
 let hudReady = false;
 world.requiredBy = () =>
-  (hudReady ? combat.rivalCount : savedRivals()) === 0 ? 'training' : !tutorial.done || sourceHints.active ? 'onboarding' : null;
+  (hudReady ? combat.rivalCount : savedRivals()) === 0 ? 'training' : !tutorial.done ? 'onboarding' : null;
 world.required = () => (world.requiredBy() ? ['fogata', 'estanque'] : []);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
@@ -572,10 +567,6 @@ function useDrawn(kind: ShapeKind, cx: number, cy: number) {
   if (source) {
     hero.face(source);
     spells.channel(source, hero.root.position, element);
-    if (sourceHints.charged(element)) {
-      // The last one also tells what the two make together.
-      tutorial.note(t.sources[element][0], sourceHints.active ? t.sources[element][1] : t.sources.both);
-    }
   }
   return true;
 }
@@ -858,7 +849,6 @@ renderer.setAnimationLoop((time) => {
   practice.set(combat.rivalCount === 0);
   matchTimer.update();
   hudFade.update();
-  sourceHints.update(dt);
   aimReticle(dt);
   ink.update(dt);
 
