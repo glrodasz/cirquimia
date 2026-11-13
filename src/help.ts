@@ -1,19 +1,11 @@
-import { brushPath, shapeIcon, type Pt } from './ammo';
-import { random, segment } from './match';
+import { shapeIcon } from './ammo';
 import type { ShapeKind } from './gestures';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
 import { LANGUAGE_NAMES } from './i18n/locale';
 import { bookIcon, circleTabIcon, dropIcon, flameIcon, quillTabIcon, turnArrowIcon } from './icons';
-import moveShot from './assets/help/move.webp';
-import drawShot from './assets/help/draw.webp';
-import useShot from './assets/help/use.webp';
 import runeShot from './assets/help/rune.webp';
-
-function poly(points: Pt[]): Pt[] {
-  return points.slice(1).flatMap((p, i) => segment(points[i], p).slice(i ? 1 : 0));
-}
 
 /** A pointing hand like the 👆 emoji, fingertip at the origin: index up, three folded knuckles, thumb out to the left. */
 const HAND =
@@ -32,58 +24,7 @@ export function hand(x: number, y: number, s: number, tap = true) {
   );
 }
 
-/** A brush arrow with an open head, optionally broken into dashes like footsteps. */
-function arrowLine(points: Pt[], dashes: number, rand: () => number) {
-  const line = poly(points);
-  const parts: Pt[][] = [];
-  if (dashes) {
-    const per = line.length / (dashes * 2 - 1);
-    for (let i = 0; i < dashes; i++) parts.push(line.slice(Math.round(i * 2 * per), Math.round((i * 2 + 1) * per) + 1));
-  } else parts.push(line);
-  const [a, b] = points.slice(-2);
-  const dir = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  for (const side of [-1, 1]) parts.push(segment(b, [b[0] - Math.cos(dir + side * 0.55) * 9, b[1] - Math.sin(dir + side * 0.55) * 9]));
-  return parts.map((l) => brushPath(l, 3.4, rand).ink).join('');
-}
-
-/** Hands, arrows and strokes drawn over each screenshot, in the screenshot's own 312×234 frame. */
-const OVERLAYS: Array<(rand: () => number) => string> = [
-  (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4),
-  // From the stroke to the symbol now held over the alchemist's head.
-  (rand) => `<path class="arrow" d="${arrowLine([[114, 70], [150, 92], [170, 138]], 0, rand)}"/>` + hand(33, 10, 1.4, false),
-  () => hand(132, 112, 1.4),
-];
-const SHOTS = [moveShot, drawShot, useShot];
-
-/**
- * The walk page split along its diagonal into the two ways to move. Top right: the screenshot as it is, a hand
- * tapping (or clicking) the map. Bottom left: the same meadow closer in, the alchemist walking off up and to the
- * right, driven by the stick's ring with its knob pushed that way, or by the arrow keys on a keyboard.
- */
-function splitMove(rand: () => number, keys: boolean) {
-  const zoom = 1.5;
-  const hero: Pt = [182, 118]; // the alchemist's feet in the move screenshot
-  const at: Pt = [128, 168]; // where they land in the close-up half
-  const x = at[0] - hero[0] * zoom;
-  const y = at[1] - hero[1] * zoom;
-  const cap = (cx: number, cy: number, label: string, lit = false) =>
-    `<g class="key${lit ? ' lit' : ''}"><rect x="${cx - 11}" y="${cy - 11}" width="22" height="22"/><text x="${cx}" y="${cy + 4.5}">${label}</text></g>`;
-  const steer = keys
-    ? cap(48, 174, 'W', true) + cap(24, 198, 'A') + cap(48, 198, 'S') + cap(72, 198, 'D', true)
-    : `<g class="pad"><circle cx="50" cy="190" r="30"/><circle class="knob" cx="62" cy="178" r="12"/></g>`;
-  return (
-    `<defs><clipPath id="move-near"><polygon points="0,0 312,234 0,234"/></clipPath></defs>` +
-    `<image href="${moveShot}" x="${x}" y="${y}" width="${312 * zoom}" height="${234 * zoom}" clip-path="url(#move-near)" preserveAspectRatio="none"/>` +
-    `<path class="split" d="M-4 -3L316 237"/>` +
-    OVERLAYS[0](rand) +
-    `<path class="arrow" d="${arrowLine([[at[0] + 16, at[1] - 8], [at[0] + 52, at[1] - 16]], 3, rand)}"/>` +
-    steer
-  );
-}
-
-/** A teardrop: the tip, down one side, round the belly and back up. */
-
-/** Every shape in the order of the index; fire and water ones show where they get charged. No numbers: players find out how hard each one hits. */
+/** Every shape in the order of the index; fire and water ones say they need their source. No numbers: players find out how hard each one hits. */
 const SHAPES: Array<{ kind: ShapeKind; source?: 'fire' | 'water' }> = [
   { kind: 'circle' },
   { kind: 'square' },
@@ -118,7 +59,7 @@ type Section = 'symbols' | 'guide';
 function bookCard() {
   const sections: Array<[Section, string[], (n: number, total: number) => string]> = [
     ['symbols', symbols(), t.help.pageOf],
-    ['guide', guide(), t.help.slideOf],
+    ['guide', guide(), () => t.help.title],
   ];
   const pages = sections
     .map(([sec, list, label]) =>
@@ -140,38 +81,33 @@ function bookCard() {
 }
 
 /**
- * How to play: move, draw, cast, one illustrated page each. The rest (walls, fire and water) is taught in the
- * first match, and every symbol is in the book.
+ * How to play: one sheet of plain instructions, no pictures. Move, draw, cast, each a short heading over
+ * two bulleted steps, worded for the way this player plays (click and keys, or tap and stick). The rest
+ * (walls, fire and water) is taught in the first match, and every symbol is in the book.
  */
 function guide() {
-  const rand = random();
   const keys = hasKeyboard();
   // Two ways to walk: point at the map, or the stick on touch screens / the keys on a keyboard.
   const ways = keys ? [t.help.moveWays.click, t.help.moveWays.keys] : padEnabled() ? [t.help.moveWays.tap, t.help.moveWays.stick] : null;
-  return t.help.slides.map(([title, text], i) => {
-    const split = i === 0 && ways;
-    // Every page reads the same way: two steps, a bulleted list aligned to the left.
-    const steps = split ? ways : (keys && i > 0 ? t.help.desk[i - 1] : text).split('|');
-    const body = `<ul class="steps">${steps.map((step) => `<li>${step}</li>`).join('')}</ul>`;
-    return (
-      `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
-      `<svg viewBox="0 0 312 234" aria-hidden="true">${split ? splitMove(rand, keys) : OVERLAYS[i](rand)}</svg></figure>` +
-      `<h3><span class="num">${i + 1}</span>${title}</h3>${body}`
-    );
-  });
+  const rules = t.help.slides
+    .map(([title, text], i) => {
+      const steps = i === 0 && ways ? ways : (keys && i > 0 ? t.help.desk[i - 1] : text).split('|');
+      return `<h3><span class="num">${i + 1}</span>${title}</h3><ul class="steps">${steps.map((step) => `<li>${step}</li>`).join('')}</ul>`;
+    })
+    .join('');
+  return [rules];
 }
 
 /**
- * The symbols manual: an index of every shape and what it does, with the combinations under a rule in the
- * same index; then where fire and water get charged, runes, and how combining works.
+ * The symbols manual, one sheet: every shape and what it does, the combinations under a rule, and the rune
+ * note at the foot. Fire and water show their source as an icon; the rest players find out by playing.
  */
 function symbols() {
-  // An index, like the contents of an old grimoire: numeral, the symbol in a fine nib, what it does.
-  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+  // An index, like the contents of an old grimoire: the symbol in a fine nib and what it does.
   const shapes = SHAPES.map(
-    (s, i) =>
-      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}><span class="rn">${ROMAN[i]}</span>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.roles[s.kind]}</b>` +
-      (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>` : '') +
+    (s) =>
+      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.roles[s.kind]}</b>` +
+      (s.source ? `<span class="need">(${t.help.needs}<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>)</span>` : '') +
       `</li>`,
   ).join('');
   // Two symbols merged in hand, drawn as the strokes that make them: fire + water = the blast, the star + fire or water = a fire or water star.
@@ -183,8 +119,8 @@ function symbols() {
     ] as const
   )
     .map(
-      ([a, b, out], i) =>
-        `<li${drillClass(out)}><span class="rn">${ROMAN[SHAPES.length + i]}</span>` +
+      ([a, b, out]) =>
+        `<li${drillClass(out)}>` +
         `<span class="recipe">${fig(a, shapeIcon(a, true))}<i>+</i>${fig(b, shapeIcon(b, true))}<i>=</i>${fig(out, shapeIcon(out, true))}</span>` +
         `<b>${t.help.roles[out]}</b></li>`,
     )
@@ -197,12 +133,7 @@ function symbols() {
     `${progress}<ol class="shapes">${shapes}</ol>` +
     `<h4 class="sep">${t.help.comboTitle}</h4><ol class="shapes combos">${combos}</ol>` +
     `<ul class="notes rune-note"><li${drillClass('rune')}><img class="rune-shot" src="${runeShot}" alt="" draggable="false"><span>${t.help.runesNote}</span></li></ul>`;
-  const notes =
-    `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
-    `<li><span class="src">${flameIcon()}</span><span>${t.help.fireNote}</span></li>` +
-    `<li><span class="src">${dropIcon()}</span><span>${t.help.waterNote}</span></li></ul>` +
-    `<h3>${t.help.comboTitle}</h3><p class="combo-note">${t.help.comboNote}</p>`;
-  return [index, notes];
+  return [index];
 }
 
 /** Set before switching language, so the book opens again on the same section once the page reloads. */
@@ -278,7 +209,7 @@ export function mountHelp() {
       const last = leaves.length - 1;
       all.forEach((l) => (l.inert = l !== leaves[at]));
       leaves.forEach((l, i) => l.classList.toggle('more', i < last));
-      folio.textContent = `${at + 1} / ${leaves.length}`;
+      folio.textContent = leaves.length > 1 ? `${at + 1} / ${leaves.length}` : '';
       spoken.textContent = leaves[at].getAttribute('aria-label')!;
       const ahead = at < last;
       next.classList.toggle('seal', !ahead);
