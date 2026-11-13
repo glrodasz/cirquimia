@@ -44,7 +44,10 @@ export const WINDOW_MS = 10 * 60 * 1000;
 const MAX_RUNS_PER_WINDOW = 60;
 const MAX_SCORES_PER_WINDOW = 12;
 const MAX_BODY = 4096;
-const BOARD_SIZE = 50;
+/** Rows on each board; the player's own best, when lower, is added below with its real place. */
+export const BOARD_SIZE = 20;
+/** At most this many of the player's own score ids are looked up (client.ts keeps the last 100). */
+const MAX_MINE = 100;
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS runs (
@@ -306,7 +309,18 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
 export const PERIODS = ['today', 'week', 'month', 'all'] as const;
 export type Period = (typeof PERIODS)[number];
 
-/** GET /api/scores?period=today|week|month|all → the top of the board. Days, weeks (from Monday) and months are UTC. */
+/** The player's own score ids, from `mine=1,2,3` (client.ts myScores). */
+export function parseMine(raw: string | null): number[] {
+  if (!raw) return [];
+  const ids = raw.split(',').map(Number).filter((n) => Number.isSafeInteger(n) && n > 0);
+  return [...new Set(ids)].slice(-MAX_MINE);
+}
+
+/**
+ * GET /api/scores?period=today|week|month|all[&mine=ids] → the top BOARD_SIZE of the board, plus `me`: the best of
+ * the player's own scores on that board with its place, when it is below the top. Days, weeks (from Monday) and
+ * months are UTC. Reads only, so the board costs no D1 writes.
+ */
 export async function listScores(ctx: Ctx): Promise<Response> {
   const s = ctx.env.DB;
   if (!s) return fail('unavailable', 503);
@@ -314,18 +328,36 @@ export async function listScores(ctx: Ctx): Promise<Response> {
   const url = new URL(ctx.request.url);
   const asked = url.searchParams.get('period');
   const period: Period = (PERIODS as readonly string[]).includes(asked ?? '') ? (asked as Period) : 'today';
+  const mine = parseMine(url.searchParams.get('mine'));
   const now = Date.now();
   const day = dayOf(now);
+  const [where, args]: [string, unknown[]] =
+    period === 'all'
+      ? ['1 = 1', []]
+      : period === 'today'
+        ? ['day = ?', [day]]
+        : ['created_at >= ?', [period === 'week' ? weekStart(now) : monthStart(now)]];
   const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at';
   const order = 'ORDER BY score DESC, created_at ASC LIMIT ?';
-  const query =
-    period === 'all'
-      ? s.prepare(`SELECT ${columns} FROM scores ${order}`).bind(BOARD_SIZE)
-      : period === 'today'
-        ? s.prepare(`SELECT ${columns} FROM scores WHERE day = ? ${order}`).bind(day, BOARD_SIZE)
-        : s.prepare(`SELECT ${columns} FROM scores WHERE created_at >= ? ${order}`).bind(period === 'week' ? weekStart(now) : monthStart(now), BOARD_SIZE);
-  const { results } = await query.all<Row>();
-  return json({ period, day, entries: results.map(entry) }, 200, 'public, max-age=10');
+  const { results } = await s.prepare(`SELECT ${columns} FROM scores WHERE ${where} ${order}`).bind(...args, BOARD_SIZE).all<Row>();
+
+  let me: { rank: number; entry: ReturnType<typeof entry> } | null = null;
+  const shown = new Set(results.map((r) => r.id));
+  if (mine.length && !mine.some((id) => shown.has(id)) && results.length === BOARD_SIZE) {
+    const best = await s
+      .prepare(`SELECT ${columns} FROM scores WHERE ${where} AND id IN (${mine.map(() => '?').join(',')}) ${order}`)
+      .bind(...args, ...mine, 1)
+      .first<Row>();
+    if (best) {
+      // Ties go to whoever got there first, as on the board.
+      const above = await s
+        .prepare(`SELECT COUNT(*) AS n FROM scores WHERE ${where} AND (score > ? OR (score = ? AND created_at < ?))`)
+        .bind(...args, best.score, best.score, best.created_at)
+        .first<{ n: number }>();
+      me = { rank: (above?.n ?? 0) + 1, entry: entry(best) };
+    }
+  }
+  return json({ period, day, entries: results.map(entry), me }, 200, mine.length ? 'private, max-age=10' : 'public, max-age=10');
 }
 
 /** Any error becomes a plain 500 the game can show as "ranking unavailable". */
