@@ -61,7 +61,8 @@ export async function uploadCard(ctx: Ctx): Promise<Response> {
 
 /**
  * Keeps share_images small: at most KEEP_TOP all-time + KEEP_TOP this month + KEEP_TOP today (the lists overlap),
- * plus the cards younger than CARD_TTL_MS. The weekly board needs no rule: a week is never older than the TTL. The score rows stay, so pruned links still work and still replay the match.
+ * plus the cards younger than CARD_TTL_MS. The weekly board needs no rule: a week is never older than the TTL.
+ * The score rows stay, so pruned links still work and still replay the match.
  */
 export async function pruneCards(db: D1Database, now: number): Promise<number> {
   const res = await db
