@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isPreviewBot, sharePage, type ShareRow } from '../src/leaderboard/shares';
+import { challengeUrl, isPreviewBot, sharePage, type ShareRow } from '../src/leaderboard/shares';
 import { ID_PATTERN, newShareId } from '../src/leaderboard/shareId';
 import { resolveLocaleRedirect } from '../src/i18n/locale';
+import { parseChallenge } from '../src/leaderboard/challengeLink';
 
 const row: ShareRow = {
   id: 'abcDEF23',
@@ -12,6 +13,7 @@ const row: ShareRow = {
   damage: 325,
   rivals: 2,
   difficulty: 'dificil',
+  seed: 'k3x9q2',
   card: 1700000000000,
 };
 
@@ -31,7 +33,7 @@ describe('share links', () => {
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
     expect(html).toContain('LUIS: 2635 puntos en Cirquimia');
     expect(html).toContain('Venció a 2 rivales en Difícil en 1:58');
-    expect(html).toContain('href="https://cirquimia.pages.dev/es"');
+    expect(html).toContain('href="https://cirquimia.pages.dev/es?reto=2.dificil.k3x9q2"');
   });
 
   it('falls back to the game picture when the card never arrived', () => {
@@ -42,7 +44,7 @@ describe('share links', () => {
     const html = sharePage({ ...row, locale: 'en', initials: null, rivals: 1 }, 'https://x.pages.dev');
     expect(html).toContain('<title>2,635 points in Cirquimia</title>');
     expect(html).toContain('Beat 1 rival on Hard');
-    expect(html).toContain('href="https://x.pages.dev/"');
+    expect(html).toContain('href="https://x.pages.dev/?reto=1.dificil.k3x9q2"');
   });
 
   it('never lets stored text into the markup', () => {
@@ -72,7 +74,18 @@ describe('share links', () => {
       expect(isPreviewBot(ua), ua).toBe(false);
     expect(isPreviewBot(null)).toBe(false);
     // Anyone who still lands on the page (an in-app browser that looks like a robot) is sent on at once.
-    expect(sharePage(row, 'https://cirquimia.pages.dev')).toContain('<meta http-equiv="refresh" content="0; url=https://cirquimia.pages.dev/es">');
+    expect(sharePage(row, 'https://cirquimia.pages.dev')).toContain('<meta http-equiv="refresh" content="0; url=https://cirquimia.pages.dev/es?reto=2.dificil.k3x9q2">');
+  });
+
+  it("sends people into the challenger's match: meadow, rival count and level", () => {
+    expect(challengeUrl(row, 'https://cirquimia.pages.dev')).toBe('https://cirquimia.pages.dev/es?reto=2.dificil.k3x9q2');
+    // Scores saved before the meadow was recorded still carry rivals and level.
+    expect(challengeUrl({ ...row, seed: null }, 'https://cirquimia.pages.dev')).toBe('https://cirquimia.pages.dev/es?reto=2.dificil');
+    expect(challengeUrl({ ...row, difficulty: 'nope' }, 'https://cirquimia.pages.dev')).toBe('https://cirquimia.pages.dev/es');
+    expect(parseChallenge('2.dificil.k3x9q2')).toEqual({ rivals: 2, difficulty: 'dificil', seed: 'k3x9q2' });
+    expect(parseChallenge('3.experto')).toEqual({ rivals: 3, difficulty: 'experto', seed: null });
+    expect(parseChallenge('1.facil.<x>')).toEqual({ rivals: 1, difficulty: 'facil', seed: null });
+    for (const bad of [null, '', '0.facil', '4.facil', '2.imposible', 'x.facil']) expect(parseChallenge(bad), String(bad)).toBeNull();
   });
 
   it('keeps share pages out of the language redirect', () => {

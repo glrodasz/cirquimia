@@ -265,7 +265,7 @@ combat.onStart = () => {
   hudFade.reset();
   tutorialMatch = !tutorial.done;
   rankedMatch = combat.rivalCount > 0 && tutorial.done && !DEV;
-  runs.start(combat.rivalCount, combat.difficulty, rankedMatch);
+  runs.start(combat.rivalCount, combat.difficulty, world.layout.seed, rankedMatch);
 };
 combat.onEnd = (outcome) => {
   const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs, damage: combat.heroDamage };

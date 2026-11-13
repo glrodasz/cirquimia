@@ -3,6 +3,7 @@ import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './c
 import { ending } from './audio';
 import { t } from './i18n';
 import { levelIcon, rivalsIcon } from './icons';
+import { challenge } from './challenge';
 
 const STORE = 'cirquimia.match';
 const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before they moved to the HUD
@@ -54,6 +55,8 @@ export function savedRivals(): number {
 }
 
 function load(): Saved {
+  // A challenge link plays the challenger's match, and it becomes the player's own choice from then on.
+  if (challenge) return { rivals: challenge.rivals, difficulty: challenge.difficulty };
   try {
     const own = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Saved | null;
     if (own) return own;
@@ -243,6 +246,14 @@ export function mountMatchControls(match: MatchControls) {
     restarted(again);
     spotNext();
   });
+  // A challenge link set this match up: say so once, where a restart would.
+  if (challenge) {
+    toast.textContent = t.match.challenge(match.rivals, DIFFICULTY_LABEL[match.difficulty]);
+    window.setTimeout(() => {
+      toast.classList.add('show');
+      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3200);
+    }, 900);
+  }
   // Won and left before playing again: the next visit's first match shows it.
   if (spotState() === 'next') window.setTimeout(spotNext, 1200);
 

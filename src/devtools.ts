@@ -4,6 +4,7 @@ import type { World } from './world';
 import { LOOK, setLook } from './look';
 import { formatNumber, langLink, t } from './i18n';
 import { TIERS, parseTier, type Reason, type Tier } from './quality';
+import { challenge } from './challenge';
 
 const STORE = 'cirquimia.dev';
 
@@ -35,8 +36,9 @@ function save(patch: Saved) {
   }
 }
 
-/** Seed to start with: ?seed= in the URL, then the last one used, then a fresh one. */
+/** Seed to start with: a challenge's meadow, ?seed= in the URL, then the last one used, then a fresh one. */
 export function initialSeed(): string {
+  if (challenge?.seed) return challenge.seed;
   try {
     const fromUrl = new URLSearchParams(location.search).get('seed');
     if (fromUrl) return fromUrl;
