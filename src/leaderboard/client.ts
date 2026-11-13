@@ -33,13 +33,13 @@ export interface Submitted {
   rivals: number;
   difficulty: Difficulty;
   category: Category;
-  rank: { today: number; all: number };
-  total: { today: number; all: number };
+  rank: Record<Period, number>;
+  total: Record<Period, number>;
   /** The score's share link, whose preview is its card. */
   share?: string;
 }
 
-export type Period = 'today' | 'all';
+export type Period = 'today' | 'week' | 'month' | 'all';
 export type Failure = 'unavailable' | 'too-many' | 'rejected';
 
 async function call<T>(path: string, init?: RequestInit): Promise<T | Failure> {

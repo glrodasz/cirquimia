@@ -79,3 +79,16 @@ export function formatTime(durationMs: number): string {
 export function dayOf(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
+
+/** When the UTC week holding `ms` began (Monday 00:00 UTC), for the "this week" board. */
+export function weekStart(ms: number): number {
+  const d = new Date(ms);
+  const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return midnight - ((d.getUTCDay() + 6) % 7) * 24 * 60 * 60 * 1000;
+}
+
+/** When the UTC month holding `ms` began (the 1st, 00:00 UTC), for the "this month" board. */
+export function monthStart(ms: number): number {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+}

@@ -9,7 +9,7 @@
 import { classifyDevice, type DeviceHints } from './device';
 import { newShareId } from './shareId';
 import { validSeed } from './challengeLink';
-import { dayOf, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
+import { dayOf, monthStart, weekStart, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
 
 /** The slice of Cloudflare's D1 API used here. */
 export interface D1Result<T> {
@@ -81,6 +81,7 @@ const SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS scores_all ON scores (score DESC, created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_day ON scores (day, score DESC, created_at)`,
+  `CREATE INDEX IF NOT EXISTS scores_time ON scores (created_at)`,
   `CREATE INDEX IF NOT EXISTS scores_ip ON scores (ip_hash, created_at)`,
   // The share links' cards (src/leaderboard/shares.ts), one per saved score, by the score's share_id.
   `CREATE TABLE IF NOT EXISTS share_images (
@@ -268,11 +269,18 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
     .first<{ id: number }>();
 
   // Ties go to whoever got there first.
-  const [today, all] = await Promise.all([
+  const since = { week: weekStart(now), month: monthStart(now) };
+  const [today, week, month, all] = await Promise.all([
     s.db
       .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE day = ?1 AND (score > ?2 OR (score = ?2 AND created_at < ?3))) + 1 AS rank, (SELECT COUNT(*) FROM scores WHERE day = ?1) AS total')
       .bind(day, score, now)
       .first<{ rank: number; total: number }>(),
+    ...[since.week, since.month].map((from) =>
+      s.db
+        .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE created_at >= ?1 AND (score > ?2 OR (score = ?2 AND created_at < ?3))) + 1 AS rank, (SELECT COUNT(*) FROM scores WHERE created_at >= ?1) AS total')
+        .bind(from, score, now)
+        .first<{ rank: number; total: number }>(),
+    ),
     s.db
       .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE score > ?1 OR (score = ?1 AND created_at < ?2)) + 1 AS rank, (SELECT COUNT(*) FROM scores) AS total')
       .bind(score, now)
@@ -287,27 +295,35 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       rivals: run.rivals,
       difficulty: run.difficulty,
       category: device.category,
-      rank: { today: today?.rank ?? 1, all: all?.rank ?? 1 },
-      total: { today: today?.total ?? 1, all: all?.total ?? 1 },
+      rank: { today: today?.rank ?? 1, week: week?.rank ?? 1, month: month?.rank ?? 1, all: all?.rank ?? 1 },
+      total: { today: today?.total ?? 1, week: week?.total ?? 1, month: month?.total ?? 1, all: all?.total ?? 1 },
       share: `${new URL(ctx.request.url).origin}/s/${shareId}`,
     },
     201,
   );
 }
 
-/** GET /api/scores?period=today|all → the top of the board. */
+export const PERIODS = ['today', 'week', 'month', 'all'] as const;
+export type Period = (typeof PERIODS)[number];
+
+/** GET /api/scores?period=today|week|month|all → the top of the board. Days, weeks (from Monday) and months are UTC. */
 export async function listScores(ctx: Ctx): Promise<Response> {
   const s = ctx.env.DB;
   if (!s) return fail('unavailable', 503);
   await ensureSchema(s);
   const url = new URL(ctx.request.url);
-  const period = url.searchParams.get('period') === 'all' ? 'all' : 'today';
-  const day = dayOf(Date.now());
+  const asked = url.searchParams.get('period');
+  const period: Period = (PERIODS as readonly string[]).includes(asked ?? '') ? (asked as Period) : 'today';
+  const now = Date.now();
+  const day = dayOf(now);
   const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at';
+  const order = 'ORDER BY score DESC, created_at ASC LIMIT ?';
   const query =
     period === 'all'
-      ? s.prepare(`SELECT ${columns} FROM scores ORDER BY score DESC, created_at ASC LIMIT ?`).bind(BOARD_SIZE)
-      : s.prepare(`SELECT ${columns} FROM scores WHERE day = ? ORDER BY score DESC, created_at ASC LIMIT ?`).bind(day, BOARD_SIZE);
+      ? s.prepare(`SELECT ${columns} FROM scores ${order}`).bind(BOARD_SIZE)
+      : period === 'today'
+        ? s.prepare(`SELECT ${columns} FROM scores WHERE day = ? ${order}`).bind(day, BOARD_SIZE)
+        : s.prepare(`SELECT ${columns} FROM scores WHERE created_at >= ? ${order}`).bind(period === 'week' ? weekStart(now) : monthStart(now), BOARD_SIZE);
   const { results } = await query.all<Row>();
   return json({ period, day, entries: results.map(entry) }, 200, 'public, max-age=10');
 }

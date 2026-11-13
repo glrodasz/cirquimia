@@ -19,7 +19,7 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
 - `POST /api/scores {runId, initials, durationMs, damage, hints}` stores a won match; the server recomputes the
   score with the run's own difficulty, refuses impossible numbers (under 4 s or over 30 min, more than 40 damage
   a second or 300 per rival, a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
-- `GET /api/scores?period=today|all` returns the top 50.
+- `GET /api/scores?period=today|week|month|all` returns the top 50. Days, weeks (Monday to Sunday) and months are UTC.
 
 The board shows only Mobile / Tablet / Desktop; each row also stores OS, device (iPhone, iPad, Android
 phone/tablet, Mac, PC…), browser, model and OS version where the browser offers them, screen, language,
@@ -63,8 +63,9 @@ straight to the game (302), and an in-app browser that looks like a robot is sen
 redirect. A score whose card never arrived still has a link, with the game's own picture as preview.
 Matches without a ranking (offline, no run) share the plain site link.
 
-Cards are pruned on every upload (`pruneCards`): the cards of the all-time top 100 and of today's (UTC) top 100
-stay for good, every other card is deleted once it is 7 days old. So the table holds at most 200 kept cards plus a
-week of uploads. A pruned link still works (the score row stays, so it still replays the match); its preview falls
+Cards are pruned on every upload (`pruneCards`): the cards of the all-time top 100, this month's top 100 and
+today's top 100 (UTC) stay while they are on those lists, every other card is deleted once it is 7 days old. The
+weekly board needs no rule of its own: a week never reaches back past the 7 days. So the table holds at most 300 kept
+cards plus a week of uploads. A pruned link still works (the score row stays, so it still replays the match); its preview falls
 back to the game's own picture (`/og/<locale>.jpg`), and `/s/<id>.jpg` redirects there. If storage ever grows
 anyway, `share_images` can move to an R2 bucket without changing the URLs.

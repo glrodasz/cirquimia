@@ -14,7 +14,7 @@
 import { isLocale, localizePath, type Locale } from '../i18n/locale';
 import { SITE_URL } from '../i18n/seo';
 import type { Difficulty } from '../combat';
-import { dayOf, isDifficulty, validInitials, formatTime } from './score';
+import { dayOf, monthStart, isDifficulty, validInitials, formatTime } from './score';
 import { ensureSchema, fail, json, setup, type Ctx, type D1Database } from './server';
 import { ID_PATTERN } from './shareId';
 import { CHALLENGE_PARAM, challengeValue } from './challengeLink';
@@ -23,7 +23,7 @@ import { CHALLENGE_PARAM, challengeValue } from './challengeLink';
 export const MAX_IMAGE = 600 * 1024;
 /** Cards are uploaded right after saving; past this, a score's card can no longer be replaced. */
 const UPLOAD_TTL_MS = 60 * 60 * 1000;
-/** Cards of the all-time top and of today's top (UTC) are kept for good; every other card goes after CARD_TTL_MS. */
+/** Cards on the all-time, this month's and today's top (UTC) are kept while they are on it; every other card goes after CARD_TTL_MS. */
 export const KEEP_TOP = 100;
 /** Long enough for the preview of a fresh share; after it the link shows the game's own picture (/og/<locale>.jpg). */
 export const CARD_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -60,17 +60,19 @@ export async function uploadCard(ctx: Ctx): Promise<Response> {
 }
 
 /**
- * Keeps share_images small: at most KEEP_TOP all-time + KEEP_TOP today (the two lists overlap), plus the cards
- * younger than CARD_TTL_MS. The score rows stay, so pruned links still work and still replay the match.
+ * Keeps share_images small: at most KEEP_TOP all-time + KEEP_TOP this month + KEEP_TOP today (the lists overlap),
+ * plus the cards younger than CARD_TTL_MS. The weekly board needs no rule: a week is never older than the TTL.
+ * The score rows stay, so pruned links still work and still replay the match.
  */
 export async function pruneCards(db: D1Database, now: number): Promise<number> {
   const res = await db
     .prepare(
       `DELETE FROM share_images WHERE created_at < ?1
        AND share_id NOT IN (SELECT share_id FROM scores WHERE share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)
-       AND share_id NOT IN (SELECT share_id FROM scores WHERE day = ?2 AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)`,
+       AND share_id NOT IN (SELECT share_id FROM scores WHERE day = ?2 AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)
+       AND share_id NOT IN (SELECT share_id FROM scores WHERE created_at >= ?4 AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)`,
     )
-    .bind(now - CARD_TTL_MS, dayOf(now), KEEP_TOP)
+    .bind(now - CARD_TTL_MS, dayOf(now), KEEP_TOP, monthStart(now))
     .run();
   return res.meta.changes;
 }
