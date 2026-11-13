@@ -21,6 +21,13 @@ function metaLine(e: { durationMs: number; damage: number; rivals: number; diffi
   return `⏱ ${formatTime(e.durationMs)} · ${damage} · ${t.rank.rivals(e.rivals)} · ${DIFFICULTY_LABEL[e.difficulty] ?? e.difficulty}`;
 }
 
+/** The victory card's parts the ranking fills: the score on top, the button row under it, and sharing at the foot. */
+export interface EndSlots {
+  score: HTMLElement;
+  actions: HTMLElement;
+  share: HTMLElement;
+}
+
 export interface Leaderboard {
   readonly open: boolean;
   show(period?: Period): void;
@@ -29,7 +36,7 @@ export interface Leaderboard {
    * `meadow` the frame of the match for the share card.
    */
   fillEnd(
-    slot: HTMLElement,
+    slots: EndSlots,
     runs: Runs,
     match: { rivals: number; difficulty: Difficulty; durationMs: number; damage: number },
     meadow?: Promise<CanvasImageSource | null>,
@@ -131,16 +138,21 @@ export function mountLeaderboard(): Leaderboard {
   overlay.addEventListener('keydown', (e) => e.key === 'Escape' && hide());
   for (const tab of tabs) tab.addEventListener('click', () => load(tab.dataset.period as Period));
 
-  const fillEnd: Leaderboard['fillEnd'] = (slot, runs, match, meadow) => {
+  const fillEnd: Leaderboard['fillEnd'] = ({ score: slot, actions, share: shared }, runs, match, meadow) => {
     const data: ShareData = { ...match, score: scoreFor(match.damage, match.difficulty, match.durationMs) };
-    slot.hidden = false;
+    slot.hidden = shared.hidden = false;
     slot.innerHTML =
       `<div class="pts"><b>${data.score.toLocaleString(LANG)}</b> ${t.rank.points(data.score)}</div>` +
       `<div class="meta">${metaLine(match)}</div>` +
       `<form class="sign" novalidate><label><span>${t.rank.initials}</span>` +
       `<input name="initials" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="ABCD" required></label>` +
       `<button type="submit" class="match-btn save"><span class="cap">${t.rank.save}</span></button></form>` +
-      `<p class="note" role="status"></p>` +
+      `<p class="note" role="status"></p>`;
+    // Secondary on the left of "Play again", as one row of the two ways on.
+    actions.insertAdjacentHTML('afterbegin', `<button type="button" class="match-btn view">${trophyIcon()}<span class="cap">${t.rank.view}</span></button>`);
+    shared.setAttribute('aria-label', t.rank.share);
+    shared.innerHTML =
+      `<h3>${t.rank.share}</h3>` +
       `<div class="share">` +
       `<p class="dare"></p>` +
       `<div class="row">` +
@@ -159,8 +171,7 @@ export function mountLeaderboard(): Leaderboard {
       `<button type="button" class="match-btn net brand" data-to="mastodon" aria-label="Mastodon">${mastodonLogo()}<span class="cap">Mastodon</span></button>` +
       `<button type="button" class="match-btn net save-img" data-to="image" aria-label="${t.rank.saveImage}" title="${t.rank.saveImage}">${saveIcon()}</button></div>` +
       `<form class="masto" hidden novalidate><input name="host" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" enterkeyhint="go" placeholder="${t.rank.mastodonHost}" aria-label="${t.rank.mastodonHost}">` +
-      `<button type="submit" class="match-btn"><span class="cap">${t.rank.go}</span></button></form></div>` +
-      `<button type="button" class="match-btn view">${trophyIcon()}<span class="cap">${t.rank.view}</span></button>`;
+      `<button type="submit" class="match-btn"><span class="cap">${t.rank.go}</span></button></form></div>`;
     const form = slot.querySelector<HTMLFormElement>('.sign')!;
     const input = form.querySelector<HTMLInputElement>('input')!;
     const save = form.querySelector<HTMLButtonElement>('.save')!;
@@ -168,9 +179,9 @@ export function mountLeaderboard(): Leaderboard {
     const say = (text: string) => {
       note.innerHTML = text;
     };
-    const moreBtn = slot.querySelector<HTMLButtonElement>('.more')!;
-    const menu = slot.querySelector<HTMLElement>('.more-menu')!;
-    const masto = slot.querySelector<HTMLFormElement>('.masto')!;
+    const moreBtn = shared.querySelector<HTMLButtonElement>('.more')!;
+    const menu = shared.querySelector<HTMLElement>('.more-menu')!;
+    const masto = shared.querySelector<HTMLFormElement>('.masto')!;
     const mastoInput = masto.querySelector<HTMLInputElement>('input')!;
     let newId: number | null = null;
     input.value = savedInitials();
@@ -182,15 +193,15 @@ export function mountLeaderboard(): Leaderboard {
     // Rendered ahead, so Discord's share sheet opens straight from the tap (iOS wants it inside the gesture).
     // The frame of the match comes from the next drawn frame; a hidden tab may never draw, so do not wait long.
     const scene = Promise.race([meadow ?? Promise.resolve(null), new Promise<null>((r) => setTimeout(() => r(null), 1200))]);
-    const dare = slot.querySelector<HTMLElement>('.dare')!;
-    const preview = slot.querySelector<HTMLButtonElement>('.preview')!;
+    const dare = shared.querySelector<HTMLElement>('.dare')!;
+    const preview = shared.querySelector<HTMLButtonElement>('.preview')!;
     const img = preview.querySelector('img')!;
     let shown = '';
     const draw = () => {
       dare.textContent = t.rank.dare(data.score.toLocaleString(LANG), t.rank.points(data.score));
       const next = scene.then((m) => renderShareCard(data, m));
       void next.then((blob) => {
-        if (!slot.isConnected) return;
+        if (!img.isConnected) return;
         if (shown) URL.revokeObjectURL(shown);
         shown = img.src = URL.createObjectURL(blob);
         preview.classList.add('ready');
@@ -262,11 +273,11 @@ export function mountLeaderboard(): Leaderboard {
       e.preventDefault();
       mastodon(mastoInput.value);
     });
-    for (const btn of slot.querySelectorAll<HTMLButtonElement>('.net')) btn.addEventListener('click', () => void share(btn.dataset.to ?? ''));
-    slot.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
+    for (const btn of shared.querySelectorAll<HTMLButtonElement>('.net')) btn.addEventListener('click', () => void share(btn.dataset.to ?? ''));
+    actions.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
 
     void runs.current().then((id) => {
-      if (!id && slot.isConnected) {
+      if (!id && form.isConnected) {
         form.hidden = true;
         say(t.rank.unavailable);
         settle(null);
@@ -317,10 +328,10 @@ export function mountLeaderboard(): Leaderboard {
       }
       settle(url);
       const next = then && !isComposer(then)
-        ? slot.querySelector<HTMLElement>(then === 'preview' ? '.preview' : `.net[data-to="${then}"]`)
+        ? shared.querySelector<HTMLElement>(then === 'preview' ? '.preview' : `.net[data-to="${then}"]`)
         : null;
       if (next) say(`${t.rank.placed(res.rank.today, res.rank.all)}<br>${t.rank.readyToShare}`);
-      (next ?? slot.querySelector<HTMLElement>('.net'))!.focus({ preventScroll: true });
+      (next ?? shared.querySelector<HTMLElement>('.net'))!.focus({ preventScroll: true });
     });
   };
 

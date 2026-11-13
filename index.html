@@ -140,7 +140,6 @@
       #match-end .masto { display: flex; gap: 6px; width: 100%; }
       #match-end .masto[hidden] { display: none; }
       #match-end .masto input { flex: 1; min-width: 0; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1.5px solid var(--hud-border); border-radius: 10px; background: var(--hud-solid); color: var(--hud-fg); font: 500 13px/1 system-ui, -apple-system, sans-serif; }
-      #match-end .view { margin-top: 2px; }
       #rank { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.35), rgba(35,50,42,.6)); backdrop-filter: blur(2px) saturate(.8); -webkit-backdrop-filter: blur(2px) saturate(.8); opacity: 0; transition: opacity .3s; }
       #rank[hidden] { display: none; }
       #rank.show { opacity: 1; }
@@ -763,17 +762,29 @@
       #match-end .scored .more-menu .match-btn { height: 34px; padding: 0 12px; font-size: 15px; }
       #match-end .note { font: italic 400 15px/1.3 var(--g-font); color: var(--g-ink); opacity: 1; }
       #match-end .note b { color: var(--g-red) !important; font-style: normal; font-weight: 600; }
-      #match-end .scored .view { border: 0; background: none; color: var(--g-red); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-      #match-end .scored .view { gap: 7px; }
-      #match-end .scored .view .hud-icon { flex: none; width: 19px; height: 19px; margin-top: -2px; }
-      #match-end .scored .view .hud-icon .ink { fill: currentColor; }
-      #match-end .scored .match-btn:focus-visible, #rank button:focus-visible { outline: 1px solid var(--g-red); outline-offset: 2px; }
+      #match-end .scored .match-btn:focus-visible, #match-end .view:focus-visible, #rank button:focus-visible { outline: 1px solid var(--g-red); outline-offset: 2px; }
+      /* The two ways on, as one row under the score: the ranking (secondary) left, play again (primary) right. */
+      #match-end .ends { display: flex; justify-content: center; gap: 10px; width: 100%; }
+      #match-end .ends:has(.view) .match-btn { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 10px; }
+      #match-end .view { gap: 7px; height: 46px; border: 1px solid var(--g-ink); border-radius: 0; background: transparent; color: var(--g-ink); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; font: 500 19px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .06em; }
+      #match-end .view .hud-icon { flex: none; width: 19px; height: 19px; margin-top: -2px; color: var(--g-red); }
+      #match-end .view .hud-icon .ink { fill: currentColor; }
+      #match-end :is(.view, .again) .cap { white-space: nowrap; }
+      @media (hover: hover) { #match-end .view:hover { background: rgba(31,26,21,.06); } }
+      #match-end .view .cap::after, #match-end .ends:has(.view) .again .cap::after { content: none; }
+      @media (max-width: 479px) { #match-end .ends:has(.view) .match-btn { font-size: 17px; letter-spacing: .03em; padding: 0 6px; } }
+      @media (max-width: 379px) { #match-end .card:has(.scored:not([hidden])) { padding-left: 16px; padding-right: 16px; } #match-end .ends:has(.view) { gap: 8px; } #match-end .ends:has(.view) .match-btn { font-size: 16px; letter-spacing: .01em; } #match-end .view { gap: 5px; } #match-end .view .hud-icon { width: 17px; height: 17px; } }
+      /* Sharing sits apart at the foot, smaller and quieter, so it does not pull the eye from the score. */
+      #match-end .shared { gap: 10px; margin: 26px 0 0; }
+      #match-end .shared h3 { display: flex; align-items: center; gap: 10px; width: 100%; margin: 0; font: 500 14px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .14em; color: var(--g-soft); }
+      #match-end .shared h3::before, #match-end .shared h3::after { content: ''; flex: 1; height: 1px; background: currentColor; opacity: .5; }
       /* Sharing: the dare, the card itself as a print pinned to the page, and the networks in their own colours. */
-      #match-end .card:has(.scored:not([hidden])) { width: min(360px, 100%); }
-      #match-end .share { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 4px; padding-top: 12px; border-top: 1px solid rgba(31,26,21,.45); }
-      #match-end .dare { margin: 0; font: italic 500 17px/1.25 var(--g-font); color: var(--g-red); }
+      #match-end .card:has(.scored:not([hidden])) { width: min(400px, 100%); }
+      #match-end .share { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+      #match-end .dare { margin: 0; font: italic 400 15px/1.25 var(--g-font); color: var(--g-soft); }
       #match-end .share .row { display: flex; align-items: center; gap: 14px; }
-      #match-end .preview { flex: 0 0 clamp(104px, 36vw, 132px); aspect-ratio: 1; padding: 0; border: 0; background: #e9e0cc; box-shadow: 0 0 0 1px var(--g-ink), 0 0 0 4px var(--g-paper), 0 0 0 4.6px rgba(31,26,21,.5), 0 8px 16px rgba(0,0,0,.28); transform: rotate(-3deg); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .2s; }
+      #match-end .shared .acts .match-btn { height: 36px; }
+      #match-end .preview { flex: 0 0 clamp(92px, 30vw, 112px); aspect-ratio: 1; padding: 0; border: 0; background: #e9e0cc; box-shadow: 0 0 0 1px var(--g-ink), 0 0 0 4px var(--g-paper), 0 0 0 4.6px rgba(31,26,21,.5), 0 8px 16px rgba(0,0,0,.28); transform: rotate(-3deg); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .2s; }
       #match-end .preview img { display: block; width: 100%; height: 100%; opacity: 0; transition: opacity .45s; }
       #match-end .preview.ready img { opacity: 1; }
       #match-end .preview.ready { animation: share-print .6s cubic-bezier(.2,1.4,.4,1); }
