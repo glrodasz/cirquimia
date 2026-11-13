@@ -181,9 +181,6 @@ const es = {
       stick: 'O usa el <b>joystick</b>: desliza el dedo en el aro',
       keys: 'O camina con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas',
     },
-    pageOf: (n: number, total: number) => `Página ${n} de ${total}`,
-    back: 'Atrás',
-    next: 'Siguiente',
     close: 'Cerrar',
     bookButton: 'Libro: símbolos y cómo jugar',
     symbolsButton: 'Símbolos',
@@ -195,8 +192,6 @@ const es = {
     runesNote: 'Dibujar desde una runa potencia los ataques y las curaciones',
     comboTitle: 'Combinaciones',
     howTo: 'Cómo jugar',
-    ok: 'Entendido',
-    go: '¡A jugar!',
   },
   tutorial: {
     move: {
@@ -482,9 +477,6 @@ const en: Strings = {
       stick: 'Or use the <b>joystick</b>: slide your finger on the ring',
       keys: 'Or walk with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys',
     },
-    pageOf: (n: number, total: number) => `Page ${n} of ${total}`,
-    back: 'Back',
-    next: 'Next',
     close: 'Close',
     bookButton: 'Book: symbols and how to play',
     symbolsButton: 'Symbols',
@@ -496,8 +488,6 @@ const en: Strings = {
     runesNote: 'Drawing from a rune powers up attacks and healing',
     comboTitle: 'Combinations',
     howTo: 'How to play',
-    ok: 'Got it',
-    go: "Let's play!",
   },
   tutorial: {
     move: {

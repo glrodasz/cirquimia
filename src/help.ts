@@ -4,7 +4,7 @@ import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
 import { LANGUAGE_NAMES } from './i18n/locale';
-import { bookIcon, circleTabIcon, dropIcon, flameIcon, quillTabIcon, turnArrowIcon } from './icons';
+import { bookIcon, circleTabIcon, dropIcon, flameIcon, quillTabIcon } from './icons';
 import runeShot from './assets/help/rune.webp';
 
 /** A pointing hand like the 👆 emoji, fingertip at the origin: index up, three folded knuckles, thumb out to the left. */
@@ -51,28 +51,20 @@ const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</
 type Section = 'symbols' | 'guide';
 
 /**
- * An alchemist's book: one sheet of grimoire paper with a red title, the pages of both sections stacked on
- * top of each other (so the book keeps one size whichever section is open) and two big page-turn buttons
- * along the bottom edge, with the page number between them. Under those, a foot strip: the two sections of
- * the book (symbols, how to play) and the language.
+ * An alchemist's book: one sheet of grimoire paper with a red title and one page per section, stacked on top
+ * of each other so the book keeps one size whichever section is open. Under it, a foot strip: the two
+ * sections of the book (symbols, how to play) and the language. The × , Esc or a tap outside close it.
  */
 function bookCard() {
-  const sections: Array<[Section, string[], (n: number, total: number) => string]> = [
-    ['symbols', symbols(), t.help.pageOf],
-    ['guide', guide(), () => t.help.title],
+  const sections: Array<[Section, string, string]> = [
+    ['symbols', symbols(), t.help.shapesTitle],
+    ['guide', guide(), t.help.title],
   ];
-  const pages = sections
-    .map(([sec, list, label]) =>
-      list.map((page, i) => `<section class="page ${sec}" data-sec="${sec}" aria-label="${label(i + 1, list.length)}">${page}</section>`).join(''),
-    )
-    .join('');
+  const pages = sections.map(([sec, page, label]) => `<section class="page ${sec}" data-sec="${sec}" aria-label="${label}">${page}</section>`).join('');
   return (
     `<div class="book" tabindex="-1"><button type="button" class="x" aria-label="${t.help.close}">×</button>` +
     `<h2 id="help-title"></h2>` +
     `<div class="pages">${pages}</div>` +
-    `<div class="turn"><button type="button" class="back">${turnArrowIcon()}<span class="cap"></span></button>` +
-    `<span class="folio" aria-live="polite"><span aria-hidden="true"></span><span class="sr"></span></span>` +
-    `<button type="button" class="go"><span class="cap"></span>${turnArrowIcon()}</button></div>` +
     `<div class="foot"><div class="tabs">` +
     `<button type="button" class="tab" data-to="symbols">${circleTabIcon()}<span>${t.help.symbolsButton}</span></button>` +
     `<button type="button" class="tab" data-to="guide">${quillTabIcon()}<span>${t.help.howTo}</span></button>` +
@@ -95,7 +87,7 @@ function guide() {
       return `<h3><span class="num">${i + 1}</span>${title}</h3><ul class="steps">${steps.map((step) => `<li>${step}</li>`).join('')}</ul>`;
     })
     .join('');
-  return [rules];
+  return rules;
 }
 
 /**
@@ -133,7 +125,7 @@ function symbols() {
     `${progress}<ol class="shapes">${shapes}</ol>` +
     `<h4 class="sep">${t.help.comboTitle}</h4><ol class="shapes combos">${combos}</ol>` +
     `<ul class="notes rune-note"><li${drillClass('rune')}><img class="rune-shot" src="${runeShot}" alt="" draggable="false"><span>${t.help.runesNote}</span></li></ul>`;
-  return [index];
+  return index;
 }
 
 /** Set before switching language, so the book opens again on the same section once the page reloads. */
@@ -167,14 +159,13 @@ export function mountHelp() {
 
   let open = false;
   let opener: HTMLElement | null = null;
-  let turn: ((dir: number) => void) | null = null;
   let section: ((to: Section) => void) | null = null;
   const show = (page: Section) => {
     if (!open) {
       opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
       overlay.innerHTML = bookCard(); // fresh brush jitter and training ticks each time
       overlay.querySelector('.x')!.addEventListener('click', hide);
-      [turn, section] = wireBook();
+      section = wireBook();
     }
     section!(page);
     if (open) return;
@@ -186,71 +177,14 @@ export function mountHelp() {
     overlay.querySelector<HTMLElement>('.book')!.focus({ preventScroll: true });
   };
 
-  /**
-   * Turns the pages of the open section: the next/back buttons, a sideways swipe across the page, or a tap
-   * near its outer edges. The page being left lifts off the spine and flips away; going back flips the
-   * previous page back down on top. The last page's button closes the book. The tabs in the foot switch
-   * section in place: same book, its first page of the other section, a new title.
-   */
-  function wireBook(): [(dir: number) => void, (to: Section) => void] {
+  /** The tabs in the foot switch section in place: same book, the other page, a new title. */
+  function wireBook(): (to: Section) => void {
     const all = [...overlay.querySelectorAll<HTMLElement>('.page')];
-    const shelf = overlay.querySelector<HTMLElement>('.pages')!;
     const title = overlay.querySelector<HTMLElement>('h2')!;
-    const back = overlay.querySelector<HTMLButtonElement>('.back')!;
-    const next = overlay.querySelector<HTMLButtonElement>('.go')!;
     const tabs = [...overlay.querySelectorAll<HTMLButtonElement>('.tab')];
-    const [folio, spoken] = overlay.querySelectorAll<HTMLElement>('.folio span');
     let current: Section = 'symbols';
-    let leaves: HTMLElement[] = [];
-    let at = 0;
-    let busy = 0;
-
-    const mark = () => {
-      const last = leaves.length - 1;
-      all.forEach((l) => (l.inert = l !== leaves[at]));
-      leaves.forEach((l, i) => l.classList.toggle('more', i < last));
-      folio.textContent = leaves.length > 1 ? `${at + 1} / ${leaves.length}` : '';
-      spoken.textContent = leaves[at].getAttribute('aria-label')!;
-      const ahead = at < last;
-      next.classList.toggle('seal', !ahead);
-      next.querySelector('.cap')!.textContent = ahead ? t.help.next : current === 'guide' ? t.help.go : t.help.ok;
-      back.querySelector('.cap')!.textContent = t.help.back;
-      back.classList.toggle('hide', at === 0);
-    };
-
-    const go = (to: number) => {
-      if (busy || to < 0 || to >= leaves.length || to === at) return;
-      const from = leaves[at];
-      const into = leaves[to];
-      const forward = to > at;
-      at = to;
-      mark();
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        from.classList.remove('on');
-        into.classList.add('on');
-        return;
-      }
-      // Forward: the open page flips away, revealing the next one already lying underneath.
-      // Back: the previous page flips down over the open one.
-      if (forward) {
-        into.classList.add('under');
-        from.classList.add('leaf-out');
-      } else {
-        from.classList.add('under');
-        from.classList.remove('on');
-        into.classList.add('on', 'leaf-in');
-      }
-      busy = window.setTimeout(() => {
-        from.classList.remove('on', 'under', 'leaf-out');
-        into.classList.remove('under', 'leaf-in');
-        into.classList.add('on');
-        busy = 0;
-      }, 520);
-    };
 
     const switchTo = (to: Section) => {
-      clearTimeout(busy);
-      busy = 0;
       current = to;
       overlay.querySelector('.book')!.setAttribute('data-sec', to);
       title.textContent = to === 'guide' ? t.help.title : t.help.shapesTitle;
@@ -258,31 +192,11 @@ export function mountHelp() {
         if (tab.dataset.to === to) tab.setAttribute('aria-current', 'page');
         else tab.removeAttribute('aria-current');
       }
-      for (const l of all) l.classList.remove('on', 'under', 'leaf-in', 'leaf-out');
-      leaves = all.filter((l) => l.dataset.sec === to);
-      at = 0;
-      leaves[0].classList.add('on');
-      mark();
-    };
-
-    let press: { x: number; y: number } | null = null;
-    shelf.addEventListener('pointerdown', (e) => (press = { x: e.clientX, y: e.clientY }));
-    shelf.addEventListener('pointercancel', () => (press = null));
-    shelf.addEventListener('pointerup', (e) => {
-      if (!press) return;
-      const dx = e.clientX - press.x;
-      const dy = e.clientY - press.y;
-      press = null;
-      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) go(at + (dx < 0 ? 1 : -1));
-      else if (Math.hypot(dx, dy) < 10) {
-        const box = shelf.getBoundingClientRect();
-        const along = (e.clientX - box.left) / box.width;
-        if (along > 0.72) go(at + 1);
-        else if (along < 0.28) go(at - 1);
+      for (const page of all) {
+        page.classList.toggle('on', page.dataset.sec === to);
+        page.inert = page.dataset.sec !== to;
       }
-    });
-    back.addEventListener('click', () => go(at - 1));
-    next.addEventListener('click', () => (at === leaves.length - 1 ? hide() : go(at + 1)));
+    };
     for (const tab of tabs) tab.addEventListener('click', () => tab.dataset.to !== current && switchTo(tab.dataset.to as Section));
 
     const langs = overlay.querySelector('.langs')!;
@@ -302,7 +216,7 @@ export function mountHelp() {
       langs.append(link);
     }
 
-    return [(dir: number) => go(at + dir), switchTo];
+    return switchTo;
   }
 
   function hide() {
@@ -324,7 +238,6 @@ export function mountHelp() {
   addEventListener('keydown', (e) => {
     if (!open) return;
     if (e.key === 'Escape') hide();
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') turn?.(e.key === 'ArrowRight' ? 1 : -1);
     else if (e.key === 'Tab') {
       // Keep focus inside the book while it is open.
       const stops = [...overlay.querySelectorAll<HTMLElement>('button:not(.hide), a')].filter((el) => !el.closest('[inert]'));

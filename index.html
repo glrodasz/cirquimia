@@ -247,7 +247,7 @@
       #help .x { position: absolute; top: 4px; right: 4px; z-index: 5; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--brass); font: 400 30px/1 Georgia, serif; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       #help .x:active { transform: scale(.9); }
       #help .book:focus { outline: none; }
-      #help :is(.x, .turn button, .foot :is(button, a)):focus-visible { outline: 3px solid #ffd27a; outline-offset: -3px; border-radius: 10px; }
+      #help :is(.x, .foot :is(button, a)):focus-visible { outline: 3px solid #ffd27a; outline-offset: -3px; border-radius: 10px; }
       #help .pages { position: relative; flex: 0 1 auto; min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); perspective: 1800px; border-radius: 3px 8px 8px 3px; background: var(--paper-edge); box-shadow: 2px 2px 0 -1px #e9dbb8, 4px 4px 0 -2px #cdb98c, 6px 6px 0 -3px #b9a476, 0 4px 10px rgba(0,0,0,.35); touch-action: pan-y; }
       /* Each page is parchment: a warm wash, a darker edge, fibres from a noise filter and the shadow of the spine on the left. */
       #help .page { position: relative; grid-area: 1 / 1; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; box-sizing: border-box; padding: 16px 18px 14px 24px; border-radius: 3px 8px 8px 3px; color: var(--ink); background: linear-gradient(90deg, rgba(90,60,25,.32), rgba(90,60,25,.08) 14px, transparent 34px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"), radial-gradient(130% 100% at 55% 40%, #fbf3de, var(--paper) 55%, #e2cfa3); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; visibility: hidden; transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden; text-align: center; }
@@ -261,7 +261,6 @@
       @keyframes leaf-in { from { transform: rotateY(-105deg); filter: brightness(.75); } to { transform: rotateY(0); filter: brightness(1); } }
       @keyframes leaf-reveal { from { filter: brightness(.82); } to { filter: brightness(1); } }
       /* A folded corner hints that there is another page to turn to. */
-      #help .page.more::after { content: ''; position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; border-radius: 0 0 8px 0; background: linear-gradient(315deg, var(--paper-edge) 0 45%, rgba(60,40,15,.28) 50%, #f7edd5 52%, #e8d7ae 100%); box-shadow: -2px -2px 4px rgba(60,40,15,.15); pointer-events: none; }
       #help ol, #help ul { list-style: none; margin: 0; padding: 0; }
       #help b { font-weight: 800; }
       /* Photo corners holding the plate onto the page. */
@@ -271,21 +270,7 @@
       #help .page p { margin: 0; max-width: 310px; font-size: 18px; font-weight: 450; line-height: 1.32; color: var(--ink); }
       #help .page p::before { content: ''; display: block; width: 90px; height: 8px; margin: 0 auto 8px; background: radial-gradient(circle, var(--ink-soft) 0 2px, transparent 2.5px) center / 8px 8px no-repeat, linear-gradient(var(--ink-soft), var(--ink-soft)) center / 100% 1px no-repeat; opacity: .55; }
       /* The page-turn strip along the bottom of the cover: each half of it is one big button. */
-      #help .turn { flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 66px; margin: 0 -12px; }
-      #help .turn button { display: flex; align-items: center; gap: 4px; height: 100%; min-height: 60px; padding: 0 14px; border: 0; background: transparent; color: #f3e6c4; font: 700 19px/1 'EB Garamond Variable', Garamond, Georgia, serif; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
-      #help .turn .back { justify-content: flex-start; }
-      #help .turn .go { justify-content: flex-end; color: var(--brass); }
-      #help .turn button.hide { visibility: hidden; }
-      #help .turn .arrow { flex: none; width: 40px; height: 20px; fill: currentColor; transition: transform .2s; }
-      #help .turn .back .arrow { transform: scaleX(-1); }
-      #help .turn .go:active .arrow { transform: translateX(4px); }
-      #help .turn .back:active .arrow { transform: scaleX(-1) translateX(4px); }
-      @media (hover: hover) { #help .turn .go:hover .arrow { transform: translateX(4px); } #help .turn .back:hover .arrow { transform: scaleX(-1) translateX(4px); } }
       /* On the last page the button becomes a red wax seal: the one that closes the book. */
-      #help .turn .go.seal .arrow { display: none; }
-      #help .turn .go.seal .cap { display: grid; place-items: center; min-height: 46px; padding: 0 20px; border-radius: 23px 20px 24px 19px; background: radial-gradient(circle at 35% 30%, #c4483a, var(--seal) 60%, #6e1e17); color: #fbefd6; box-shadow: inset 0 0 0 3px rgba(0,0,0,.14), inset 0 2px 2px rgba(255,200,180,.3), 0 2px 4px rgba(0,0,0,.4); text-shadow: 0 -1px 0 rgba(0,0,0,.45); }
-      #help .turn .go.seal:active .cap { transform: scale(.95); }
-      #help .folio { color: var(--brass); opacity: .85; font: 600 15px/1 'EB Garamond Variable', Garamond, Georgia, serif; font-variant-numeric: lining-nums tabular-nums; letter-spacing: .08em; }
       /* The symbols manual. */
       #help .page.symbols { justify-content: center; min-height: 340px; }
       #help .fig { display: inline-block; flex: none; width: 58px; height: 58px; margin-bottom: 2px; border-radius: 50%; background: radial-gradient(circle, rgba(255,250,235,.85) 55%, rgba(255,250,235,0) 72%); color: #9a6418; }
@@ -306,7 +291,7 @@
       #help .notes li { display: flex; align-items: center; gap: 12px; }
       #help .notes .src { flex: none; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,250,235,.7); box-shadow: inset 0 0 0 1.5px rgba(90,60,20,.25); }
       #help .notes .rune { display: grid; place-items: center; color: #9a6418; font-size: 24px; }
-      @media (max-height: 700px) { #help h2 { padding: 10px 44px 6px; font-size: 20px; } #help .page { gap: 6px; padding: 12px 14px 10px 20px; } #help .page h3 { font-size: 20px; margin-top: 2px; } #help .page p { font-size: 16px; } #help .page p::before { margin-bottom: 5px; } #help .turn { min-height: 58px; } #help .fig { width: 48px; height: 48px; } #help .shapes { gap: 10px 4px; } #help .notes { font-size: 16px; gap: 12px; } }
+      @media (max-height: 700px) { #help h2 { padding: 10px 44px 6px; font-size: 20px; } #help .page { gap: 6px; padding: 12px 14px 10px 20px; } #help .page h3 { font-size: 20px; margin-top: 2px; } #help .page p { font-size: 16px; } #help .page p::before { margin-bottom: 5px; } #help .fig { width: 48px; height: 48px; } #help .shapes { gap: 10px 4px; } #help .notes { font-size: 16px; gap: 12px; } }
       @media (min-width: 600px) and (min-height: 800px) { #help .book { width: min(520px, 100%); } #help .page p { font-size: 20px; max-width: 400px; } #help .page h3 { font-size: 26px; } }
       @media (prefers-reduced-motion: reduce) { #help .book { transition: none; } #help .page.on { animation: leaf-fade .2s ease-out both; } @keyframes leaf-fade { from { opacity: 0; } to { opacity: 1; } } }
       .nosource { position: fixed; z-index: 3; width: 64px; height: 64px; pointer-events: none; border-radius: 50%; background: var(--hud-bg); box-shadow: 0 2px 10px rgba(20,28,24,.25); }
@@ -474,7 +459,6 @@
       @keyframes phone-turn { 0%, 12% { transform: rotate(-90deg); } 55%, 100% { transform: rotate(0); } }
       @media (prefers-reduced-motion: reduce) { #device-hint .phone.turn { animation: none; } }
       /* Solid icons across the UI. */
-      #help .turn .arrow { width: 34px; height: 17px; }
       #help .src svg path.fire { fill: var(--g-red); }
       #help .src svg path.water { fill: #2f5f7a; }
       #help .shapes .src { width: 18px; height: 18px; }
@@ -536,12 +520,11 @@
       #help h2 { margin: 0 -6px; padding: 20px 40px 10px; color: var(--g-red); text-shadow: none; font: 500 clamp(22px, 6.4vw, 28px)/1.1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .1em; border-bottom: 1px solid var(--g-ink); box-shadow: 0 2px 0 var(--g-paper), 0 2.6px 0 rgba(31,26,21,.6); }
       #help h2::before, #help h2::after { content: none; }
       #help .x { top: 8px; right: 8px; color: var(--g-soft); font: 300 30px/1 var(--g-font); }
-      #help :is(.x, .turn button, .foot :is(button, a)):focus-visible { outline: 2px solid var(--g-red); border-radius: 0; }
+      #help :is(.x, .foot :is(button, a)):focus-visible { outline: 2px solid var(--g-red); border-radius: 0; }
       #help .pages { margin-top: 6px; border-radius: 0; background: transparent; box-shadow: none; perspective: none; }
       #help .page { padding: 12px 4px 10px; border-radius: 0; background: var(--g-paper); }
       #help .page.leaf-in { animation: leaf-fade-in .3s ease-out both; } #help .page.leaf-out { animation: leaf-fade-out .3s ease-in both; } #help .page.under { animation: none; }
       @keyframes leaf-fade-in { from { opacity: 0; transform: translateX(10px); } } @keyframes leaf-fade-out { to { opacity: 0; transform: translateX(-10px); } }
-      #help .page.more::after { content: none; }
       #help b { font-weight: 600; }
       /* The walk page: the shot split on its diagonal, two short ways to move under it. */
       /* The guide's text: two bulleted steps per page, a list aligned to the left under a thin rule. */
@@ -554,9 +537,6 @@
       #help .num { width: auto; height: auto; border-radius: 0; background: none; box-shadow: none; color: var(--g-red); font: 500 22px/1 var(--g-font); }
       #help .page p { font-size: 19px; font-weight: 400; line-height: 1.32; }
       #help .page p::before { width: 60px; height: 1px; margin-bottom: 10px; background: var(--g-ink); opacity: .5; }
-      #help .turn { min-height: 58px; margin: 0 -6px; border-top: 1px solid rgba(31,26,21,.35); }
-      #help .turn button { color: var(--g-ink); text-shadow: none; font: 500 19px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; }
-      #help .turn .go { color: var(--g-red); }
       /* The foot of the book: its two sections as tabs on the left, the language on the right. */
       /* Book divider tabs: the sections hang below the sheet's bottom edge. The open one is the same paper as the
          sheet and runs on from it; the others sit a little behind, darker, shaded where the sheet overlaps them
@@ -633,8 +613,6 @@
       #dev-panel .dev-flag-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
       #dev-panel .dev-flag-text i { font-size: 14px; color: var(--g-soft); overflow-wrap: anywhere; }
       #dev-panel .dev-flag button { flex: none; min-height: 34px; padding: 2px 10px; font-size: 15px; }
-      #help .turn .go.seal .cap { min-height: 44px; padding: 0 22px; border-radius: 0; background: var(--g-red); color: var(--g-paper); text-shadow: none; box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7); }
-      #help .folio { color: var(--g-red); opacity: 1; font: italic 500 17px/1 var(--g-font); letter-spacing: .04em; }
       /* The symbols manual as a grimoire index. */
       #help .page.symbols { justify-content: flex-start; min-height: 300px; }
       #help .fig { width: 40px; height: 40px; margin: 0; border-radius: 0; background: none; }
@@ -643,8 +621,6 @@
       #help :is(.fig, .mini):is(.circle, .square, .triangleDown, .rhombus, .pentagram) { color: var(--g-ink); }
       #help :is(.fig, .mini):is(.triangle, .hourglass) { color: var(--g-red); }
       #help .fig.charged:is(.triangle, .triangleDown), #help .fig.hourglass { background: none; }
-      #help .turn button { white-space: nowrap; }
-      #help .book[data-sec=symbols] .turn button { font-size: 17px; }
       #match-end .again:focus-visible { outline: 1px solid var(--g-ink); outline-offset: 3px; }
       #help .shapes { display: flex; flex-direction: column; gap: 2px; width: 100%; counter-reset: none; }
       #help .shapes li { flex-direction: row; align-items: center; gap: 8px; padding: 2px 4px; }
