@@ -61,5 +61,10 @@ share your card" and turns Save into "Save and share"; saving then opens the net
 Only link-preview robots (by user agent) get the page with the tags; people who open the link are redirected
 straight to the game (302), and an in-app browser that looks like a robot is sent on by the page's instant
 redirect. A score whose card never arrived still has a link, with the game's own picture as preview.
-Matches without a ranking (offline, no run) share the plain site link. If storage ever grows, `share_images`
-can move to an R2 bucket without changing the URLs.
+Matches without a ranking (offline, no run) share the plain site link.
+
+Cards are pruned on every upload (`pruneCards`): the cards of the all-time top 100 and of today's (UTC) top 100
+stay for good, every other card is deleted once it is 7 days old. So the table holds at most 200 kept cards plus a
+week of uploads. A pruned link still works (the score row stays, so it still replays the match); its preview falls
+back to the game's own picture (`/og/<locale>.jpg`), and `/s/<id>.jpg` redirects there. If storage ever grows
+anyway, `share_images` can move to an R2 bucket without changing the URLs.
