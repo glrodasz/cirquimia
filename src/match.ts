@@ -282,7 +282,8 @@ export function mountMatchControls(match: MatchControls) {
       end.hidden = false;
       void end.offsetWidth; // let the fade-in start from hidden
       end.classList.add('show');
-      again.focus({ preventScroll: true });
+      // Focused for the keyboard, without a ring on touch (focusVisible is ignored where unsupported).
+      again.focus({ preventScroll: true, focusVisible: false } as FocusOptions);
       if (won && spotState() === null) setSpot('next');
     },
   };
