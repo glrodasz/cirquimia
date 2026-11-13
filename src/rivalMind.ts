@@ -62,10 +62,6 @@ export const TUNING: Record<Difficulty, Tuning> = {
   // the warning still leaves time to step out.
   experto: { speed: 1.6, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.46, reaction: 0.1, elemental: 0.7, blast: 0.75, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.85, fortress: 0.45, wallCooldown: 3, counter: true, evade: 1, restless: true, punishAfter: 0.6, punishGap: 0.3 },
 };
-// The tutorial's ambush keeps the pace 'experto' had when it was tuned, so making the top level harder leaves it alone.
-export const AMBUSH_PACE: Tuning = { ...TUNING.experto, cooldown: [2.3, 3], draw: 0.6, lead: 0.55 };
-// The tutorial's ambush strikes again this soon when the alchemist got out of it.
-export const AMBUSH_DELAY = 0.6;
 
 // A rival keeps its freshly drawn symbol this long before casting it, so everyone can read what is coming.
 export const RIVAL_HOLD = 0.5;
@@ -104,8 +100,6 @@ const fluidStar = (f: Fluid): Element => (f === 'fire' ? 'fireStar' : 'waterStar
 export class RivalMind {
   /** Fire or water already drawn from a source (or both, merged into the blast), held until the attack casts it. */
   charged: Fluid | 'blast' | null = null;
-  /** Set by the tutorial: the next strikes go at the alchemist, quick and true, until one of them lands. */
-  ambush = false;
   private attackTimer: number;
   private drawing: Plan | null = null;
   private drawTimer = 0;
@@ -117,11 +111,6 @@ export class RivalMind {
     private readonly rng: () => number = Math.random,
   ) {
     this.attackTimer = this.between(1.5, 2.5);
-  }
-
-  /** How it plays right now: its level's tuning, or the top level's during the tutorial's ambush. */
-  get pace(): Tuning {
-    return this.ambush ? AMBUSH_PACE : this.tuning;
   }
 
   /** In the middle of an attack: drawing, holding a symbol, or with steps of a combination still to go. */
@@ -144,8 +133,8 @@ export class RivalMind {
       this.drawing = null;
       return this.complete(plan, view);
     }
-    const tuning = this.pace;
-    const still = !this.ambush && view.foeStill >= tuning.punishAfter;
+    const tuning = this.tuning;
+    const still = view.foeStill >= tuning.punishAfter;
     if (still) this.attackTimer = Math.min(this.attackTimer, tuning.punishGap);
     if ((this.attackTimer -= dt) > 0) return null;
 
@@ -169,10 +158,6 @@ export class RivalMind {
 
   /** The next step: the rest of the committed attack, a fresh one, or the quickest strike at a foe standing still. */
   private next(view: MindView, still: boolean): Plan {
-    if (this.ambush) {
-      this.combo = [];
-      return { kind: 'strike', element: 'earth' };
-    }
     if (still) {
       // A free hit: cast what is in hand, or a square, which lands right where it stands (a star would ring it, safe
       // in the middle). Fetching more or walling up would only give the target time to move.
@@ -234,10 +219,9 @@ export class RivalMind {
     } else if (plan.kind === 'strike') {
       this.charged = null;
     }
-    if (this.ambush && plan.kind === 'strike') this.attackTimer = AMBUSH_DELAY; // dodged anyway: another one soon
-    else if (plan.kind === 'wall' && this.tuning.counter) this.attackTimer = 0.1;
+    if (plan.kind === 'wall' && this.tuning.counter) this.attackTimer = 0.1;
     else if (this.combo.length > 0) this.attackTimer = this.between(...STEP_GAP);
-    else this.attackTimer = this.between(...this.pace.cooldown);
+    else this.attackTimer = this.between(...this.tuning.cooldown);
     return { kind: 'act', plan };
   }
 
@@ -253,14 +237,6 @@ export class RivalMind {
     // Holding an attack it would not throw away, it steps out instead of walling as often as it would have walled.
     const dodge = this.charged ? Math.max(this.tuning.dodge, this.tuning.guard) : this.tuning.dodge;
     return this.rng() < dodge ? 'dodge' : null;
-  }
-
-  /** Strikes the alchemist as soon as possible, at the top level and without missing, until a strike lands. */
-  startAmbush() {
-    this.ambush = true;
-    this.cancel(); // a star or anything else half drawn is dropped: the ambush is always a square
-    this.charged = null;
-    this.attackTimer = AMBUSH_DELAY;
   }
 
   /** Drops a spell half drawn and the rest of the plan, as when the match ends or the tutorial freezes everyone. */

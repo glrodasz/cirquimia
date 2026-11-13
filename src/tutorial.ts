@@ -8,27 +8,34 @@ import { hand } from './help';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 
-// 'moved' once the walking lesson is done, 'square' after the attack lesson, 'done' after the wall one too
+// The last lesson behind the player: 'moved' after the walk, then each lesson's own name, 'done' once the duel begins.
 const STORE = 'cirquimia.tutorial';
 const START_DELAY = 0.6; // s after the help card closes before the first lesson shows
-const HIT_PAUSE = 0.7; // s after the first hit taken, so the damage number reads before the wall lesson
-const WATCH_SQUARE = 1.4; // s to watch the guaranteed strike land
 const PROVOKE_AFTER = 0.35; // s after the wall rises before the rival strikes into it
-const WATCH_WALL = 1.6;
 const DEMO_DRAW = 1.7; // s the demo hand takes to draw the shape
 const DEMO_HOLD = 0.8;
 const GOAL_REACH = 0.3; // world units from the mark that count as arrived
-const AFTER_WALK = 1.4; // s from arriving at the mark to the attack lesson
 const SHOW_ALT = 2.8; // s the walking lesson first shows the stick (or the keys) swaying side to side
 const SHOW_TAP = 1.8; // s it then shows the hand tapping the mark, before the stick again
 const STARTED = 0.12; // world units the alchemist has to move for the lesson to stop showing how
+const NO_SOURCE = 1.5; // s a fire or water lesson waits for its source to be on screen before it is skipped
 
-type Lesson = 'move' | 'square' | 'circle';
-type Shape = Exclude<Lesson, 'move'>;
-type Step = 'walk' | 'draw' | 'aim' | 'watch';
-type Stage = '' | 'moved' | 'square' | 'done';
+type Shape = 'square' | 'circle' | 'triangle' | 'triangleDown';
+type Lesson = 'move' | 'goal' | Shape | 'duel';
+type Step = 'walk' | 'read' | 'draw' | 'aim' | 'watch';
+type Stage = '' | 'moved' | Exclude<Lesson, 'move' | 'duel'> | 'done';
 /** What the walking lesson shows right now: the tap, the other way (stick or keys), or nothing once the alchemist walks. */
 type WalkShow = 'tap' | 'alt' | 'go';
+
+/** The lessons in order. The rival stands still through all of them, and only fights once the duel card is accepted. */
+const ORDER: Lesson[] = ['move', 'goal', 'square', 'circle', 'triangle', 'triangleDown', 'duel'];
+const STAGES: Stage[] = ['moved', 'goal', 'square', 'circle', 'triangle', 'triangleDown', 'done'];
+/** How long each lesson's closing line stays before the next lesson, in seconds. */
+const AFTER: Record<Lesson, number> = { move: 1.4, goal: 0.4, square: 2, circle: 1.6, triangle: 2.4, triangleDown: 3.2, duel: 1.6 };
+/** How long a cast plays out before its lesson closes. */
+const WATCH: Record<Shape, number> = { square: 1.4, circle: 1.6, triangle: 1.5, triangleDown: 1.5 };
+/** The source a triangle is drawn over. */
+const SOURCE: Partial<Record<Shape, 'fire' | 'water'>> = { triangle: 'fire', triangleDown: 'water' };
 
 const TEXT: Record<Shape, Record<'draw' | 'aim', [string, string]> & { watch: string; done: string }> = t.tutorial;
 const WRONG: Record<Shape, string> = t.tutorial.wrong;
@@ -49,27 +56,27 @@ export interface TutorialHost {
   hold(on: boolean): void;
   /** The rival strikes the alchemist right away. */
   provoke(): void;
-  /** The rival goes for the alchemist as soon as it can, quick and true, until a strike lands. */
-  ambush(): void;
   /** Where the alchemist stands. */
   hero(): THREE.Vector3;
   /** A clear spot on screen a short walk from the alchemist, for the walking lesson. */
   walkGoal(): THREE.Vector3 | null;
-  /** The last lesson (the wall) is over. */
-  finished(): void;
+  /** The campfire (or lagoon) to draw over, when one is on screen. */
+  source(element: 'fire' | 'water'): THREE.Vector3 | null;
+  /** The duel card was accepted: everyone back to full health, and the rival starts fighting. */
+  duel(): void;
 }
 
 function load(): Stage {
   try {
     if (new URLSearchParams(location.search).has('tutorial')) localStorage.removeItem(STORE); // ?tutorial replays it
-    const v = localStorage.getItem(STORE);
-    return v === 'moved' || v === 'square' || v === 'done' ? v : '';
+    const v = localStorage.getItem(STORE) as Stage | null;
+    return v && STAGES.includes(v) ? v : '';
   } catch {
     return '';
   }
 }
 
-function save(v: Exclude<Stage, ''>) {
+function save(v: Stage) {
   try {
     localStorage.setItem(STORE, v);
   } catch {
@@ -84,16 +91,22 @@ function seeded(seed: number) {
 /** The demo stroke in a 48×48 box, the way a hand draws it: from a corner, round, a little past the start. */
 function demoLine(kind: Shape): Pt[] {
   if (kind === 'circle') return arc(24, 24, 15, -2.3, -2.3 + Math.PI * 2.12);
-  const c: Pt[] = [[10, 10], [38, 10], [38, 38], [10, 38], [10, 10], [17, 10]];
+  const c: Pt[] =
+    kind === 'square'
+      ? [[10, 10], [38, 10], [38, 38], [10, 38], [10, 10], [17, 10]]
+      : kind === 'triangle'
+        ? [[24, 7], [42, 39], [6, 39], [24, 7], [28, 14]]
+        : [[24, 41], [6, 9], [42, 9], [24, 41], [28, 34]];
   return c.slice(1).flatMap((p, i) => segment(c[i], p).slice(i ? 1 : 0));
 }
 
-/** A brush arrow pointing down. */
+const isShape = (l: Lesson | null): l is Shape => l === 'square' || l === 'circle' || l === 'triangle' || l === 'triangleDown';
 
 /**
- * The first match, walked through: walk to a mark (tap, the stick or the keys), then draw a square, which arrives in hand, then tap the rival (a sure hit).
- * The first time the alchemist is hit, the same for the circle, and the rival's next strike breaks on the wall.
- * The game holds still while a lesson waits on the player.
+ * The first match, walked through at the player's pace while the rival stands still as a sparring partner: walk to a
+ * mark, meet the rival and the goal (empty its health bar), draw a square and strike it, raise a wall against its
+ * strike, charge fire over a campfire and water over a lagoon and cast them, and then a card asks whether to start the
+ * duel. Only then does the rival move and fight, with everyone back at full health.
  */
 export class Tutorial {
   private stage = load();
@@ -101,12 +114,7 @@ export class Tutorial {
   private step: Step = 'draw';
   private timer = 0;
   private wait = START_DELAY;
-  private hitWait = -1;
-  /** The wall lesson, put off because no rival was left to show it on. */
-  private pending: Lesson | null = null;
   private provoked = false;
-  /** Whether this match's rival has been sent at the alchemist to open the wall lesson. */
-  private ambushed = false;
   private demoTime = 0;
   /** The walking lesson's mark on the ground. */
   private goal: THREE.Vector3 | null = null;
@@ -128,6 +136,8 @@ export class Tutorial {
   private readonly card = document.createElement('div');
   private readonly title = document.createElement('b');
   private readonly body = document.createElement('span');
+  /** Goes on from a lesson that is only read (the goal, the duel). */
+  private readonly next = document.createElement('button');
   private hintTimer = 0;
   private shown = 0;
 
@@ -140,7 +150,13 @@ export class Tutorial {
     this.arrow.innerHTML = downArrow();
     this.card.className = 'tip';
     this.card.setAttribute('role', 'status');
-    this.card.append(this.title, this.body);
+    this.next.type = 'button';
+    this.next.className = 'next';
+    this.next.hidden = true;
+    this.next.addEventListener('click', () => {
+      if (this.step === 'read') this.finish();
+    });
+    this.card.append(this.title, this.body, this.next);
     this.mark.className = 'mark';
     this.mark.innerHTML = `<i></i><svg viewBox="-16 -8 40 40" aria-hidden="true">${hand(0, 0, 1, true)}</svg>`;
     this.padHand.className = 'pad-hand';
@@ -154,14 +170,18 @@ export class Tutorial {
     return !this.root.hidden && this.root.classList.contains('show');
   }
 
-  /** Both lessons are behind the player. */
+  /** Every lesson is behind the player and the duel has begun. */
   get done() {
     return this.stage === 'done';
   }
 
-  /** True while a lesson waits on the player: the match holds still. */
+  /**
+   * True while a lesson waits on the player: the match holds still. Not while charging fire or water, where the
+   * alchemist may need to walk closer to the source (the rival stands still anyway).
+   */
   get paused() {
-    return this.lesson !== null && this.step !== 'watch' && this.step !== 'walk';
+    if (this.lesson === null || this.step === 'watch' || this.step === 'walk') return false;
+    return !(this.step === 'draw' && this.fromSource);
   }
 
   /** Whether a stroke on the map counts as drawing right now. */
@@ -171,21 +191,26 @@ export class Tutorial {
 
   /** Whether a tap on the map does anything right now. */
   get canTap() {
-    return this.lesson === null || this.step === 'aim' || this.step === 'walk';
+    return this.lesson === null || this.step === 'aim' || this.step === 'walk' || (this.step === 'draw' && this.fromSource);
+  }
+
+  /** The lesson under way is charging fire or water over its source. */
+  private get fromSource() {
+    return isShape(this.lesson) && SOURCE[this.lesson] !== undefined;
   }
 
   /** A shape was recognized (or null, a scribble). False refuses it: the lesson wants another one. */
   drawn(kind: ShapeKind | null) {
-    if (!this.lesson || this.step !== 'draw' || this.lesson === 'move') return true;
+    if (!isShape(this.lesson) || this.step !== 'draw') return true;
     if (kind === this.lesson) {
-      this.go('aim'); // the new shape arrives in hand
+      this.go('aim'); // the new shape arrives in hand (a triangle drawn away from its source is refused: draw again)
       return true;
     }
     this.hint(WRONG[this.lesson]);
     return false;
   }
 
-  /** Where a tap lands while aiming: always on the rival, so the first strike cannot miss. */
+  /** Where a tap lands while aiming: always on the rival, so the lesson's strike cannot miss. */
   aim(): THREE.Vector3 | null {
     return this.lesson && this.step === 'aim' ? this.host.foe() : null;
   }
@@ -198,28 +223,9 @@ export class Tutorial {
     this.go('watch');
   }
 
-  /** The alchemist took a hit: the first one opens the wall lesson. */
-  hurt() {
-    if (this.stage === 'square' && !this.lesson && !this.pending && this.hitWait < 0) this.hitWait = HIT_PAUSE;
-  }
-
-  /** A short note on the tutorial card that fades by itself, outside the lessons (e.g. fire charged). */
-  note(title: string, body: string) {
-    if (this.lesson) return;
-    this.root.hidden = false;
-    this.root.dataset.lesson = '';
-    this.root.dataset.step = 'done';
-    void this.root.offsetWidth;
-    this.root.classList.add('show');
-    this.say(title, body);
-    this.fadeSoon(3000);
-  }
-
   /** A new match: a lesson under way starts over on the fresh meadow. */
   reset() {
     this.host.hold(false);
-    this.hitWait = -1;
-    this.ambushed = false;
     if (this.lesson) this.begin(this.lesson);
   }
 
@@ -229,15 +235,9 @@ export class Tutorial {
     if (covered) return;
 
     if (!this.lesson) {
-      if (this.stage === '' && (this.wait -= dt) <= 0) this.begin('move');
-      if (this.stage === 'moved' && this.host.foe() && (this.wait -= dt) <= 0) this.begin('square');
-      // Between the lessons: the rival comes straight at the alchemist so the first hit, and the wall lesson, come early.
-      if (this.stage === 'square' && !this.ambushed && this.hitWait < 0 && !this.pending && this.host.foe()) {
-        this.ambushed = true;
-        this.host.ambush();
-      }
-      if (this.hitWait >= 0 && (this.hitWait -= dt) < 0) this.pending = 'circle';
-      if (this.pending === 'circle' && this.host.foe()) this.begin('circle');
+      if (this.done || (this.wait -= dt) > 0) return;
+      const next = ORDER[STAGES.indexOf(this.stage as Exclude<Stage, ''>) + 1] ?? 'move';
+      if (next === 'move' || this.host.foe()) this.begin(next);
       return;
     }
     if (this.lesson === 'move') {
@@ -251,23 +251,24 @@ export class Tutorial {
     }
     this.timer += dt;
 
-    if (this.step === 'draw') this.animateDemo(dt);
+    if (this.step === 'read') this.pointAtFoe(this.lesson === 'goal');
+    else if (this.step === 'draw') this.animateDemo(dt);
     else if (this.step === 'aim') {
-      if (this.host.selected() !== this.lesson) this.go('draw'); // dropped: draw it again
-      else this.pointAtFoe();
+      if (this.host.selected() !== this.lesson) this.go('draw'); // dropped, or drawn away from its source: draw it again
+      else this.pointAtFoe(true);
     } else if (this.step === 'watch') {
       if (this.lesson === 'circle' && !this.provoked && this.timer >= PROVOKE_AFTER) {
         this.provoked = true;
         this.host.provoke();
       }
-      if (this.timer >= (this.lesson === 'square' ? WATCH_SQUARE : WATCH_WALL)) this.finish();
+      if (this.timer >= WATCH[this.lesson as Shape]) this.finish();
     }
   }
 
   private begin(lesson: Lesson) {
     this.shown++;
+    clearTimeout(this.hintTimer);
     this.lesson = lesson;
-    this.pending = null;
     this.root.hidden = false;
     this.root.dataset.lesson = lesson;
     void this.root.offsetWidth;
@@ -275,15 +276,24 @@ export class Tutorial {
     if (lesson === 'move') {
       this.goal = this.host.walkGoal();
       if (!this.goal) {
-        // Nowhere clear to walk to: skip straight to the attack lesson.
-        this.lesson = null;
-        this.stage = 'moved';
-        save(this.stage);
+        // Nowhere clear to walk to: skip straight to the next lesson.
+        this.skip();
         return;
       }
-      this.host.hold(true); // the rival waits while the player learns to walk
       this.go('walk');
-    } else this.go('draw');
+    } else if (lesson === 'goal' || lesson === 'duel') this.go('read');
+    else this.go('draw');
+  }
+
+  /** Passes over a lesson that cannot be shown here (no clear spot to walk to, no source on screen). */
+  private skip() {
+    const lesson = this.lesson!;
+    this.lesson = null;
+    this.stage = STAGES[ORDER.indexOf(lesson)];
+    save(this.stage);
+    this.wait = 0;
+    this.root.classList.remove('show');
+    this.root.hidden = true;
   }
 
   /**
@@ -308,14 +318,18 @@ export class Tutorial {
         this.padHand.style.transform = `translate(${spot.x.toFixed(1)}px, ${spot.y.toFixed(1)}px)`;
       }
     }
-    // The light glides from the mark to the stick and back rather than jumping.
+    this.glide(spot, dt);
+    if (Math.hypot(hero.x - goal.x, hero.z - goal.z) < GOAL_REACH) this.finish();
+  }
+
+  /** The light glides from one spot to the next rather than jumping. */
+  private glide(spot: { x: number; y: number; r: number }, dt: number) {
     const k = this.lit ? 1 - Math.exp(-dt * 9) : 1;
     const lit = (this.lit ??= { ...spot });
     lit.x += (spot.x - lit.x) * k;
     lit.y += (spot.y - lit.y) * k;
     lit.r += (spot.r - lit.r) * k;
     this.spot(lit.x, lit.y, lit.r);
-    if (Math.hypot(hero.x - goal.x, hero.z - goal.z) < GOAL_REACH) this.finish();
   }
 
   /** The stick on touch screens, else the keycaps on a desktop wide enough to show them. */
@@ -350,6 +364,7 @@ export class Tutorial {
     this.timer = 0;
     this.demoTime = 0;
     this.root.dataset.step = step;
+    this.next.hidden = step !== 'read';
     if (this.lesson === 'move') {
       this.root.classList.toggle('with-pad', padEnabled());
       this.demo.innerHTML = '';
@@ -360,19 +375,29 @@ export class Tutorial {
       this.show(this.alt ? 'alt' : 'tap');
       return;
     }
+    if (step === 'read') {
+      const text = t.tutorial[this.lesson as 'goal' | 'duel'];
+      this.demo.innerHTML = '';
+      this.say(text.title, text.body);
+      this.next.textContent = text.button;
+      return;
+    }
     const text = TEXT[this.lesson as Shape];
     if (step === 'watch') this.say(text.watch, '');
     else this.say(...text[step as 'draw' | 'aim']);
     if (step !== 'draw') this.demo.innerHTML = '';
+    const element = SOURCE[this.lesson as Shape];
+    this.demo.className = element && step === 'draw' ? `demo at-source ${element}` : 'demo';
+    if (!element || step !== 'draw') this.demo.style.left = this.demo.style.top = '';
   }
 
   private shelve() {
     this.host.hold(false);
     this.host.deselect();
-    this.pending = this.lesson === 'circle' ? 'circle' : null;
     this.goal = null;
     this.unlight();
     this.lesson = null;
+    this.next.hidden = true;
     this.root.classList.remove('show');
     this.root.hidden = true;
   }
@@ -383,14 +408,20 @@ export class Tutorial {
     this.lesson = null;
     this.goal = null;
     this.unlight();
+    this.next.hidden = true;
     this.root.dataset.walk = '';
-    this.stage = lesson === 'move' ? 'moved' : lesson === 'square' ? 'square' : 'done';
+    this.stage = STAGES[ORDER.indexOf(lesson)];
     save(this.stage);
     this.root.dataset.step = 'done';
-    this.say(lesson === 'move' ? t.tutorial.move.done : TEXT[lesson].done, '');
-    if (lesson === 'move') this.wait = AFTER_WALK;
-    this.fadeSoon(2200);
-    if (lesson === 'circle') this.host.finished();
+    this.wait = AFTER[lesson];
+    if (lesson === 'duel') this.host.duel();
+    const line = lesson === 'move' ? t.tutorial.move.done : lesson === 'duel' ? t.tutorial.duelGo : lesson === 'goal' ? '' : TEXT[lesson].done;
+    if (line) {
+      this.say(line, '');
+      this.fadeSoon(this.wait * 1000);
+    } else {
+      this.root.classList.remove('show');
+    }
   }
 
   private fadeSoon(ms: number) {
@@ -420,15 +451,34 @@ export class Tutorial {
     this.card.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 300 });
   }
 
-  /** The hand draws the shape over and over, slowly enough to follow, with a faint dashed guide underneath. */
+  /**
+   * The hand draws the shape over and over, slowly enough to follow, with a faint dashed guide underneath: in the
+   * middle of the screen, or right over the campfire (or lagoon) for fire and water.
+   */
   private animateDemo(dt: number) {
+    const kind = this.lesson as Shape;
+    const element = SOURCE[kind];
+    let spot = { x: innerWidth / 2, y: innerHeight * 0.42, r: 110 };
+    if (element) {
+      const at = this.host.source(element);
+      if (!at) {
+        // No source on screen to draw over: this lesson is passed over.
+        if (this.timer > NO_SOURCE) this.skip();
+        this.demo.innerHTML = '';
+        return;
+      }
+      const p = this.host.toScreen(at, 0);
+      this.demo.style.left = `${p.x.toFixed(1)}px`;
+      this.demo.style.top = `${(p.y - 6).toFixed(1)}px`;
+      spot = { x: p.x, y: p.y, r: 76 };
+    }
     this.demoTime = (this.demoTime + dt) % (DEMO_DRAW + DEMO_HOLD);
-    const line = demoLine(this.lesson as Shape);
+    const line = demoLine(kind);
     const t = Math.min(1, this.demoTime / DEMO_DRAW);
     const eased = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
     const n = Math.max(2, Math.round(line.length * eased));
     const drawn = line.slice(0, n);
-    const ink = brushPath(drawn, 3.4, seeded(11), this.lesson === 'square' ? [0, 28, 56, 84, 112] : []);
+    const ink = brushPath(drawn, 3.4, seeded(11), kind === 'square' ? [0, 28, 56, 84, 112] : element ? [0] : []);
     const [fx, fy] = drawn[drawn.length - 1];
     const fade = this.demoTime > DEMO_DRAW ? 1 - (this.demoTime - DEMO_DRAW) / DEMO_HOLD : 1;
     const guide = line.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
@@ -437,16 +487,19 @@ export class Tutorial {
       `<g style="opacity:${fade.toFixed(2)}"><path class="stroke" d="${ink.ink}"/>` +
       (t < 1 ? `<circle class="finger" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="3.2"/>` : '') +
       '</g></svg>';
-    this.spot(innerWidth / 2, innerHeight * 0.42, 110);
+    this.glide(spot, dt);
   }
 
-  private pointAtFoe() {
+  /** Lights the rival (and its health bar), with the arrow over it when `arrow`. */
+  private pointAtFoe(arrow: boolean) {
     const foe = this.host.foe();
     if (!foe) return;
     const head = this.host.toScreen(foe, 0.75);
     const feet = this.host.toScreen(foe, 0.3);
+    this.arrow.hidden = !arrow;
     this.placeArrow(head.x, head.y - 18);
-    this.spot(feet.x, feet.y, 60);
+    this.lit = null;
+    this.spot(feet.x, (feet.y + head.y) / 2, 70);
   }
 
   /** Places the arrow's tip at (x, y), pointing down from above. */

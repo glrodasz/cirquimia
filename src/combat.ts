@@ -22,12 +22,8 @@ const END_DELAY = 1.3;
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 export const MAX_RIVALS = 3;
-// The tutorial's sparring rival lands its first strike as soon as it can, played at the top level, so the defence
-// lesson comes early: this long after the attack lesson, then drawn and held at 'experto' pace, aimed where the
-// alchemist is heading and warned only briefly, so it really lands. If the alchemist still gets out, it tries again soon.
-const AMBUSH_WARN = 0.25;
-// Until that strike lands, the rival cannot be knocked out: it holds on at this much health.
-const AMBUSH_FLOOR = 20;
+// While the tutorial's rival stands still as a sparring partner, it cannot be knocked out: it holds on at this much health.
+const SPAR_FLOOR = 10;
 // In the wall lesson the rival's strike breaks on the ground this far to the alchemist's side, so the cross is not hidden under its feet.
 const PROVOKE_SIDE = 0.3;
 const auraGeo = new THREE.RingGeometry(0.18, 0.24, 32).rotateX(-Math.PI / 2);
@@ -277,6 +273,8 @@ class Rival extends Fighter<Character> {
   /** Seconds until it may raise another wall, and how long the one it stands in still protects it. */
   private wallTimer = 0;
   private walled = 0;
+  /** Set while the tutorial keeps it still as a sparring partner: it cannot fall then. */
+  sparring = false;
 
   constructor(
     obstacles: Obstacle[],
@@ -285,15 +283,6 @@ class Rival extends Fighter<Character> {
   ) {
     super(new Character(obstacles, { ...look, speed: tuning.speed }), look.ink);
     this.mind = new RivalMind(tuning);
-  }
-
-  /** Set by the tutorial: the next strikes go at the alchemist, quick and true, until one of them lands. */
-  get ambush() {
-    return this.mind.ambush;
-  }
-
-  set ambush(on: boolean) {
-    this.mind.ambush = on;
   }
 
   /** A wall could go up where it stands right now. */
@@ -335,8 +324,7 @@ class Rival extends Fighter<Character> {
     const pos = this.position;
     this.retarget -= dt;
     // An attack under way keeps its foe until it is cast.
-    if (this.ambush && others.includes(combat.heroFighter)) this.foe = combat.heroFighter;
-    else if (!this.foe || !others.includes(this.foe) || (this.retarget <= 0 && !this.mind.busy)) this.chooseFoe(others);
+    if (!this.foe || !others.includes(this.foe) || (this.retarget <= 0 && !this.mind.busy)) this.chooseFoe(others);
     const foe = this.foe!;
     const target = foe.position;
     const moved = Math.hypot(target.x - foe.prev.x, target.z - foe.prev.z) > 1e-4;
@@ -380,7 +368,7 @@ class Rival extends Fighter<Character> {
     // a wary rival jinks instead: short sidesteps across the alchemist's line of fire, each one a fresh direction,
     // so a strike aimed ahead along its route goes stale, as a player reading the threat would move.
     this.moveTimer -= dt;
-    const evading = this.tuning.evade > 0 && (combat.heroArmed || this.tuning.restless) && !this.ambush && foe === combat.heroFighter;
+    const evading = this.tuning.evade > 0 && (combat.heroArmed || this.tuning.restless) && foe === combat.heroFighter;
     if (!caged && this.moveTimer <= 0 && (!this.body.moving || evading) && this.walled <= 0) {
       this.moveTimer = evading ? THREE.MathUtils.randFloat(0.4, 0.85) / this.tuning.evade : THREE.MathUtils.randFloat(2.5, 4);
       for (let i = 0; i < 8; i++) {
@@ -420,16 +408,9 @@ class Rival extends Fighter<Character> {
     else if (action?.kind === 'act') this.act(action.plan, foe, combat, dt);
   }
 
-  /** During the tutorial's ambush it cannot fall before its strike has landed on the alchemist. */
+  /** The tutorial's sparring partner cannot fall while it stands still for the lessons. */
   protected override get floor() {
-    return this.ambush ? AMBUSH_FLOOR : 0;
-  }
-
-  /** Strikes the alchemist as soon as possible, at the top level and without missing, until a strike lands. */
-  startAmbush() {
-    this.mind.startAmbush();
-    this.hideSketch();
-    this.dodgeTimer = -1;
+    return this.sparring ? SPAR_FLOOR : 0;
   }
 
   /** Raises a wall facing `toward` and stands still inside it; on harder levels it strikes out of it right away. */
@@ -465,7 +446,7 @@ class Rival extends Fighter<Character> {
       return;
     }
     // Aimed now, when the shape is done, at where the foe is (and, on harder levels, a little where it is going).
-    const tuning = this.mind.pace;
+    const tuning = this.tuning;
     const target = foe.position;
     const aim = target.clone();
     if (tuning.lead > 0 && dt > 0) {
@@ -476,15 +457,6 @@ class Rival extends Fighter<Character> {
     }
     const a = Math.random() * Math.PI * 2;
     const e = Math.random() * tuning.aimError;
-    // The tutorial's ambush is a square where the alchemist will be when the ground breaks, walking or not.
-    if (this.ambush && foe === combat.heroFighter && plan.element === 'earth') {
-      combat.heroAhead(AMBUSH_WARN, aim);
-      aim.y = heightAt(aim.x, aim.z);
-      this.body.face(aim);
-      this.body.cast();
-      combat.strikeFrom(this, aim, 'earth', AMBUSH_WARN);
-      return;
-    }
     aim.x += Math.sin(a) * e;
     aim.z += Math.cos(a) * e;
     aim.y = heightAt(aim.x, aim.z);
@@ -580,14 +552,14 @@ export class Combat {
   onEnd: (outcome: Outcome) => void = () => {};
   /** Called whenever a fresh match is set up (new rivals, everyone at full health). */
   onStart: () => void = () => {};
-  /** Called whenever a strike hurts the alchemist. */
-  onHeroHit: () => void = () => {};
   /** Called whenever the alchemist's strike hits the training scarecrow, and whether it came from a rune circle. */
   onDummyHit: (element: Element, boosted: boolean) => void = () => {};
   /** Called when a training scarecrow is knocked down (a new one springs up a moment later). */
   onDummyDown: () => void = () => {};
   /** While set, rivals stand still and do not attack (the tutorial is showing a cast play out). */
   private held = false;
+  /** Set for the whole tutorial: the rivals stand still as sparring partners and cannot fall, until the duel starts. */
+  private sparring = false;
   /** Seconds since the match started, and when the last rival strike booked against the alchemist starts and stops landing. */
   private clock = 0;
   /** Stars whose columns are up or about to be: crossing their ring strikes once more. */
@@ -617,14 +589,9 @@ export class Combat {
     return this.hero;
   }
 
-  /** Where the alchemist will be in `seconds` if it keeps walking the way it is. */
-  heroAhead(seconds: number, out?: THREE.Vector3) {
-    return this.hero.body.ahead(seconds, out);
-  }
-
-  /** The first standing rival goes for the alchemist at once, at the top level, until one of its strikes lands. */
-  ambush() {
-    this.rivals.find((r) => !r.down)?.startAmbush();
+  /** Everyone still standing back to full health (the tutorial's duel starts fresh after the practice). */
+  refresh() {
+    for (const f of [this.hero, ...this.rivals]) if (f.hp < MAX_HP) f.heal(MAX_HP - f.hp, this.camera);
   }
 
   get rivalCount() {
@@ -695,6 +662,13 @@ export class Combat {
   /** Freezes the rivals where they stand, or lets them fight again. */
   hold(on: boolean) {
     this.held = on;
+    if (on) for (const r of this.rivals) r.body.setTarget(r.position);
+  }
+
+  /** The tutorial's rivals stand still where they are and cannot fall, or (off) start fighting. */
+  spar(on: boolean) {
+    if (on === this.sparring) return;
+    this.sparring = on;
     if (on) for (const r of this.rivals) r.body.setTarget(r.position);
   }
 
@@ -946,10 +920,6 @@ export class Combat {
     f.hit(DAMAGE[element], element, this.camera);
     if (caster === this.hero) this.dealt += before - f.hp;
     if (element === 'vine') this.snare(f, caster);
-    if (f === this.hero) {
-      for (const r of this.rivals) r.ambush = false;
-      this.onHeroHit();
-    }
   }
 
   /** Caught by the vine: rooted to the spot (a scarecrow never walks anyway) with coils round the legs. */
@@ -975,7 +945,8 @@ export class Combat {
     const standing = all.filter((f) => !f.down);
     for (const r of this.rivals) {
       // Fallen rivals lie still; once the match is decided nobody attacks any more.
-      if (!r.down && !this.over && !this.held) r.think(dt, standing.filter((f) => f !== r), this, this.onScreen);
+      r.sparring = this.sparring;
+      if (!r.down && !this.over && !this.held && !this.sparring) r.think(dt, standing.filter((f) => f !== r), this, this.onScreen);
       else r.cancel();
       r.body.update(dt);
       r.update(this.camera);

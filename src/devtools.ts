@@ -139,21 +139,16 @@ function flags(): Array<[string, Flag[]]> {
       [
         {
           label: t.dev.flags.tutorial,
-          state: known('cirquimia.tutorial', { moved: s.moved, square: s.square, done: s.done }),
-          // The fire and water hints follow the tutorial, so replaying it replays them too (like ?tutorial).
-          actions: [[t.dev.replay, reload('cirquimia.tutorial', 'cirquimia.sources')]],
-        },
-        {
-          label: t.dev.flags.sources,
-          state: () => {
-            try {
-              const left = JSON.parse(stored('cirquimia.sources') ?? 'null');
-              return Array.isArray(left) ? (left.length ? s.pending(left.length) : s.done) : s.none;
-            } catch {
-              return s.none;
-            }
-          },
-          actions: [[t.dev.replay, reload('cirquimia.sources')]],
+          state: known('cirquimia.tutorial', {
+            moved: s.moved,
+            goal: s.goal,
+            square: s.square,
+            circle: s.circle,
+            triangle: s.triangle,
+            triangleDown: s.triangleDown,
+            done: s.done,
+          }),
+          actions: [[t.dev.replay, reload('cirquimia.tutorial')]],
         },
         {
           label: t.dev.flags.hudspot,
