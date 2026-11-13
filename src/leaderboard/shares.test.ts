@@ -54,9 +54,25 @@ describe('share card pruning', () => {
     for (let i = 0; i < 50; i++) expect(left.has(id(2000 + i))).toBe(true);
     for (let i = 0; i < 50; i++) expect(left.has(id(3000 + i))).toBe(false);
 
-    // A week later, yesterday's daily list is just old cards: only the all-time top 100 remain.
+    // A week later (still November), this month's top 100 stays besides the all-time top 100.
     await pruneCards(db, NOW + CARD_TTL_MS + DAY);
+    const month = kept(db);
+    expect(month.size).toBe(2 * KEEP_TOP);
+    for (let i = 0; i < KEEP_TOP; i++) expect(month.has(id(1000 + i))).toBe(true);
+
+    // Next month, November's list is just old cards: only the all-time top 100 remain.
+    await pruneCards(db, Date.UTC(2026, 11, 2));
     expect(kept(db).size).toBe(KEEP_TOP);
+  });
+
+  it('keeps this month\'s top past the TTL, not last month\'s', async () => {
+    const db = memoryD1();
+    for (let i = 0; i < 150; i++) seed(db, 5000 + i, 1_000_000 - i, Date.UTC(2026, 9, 2)); // October, all-time top
+    seed(db, 1, 900, Date.UTC(2026, 10, 1, 0, 0, 1)); // 1 November, 12 days old
+    seed(db, 2, 900, Date.UTC(2026, 9, 31, 23, 59, 59)); // 31 October
+    await pruneCards(db, NOW);
+    expect(kept(db).has(id(1))).toBe(true);
+    expect(kept(db).has(id(2))).toBe(false);
   });
 
   it('sends a pruned card to the game\'s own picture, and keeps the link', async () => {

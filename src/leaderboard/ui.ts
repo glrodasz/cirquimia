@@ -1,5 +1,5 @@
 /**
- * The ranking on screen: a trophy button beside the book, a board with today's and all-time scores,
+ * The ranking on screen: a trophy button beside the book, a board with today's, this week's, this month's and all-time scores,
  * and the score block on the victory card (points, initials, place, share).
  */
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
@@ -54,8 +54,8 @@ export function mountLeaderboard(): Leaderboard {
     `<button type="button" class="x" aria-label="${t.rank.close}">×</button>` +
     `<h2 id="rank-title">${t.rank.title}</h2>` +
     `<div class="tabs" role="tablist">` +
-    `<button type="button" role="tab" data-period="today">${t.rank.today}</button>` +
-    `<button type="button" role="tab" data-period="all">${t.rank.all}</button></div>` +
+    (['today', 'week', 'month', 'all'] as const).map((p) => `<button type="button" role="tab" data-period="${p}">${t.rank[p]}</button>`).join('') +
+    `</div>` +
     `<div class="list" role="tabpanel"></div>` +
     `<p class="rule">${t.rank.rule}</p></div>`;
   stop(button);
