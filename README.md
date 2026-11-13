@@ -75,7 +75,7 @@ The game is plain TypeScript on top of Three.js, with no game engine. Four piece
 | --- | --- |
 | **Strokes** (`src/pointer.ts`, `src/gestures.ts`, `src/ink.ts`) | The pointer router tells taps from drawings finger by finger (a press that wanders less than 40 px is a tap). A finished stroke is resampled, smoothed, trimmed where it runs past its start, then classified with plain geometry: radius spread and sweep for a circle, corner angles and side ratios for triangles, squares and rhombi, tip angles for the pentagram. No templates, no training. The ink then snaps to the ideal shape. |
 | **Meadow** (`src/generator.ts`, `src/features.ts`, `src/world.ts`) | From a seed the generator picks and places features per material (stone, earth, water, fire, magic, ruins) plus a trail. The world flood-fills from the spawn to measure what is walkable and drops the most blocking feature until enough of the meadow is reachable. |
-| **Combat** (`src/combat.ts`, `src/spells.ts`, `src/match.ts`) | HP, damage, the rune bonus and the rival AI. Rivals walk, dodge, heal, raise walls and draw their own symbols; each difficulty tunes their speed, cooldowns, aim error and lead, how restless they are and how often they step out of or wall off a strike; they never walk faster than the alchemist (tuned so a player aiming at the body lands about 90 / 65 / 45 / 30 % from Fácil to Muy difícil). |
+| **Combat** (`src/combat.ts`, `src/spells.ts`, `src/match.ts`) | HP, damage, the rune bonus and the rival AI. Rivals walk, dodge, heal, raise walls and draw their own symbols; their decisions live in `src/rivalMind.ts` (scene-free and tested in `tests/rivalMind.test.ts`): a rival plans one attack at a time, commits to it and casts it (a held symbol is never drawn over by a wall or a heal), and takes the free hit on a foe that stands still. Each difficulty tunes their speed, cooldowns, aim error and lead, how restless they are and how often they step out of or wall off a strike; they never walk faster than the alchemist (tuned so a player aiming at the body lands about 90 / 65 / 45 / 30 % from Fácil to Muy difícil). |
 | **Sound** (`src/audio.ts`, `src/soundButton.ts`) | Every sound is synthesized with Web Audio when it plays, so there are no audio files and no licences to track: a soft felt-marker glide that follows the pen, a chime per recognized symbol, a breath for a stroke that made none, the ground's rumble during a strike's warning, stone, flame, splash, steam and vine for each element, a wall grinding up, a clack when a wall stops a strike, a chord for healing and a short fanfare or low pair at the end. Effects are panned by their place on screen and fade with distance from the alchemist. Underneath there is no music, just a very quiet meadow: wind rising and falling in slow gusts and a bird calling every several seconds off to one side. Sound starts off: the speaker in the HUD pulses until the player first touches it, then turns everything on or off, remembered between visits (`cirquimia.sound`). |
 | **Rendering** (`src/main.ts`, `src/meadow.ts`, `src/tiltShift.ts`) | A fixed camera at a 54° pitch and 24° yaw, flat-shaded Lambert materials, and a tilt-shift blur that makes the meadow read as a tabletop model. |
 
@@ -113,7 +113,7 @@ Handy URL parameters:
 - Camera angle and zoom: `ELEVATION`, `AZIMUTH`, `FOV`, `VIEW_HEIGHT_LANDSCAPE`, `VIEW_WIDTH_PORTRAIT` in `src/main.ts`.
 - Walk speed: `SPEED` in `src/character.ts`.
 - Drawing vs tapping: `DRAW_THRESHOLD` and `TAP_SLOP` in `src/pointer.ts`. Recognizer tolerances at the top of `src/gestures.ts`.
-- Rival behaviour per difficulty: the difficulty table in `src/combat.ts`.
+- Rival behaviour per difficulty: the difficulty table in `src/rivalMind.ts`.
 - Miniature blur: `band` and `strength` uniforms in `src/tiltShift.ts`.
 
 </details>
@@ -165,7 +165,8 @@ docs/           diagrams
 | `ammo.ts` | Brush-stroke symbol icons shared by the HUD, guide and tutorial |
 | `aim.ts` | Reticle under the mouse showing the ground a held strike would cover |
 | `spells.ts` | Spell visuals: earth wall, pillars, fire, water, heal, star |
-| `combat.ts` | HP, damage, rune bonus, rival AI and difficulty levels, win/lose |
+| `combat.ts` | HP, damage, rune bonus, rivals in the meadow (moving, aiming, casting), win/lose |
+| `rivalMind.ts` | How a rival decides: difficulty levels, committed attacks and combinations, punishing a still foe |
 | `match.ts` | Match HUD (rivals, difficulty), end-of-match cards, restart on a new meadow |
 | `help.ts` | The book (HUD book button): symbols, the "How to play" guide and the language switch in its foot |
 | `tutorial.ts` | Interactive first-match tutorial |
