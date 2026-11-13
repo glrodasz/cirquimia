@@ -775,7 +775,9 @@
       /* Fewer boxes: the initials are a ruled line with a plain red "Save", the ranking a quiet link-like button. */
       #match-end .scored .sign { align-items: center; gap: 12px; margin-top: 2px; }
       #match-end .scored .sign label { flex-direction: row; align-items: center; gap: 10px; white-space: nowrap; }
-      @media (max-width: 379px) { #match-end .scored .sign { gap: 8px; } #match-end .scored .sign label { gap: 6px; } #match-end .scored .sign input { width: 80px; letter-spacing: .12em; } }
+      /* The ABCD line speaks for itself: the label stays for screen readers only. */
+      #match-end .scored .sign label > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      #match-end .scored .sign input { width: 104px; }
       #match-end .scored .sign input { width: 92px; height: 34px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--g-ink); background: transparent; }
       #match-end .scored .sign input:focus { outline: 0; border-bottom: 2px solid var(--g-red); }
       #match-end .scored .save { height: 34px; padding: 0 2px; border: 0; background: none; color: var(--g-red); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
