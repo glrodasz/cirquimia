@@ -1,19 +1,11 @@
-import { brushPath, shapeIcon, type Pt } from './ammo';
-import { random, segment } from './match';
+import { shapeIcon } from './ammo';
 import type { ShapeKind } from './gestures';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
 import { LANGUAGE_NAMES } from './i18n/locale';
-import { bookIcon, circleTabIcon, dropIcon, flameIcon, quillTabIcon, turnArrowIcon } from './icons';
-import moveShot from './assets/help/move.webp';
-import drawShot from './assets/help/draw.webp';
-import useShot from './assets/help/use.webp';
+import { bookIcon, circleTabIcon, dropIcon, flameIcon, quillTabIcon } from './icons';
 import runeShot from './assets/help/rune.webp';
-
-function poly(points: Pt[]): Pt[] {
-  return points.slice(1).flatMap((p, i) => segment(points[i], p).slice(i ? 1 : 0));
-}
 
 /** A pointing hand like the 👆 emoji, fingertip at the origin: index up, three folded knuckles, thumb out to the left. */
 const HAND =
@@ -32,58 +24,7 @@ export function hand(x: number, y: number, s: number, tap = true) {
   );
 }
 
-/** A brush arrow with an open head, optionally broken into dashes like footsteps. */
-function arrowLine(points: Pt[], dashes: number, rand: () => number) {
-  const line = poly(points);
-  const parts: Pt[][] = [];
-  if (dashes) {
-    const per = line.length / (dashes * 2 - 1);
-    for (let i = 0; i < dashes; i++) parts.push(line.slice(Math.round(i * 2 * per), Math.round((i * 2 + 1) * per) + 1));
-  } else parts.push(line);
-  const [a, b] = points.slice(-2);
-  const dir = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  for (const side of [-1, 1]) parts.push(segment(b, [b[0] - Math.cos(dir + side * 0.55) * 9, b[1] - Math.sin(dir + side * 0.55) * 9]));
-  return parts.map((l) => brushPath(l, 3.4, rand).ink).join('');
-}
-
-/** Hands, arrows and strokes drawn over each screenshot, in the screenshot's own 312×234 frame. */
-const OVERLAYS: Array<(rand: () => number) => string> = [
-  (rand) => `<path class="arrow" d="${arrowLine([[200, 118], [246, 103]], 3, rand)}"/>` + hand(261, 99, 1.4),
-  // From the stroke to the symbol now held over the alchemist's head.
-  (rand) => `<path class="arrow" d="${arrowLine([[114, 70], [150, 92], [170, 138]], 0, rand)}"/>` + hand(33, 10, 1.4, false),
-  () => hand(132, 112, 1.4),
-];
-const SHOTS = [moveShot, drawShot, useShot];
-
-/**
- * The walk page split along its diagonal into the two ways to move. Top right: the screenshot as it is, a hand
- * tapping (or clicking) the map. Bottom left: the same meadow closer in, the alchemist walking off up and to the
- * right, driven by the stick's ring with its knob pushed that way, or by the arrow keys on a keyboard.
- */
-function splitMove(rand: () => number, keys: boolean) {
-  const zoom = 1.5;
-  const hero: Pt = [182, 118]; // the alchemist's feet in the move screenshot
-  const at: Pt = [128, 168]; // where they land in the close-up half
-  const x = at[0] - hero[0] * zoom;
-  const y = at[1] - hero[1] * zoom;
-  const cap = (cx: number, cy: number, label: string, lit = false) =>
-    `<g class="key${lit ? ' lit' : ''}"><rect x="${cx - 11}" y="${cy - 11}" width="22" height="22"/><text x="${cx}" y="${cy + 4.5}">${label}</text></g>`;
-  const steer = keys
-    ? cap(48, 174, 'W', true) + cap(24, 198, 'A') + cap(48, 198, 'S') + cap(72, 198, 'D', true)
-    : `<g class="pad"><circle cx="50" cy="190" r="30"/><circle class="knob" cx="62" cy="178" r="12"/></g>`;
-  return (
-    `<defs><clipPath id="move-near"><polygon points="0,0 312,234 0,234"/></clipPath></defs>` +
-    `<image href="${moveShot}" x="${x}" y="${y}" width="${312 * zoom}" height="${234 * zoom}" clip-path="url(#move-near)" preserveAspectRatio="none"/>` +
-    `<path class="split" d="M-4 -3L316 237"/>` +
-    OVERLAYS[0](rand) +
-    `<path class="arrow" d="${arrowLine([[at[0] + 16, at[1] - 8], [at[0] + 52, at[1] - 16]], 3, rand)}"/>` +
-    steer
-  );
-}
-
-/** A teardrop: the tip, down one side, round the belly and back up. */
-
-/** Every shape in the order of the index; fire and water ones show where they get charged. No numbers: players find out how hard each one hits. */
+/** Every shape in the order of the index; fire and water ones say they need their source. No numbers: players find out how hard each one hits. */
 const SHAPES: Array<{ kind: ShapeKind; source?: 'fire' | 'water' }> = [
   { kind: 'circle' },
   { kind: 'square' },
@@ -110,28 +51,20 @@ const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</
 type Section = 'symbols' | 'guide';
 
 /**
- * An alchemist's book: one sheet of grimoire paper with a red title, the pages of both sections stacked on
- * top of each other (so the book keeps one size whichever section is open) and two big page-turn buttons
- * along the bottom edge, with the page number between them. Under those, a foot strip: the two sections of
- * the book (symbols, how to play) and the language.
+ * An alchemist's book: one sheet of grimoire paper with a red title and one page per section, stacked on top
+ * of each other so the book keeps one size whichever section is open. Under it, a foot strip: the two
+ * sections of the book (symbols, how to play) and the language. The × , Esc or a tap outside close it.
  */
 function bookCard() {
-  const sections: Array<[Section, string[], (n: number, total: number) => string]> = [
-    ['symbols', symbols(), t.help.pageOf],
-    ['guide', guide(), t.help.slideOf],
+  const sections: Array<[Section, string, string]> = [
+    ['symbols', symbols(), t.help.shapesTitle],
+    ['guide', guide(), t.help.title],
   ];
-  const pages = sections
-    .map(([sec, list, label]) =>
-      list.map((page, i) => `<section class="page ${sec}" data-sec="${sec}" aria-label="${label(i + 1, list.length)}">${page}</section>`).join(''),
-    )
-    .join('');
+  const pages = sections.map(([sec, page, label]) => `<section class="page ${sec}" data-sec="${sec}" aria-label="${label}">${page}</section>`).join('');
   return (
     `<div class="book" tabindex="-1"><button type="button" class="x" aria-label="${t.help.close}">×</button>` +
     `<h2 id="help-title"></h2>` +
     `<div class="pages">${pages}</div>` +
-    `<div class="turn"><button type="button" class="back">${turnArrowIcon()}<span class="cap"></span></button>` +
-    `<span class="folio" aria-live="polite"><span aria-hidden="true"></span><span class="sr"></span></span>` +
-    `<button type="button" class="go"><span class="cap"></span>${turnArrowIcon()}</button></div>` +
     `<div class="foot"><div class="tabs">` +
     `<button type="button" class="tab" data-to="symbols">${circleTabIcon()}<span>${t.help.symbolsButton}</span></button>` +
     `<button type="button" class="tab" data-to="guide">${quillTabIcon()}<span>${t.help.howTo}</span></button>` +
@@ -140,38 +73,33 @@ function bookCard() {
 }
 
 /**
- * How to play: move, draw, cast, one illustrated page each. The rest (walls, fire and water) is taught in the
- * first match, and every symbol is in the book.
+ * How to play: one sheet of plain instructions, no pictures. Move, draw, cast, each a short heading over
+ * two bulleted steps, worded for the way this player plays (click and keys, or tap and stick). The rest
+ * (walls, fire and water) is taught in the first match, and every symbol is in the book.
  */
 function guide() {
-  const rand = random();
   const keys = hasKeyboard();
   // Two ways to walk: point at the map, or the stick on touch screens / the keys on a keyboard.
   const ways = keys ? [t.help.moveWays.click, t.help.moveWays.keys] : padEnabled() ? [t.help.moveWays.tap, t.help.moveWays.stick] : null;
-  return t.help.slides.map(([title, text], i) => {
-    const split = i === 0 && ways;
-    // Every page reads the same way: two steps, a bulleted list aligned to the left.
-    const steps = split ? ways : (keys && i > 0 ? t.help.desk[i - 1] : text).split('|');
-    const body = `<ul class="steps">${steps.map((step) => `<li>${step}</li>`).join('')}</ul>`;
-    return (
-      `<figure class="shot"><img src="${SHOTS[i]}" alt="" draggable="false">` +
-      `<svg viewBox="0 0 312 234" aria-hidden="true">${split ? splitMove(rand, keys) : OVERLAYS[i](rand)}</svg></figure>` +
-      `<h3><span class="num">${i + 1}</span>${title}</h3>${body}`
-    );
-  });
+  const rules = t.help.slides
+    .map(([title, text], i) => {
+      const steps = i === 0 && ways ? ways : (keys && i > 0 ? t.help.desk[i - 1] : text).split('|');
+      return `<h3><span class="num">${i + 1}</span>${title}</h3><ul class="steps">${steps.map((step) => `<li>${step}</li>`).join('')}</ul>`;
+    })
+    .join('');
+  return rules;
 }
 
 /**
- * The symbols manual: an index of every shape and what it does, with the combinations under a rule in the
- * same index; then where fire and water get charged, runes, and how combining works.
+ * The symbols manual, one sheet: every shape and what it does, the combinations under a rule, and the rune
+ * note at the foot. Fire and water show their source as an icon; the rest players find out by playing.
  */
 function symbols() {
-  // An index, like the contents of an old grimoire: numeral, the symbol in a fine nib, what it does.
-  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+  // An index, like the contents of an old grimoire: the symbol in a fine nib and what it does.
   const shapes = SHAPES.map(
-    (s, i) =>
-      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}><span class="rn">${ROMAN[i]}</span>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.roles[s.kind]}</b>` +
-      (s.source ? `<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>` : '') +
+    (s) =>
+      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.roles[s.kind]}</b>` +
+      (s.source ? `<span class="need">(${t.help.needs}<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>)</span>` : '') +
       `</li>`,
   ).join('');
   // Two symbols merged in hand, drawn as the strokes that make them: fire + water = the blast, the star + fire or water = a fire or water star.
@@ -183,8 +111,8 @@ function symbols() {
     ] as const
   )
     .map(
-      ([a, b, out], i) =>
-        `<li${drillClass(out)}><span class="rn">${ROMAN[SHAPES.length + i]}</span>` +
+      ([a, b, out]) =>
+        `<li${drillClass(out)}>` +
         `<span class="recipe">${fig(a, shapeIcon(a, true))}<i>+</i>${fig(b, shapeIcon(b, true))}<i>=</i>${fig(out, shapeIcon(out, true))}</span>` +
         `<b>${t.help.roles[out]}</b></li>`,
     )
@@ -197,12 +125,7 @@ function symbols() {
     `${progress}<ol class="shapes">${shapes}</ol>` +
     `<h4 class="sep">${t.help.comboTitle}</h4><ol class="shapes combos">${combos}</ol>` +
     `<ul class="notes rune-note"><li${drillClass('rune')}><img class="rune-shot" src="${runeShot}" alt="" draggable="false"><span>${t.help.runesNote}</span></li></ul>`;
-  const notes =
-    `<h3>${t.help.sourcesTitle}</h3><ul class="notes">` +
-    `<li><span class="src">${flameIcon()}</span><span>${t.help.fireNote}</span></li>` +
-    `<li><span class="src">${dropIcon()}</span><span>${t.help.waterNote}</span></li></ul>` +
-    `<h3>${t.help.comboTitle}</h3><p class="combo-note">${t.help.comboNote}</p>`;
-  return [index, notes];
+  return index;
 }
 
 /** Set before switching language, so the book opens again on the same section once the page reloads. */
@@ -236,14 +159,13 @@ export function mountHelp() {
 
   let open = false;
   let opener: HTMLElement | null = null;
-  let turn: ((dir: number) => void) | null = null;
   let section: ((to: Section) => void) | null = null;
   const show = (page: Section) => {
     if (!open) {
       opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
       overlay.innerHTML = bookCard(); // fresh brush jitter and training ticks each time
       overlay.querySelector('.x')!.addEventListener('click', hide);
-      [turn, section] = wireBook();
+      section = wireBook();
     }
     section!(page);
     if (open) return;
@@ -255,71 +177,14 @@ export function mountHelp() {
     overlay.querySelector<HTMLElement>('.book')!.focus({ preventScroll: true });
   };
 
-  /**
-   * Turns the pages of the open section: the next/back buttons, a sideways swipe across the page, or a tap
-   * near its outer edges. The page being left lifts off the spine and flips away; going back flips the
-   * previous page back down on top. The last page's button closes the book. The tabs in the foot switch
-   * section in place: same book, its first page of the other section, a new title.
-   */
-  function wireBook(): [(dir: number) => void, (to: Section) => void] {
+  /** The tabs in the foot switch section in place: same book, the other page, a new title. */
+  function wireBook(): (to: Section) => void {
     const all = [...overlay.querySelectorAll<HTMLElement>('.page')];
-    const shelf = overlay.querySelector<HTMLElement>('.pages')!;
     const title = overlay.querySelector<HTMLElement>('h2')!;
-    const back = overlay.querySelector<HTMLButtonElement>('.back')!;
-    const next = overlay.querySelector<HTMLButtonElement>('.go')!;
     const tabs = [...overlay.querySelectorAll<HTMLButtonElement>('.tab')];
-    const [folio, spoken] = overlay.querySelectorAll<HTMLElement>('.folio span');
     let current: Section = 'symbols';
-    let leaves: HTMLElement[] = [];
-    let at = 0;
-    let busy = 0;
-
-    const mark = () => {
-      const last = leaves.length - 1;
-      all.forEach((l) => (l.inert = l !== leaves[at]));
-      leaves.forEach((l, i) => l.classList.toggle('more', i < last));
-      folio.textContent = `${at + 1} / ${leaves.length}`;
-      spoken.textContent = leaves[at].getAttribute('aria-label')!;
-      const ahead = at < last;
-      next.classList.toggle('seal', !ahead);
-      next.querySelector('.cap')!.textContent = ahead ? t.help.next : current === 'guide' ? t.help.go : t.help.ok;
-      back.querySelector('.cap')!.textContent = t.help.back;
-      back.classList.toggle('hide', at === 0);
-    };
-
-    const go = (to: number) => {
-      if (busy || to < 0 || to >= leaves.length || to === at) return;
-      const from = leaves[at];
-      const into = leaves[to];
-      const forward = to > at;
-      at = to;
-      mark();
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        from.classList.remove('on');
-        into.classList.add('on');
-        return;
-      }
-      // Forward: the open page flips away, revealing the next one already lying underneath.
-      // Back: the previous page flips down over the open one.
-      if (forward) {
-        into.classList.add('under');
-        from.classList.add('leaf-out');
-      } else {
-        from.classList.add('under');
-        from.classList.remove('on');
-        into.classList.add('on', 'leaf-in');
-      }
-      busy = window.setTimeout(() => {
-        from.classList.remove('on', 'under', 'leaf-out');
-        into.classList.remove('under', 'leaf-in');
-        into.classList.add('on');
-        busy = 0;
-      }, 520);
-    };
 
     const switchTo = (to: Section) => {
-      clearTimeout(busy);
-      busy = 0;
       current = to;
       overlay.querySelector('.book')!.setAttribute('data-sec', to);
       title.textContent = to === 'guide' ? t.help.title : t.help.shapesTitle;
@@ -327,31 +192,11 @@ export function mountHelp() {
         if (tab.dataset.to === to) tab.setAttribute('aria-current', 'page');
         else tab.removeAttribute('aria-current');
       }
-      for (const l of all) l.classList.remove('on', 'under', 'leaf-in', 'leaf-out');
-      leaves = all.filter((l) => l.dataset.sec === to);
-      at = 0;
-      leaves[0].classList.add('on');
-      mark();
-    };
-
-    let press: { x: number; y: number } | null = null;
-    shelf.addEventListener('pointerdown', (e) => (press = { x: e.clientX, y: e.clientY }));
-    shelf.addEventListener('pointercancel', () => (press = null));
-    shelf.addEventListener('pointerup', (e) => {
-      if (!press) return;
-      const dx = e.clientX - press.x;
-      const dy = e.clientY - press.y;
-      press = null;
-      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) go(at + (dx < 0 ? 1 : -1));
-      else if (Math.hypot(dx, dy) < 10) {
-        const box = shelf.getBoundingClientRect();
-        const along = (e.clientX - box.left) / box.width;
-        if (along > 0.72) go(at + 1);
-        else if (along < 0.28) go(at - 1);
+      for (const page of all) {
+        page.classList.toggle('on', page.dataset.sec === to);
+        page.inert = page.dataset.sec !== to;
       }
-    });
-    back.addEventListener('click', () => go(at - 1));
-    next.addEventListener('click', () => (at === leaves.length - 1 ? hide() : go(at + 1)));
+    };
     for (const tab of tabs) tab.addEventListener('click', () => tab.dataset.to !== current && switchTo(tab.dataset.to as Section));
 
     const langs = overlay.querySelector('.langs')!;
@@ -371,7 +216,7 @@ export function mountHelp() {
       langs.append(link);
     }
 
-    return [(dir: number) => go(at + dir), switchTo];
+    return switchTo;
   }
 
   function hide() {
@@ -393,7 +238,6 @@ export function mountHelp() {
   addEventListener('keydown', (e) => {
     if (!open) return;
     if (e.key === 'Escape') hide();
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') turn?.(e.key === 'ArrowRight' ? 1 : -1);
     else if (e.key === 'Tab') {
       // Keep focus inside the book while it is open.
       const stops = [...overlay.querySelectorAll<HTMLElement>('button:not(.hide), a')].filter((el) => !el.closest('[inert]'));
