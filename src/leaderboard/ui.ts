@@ -77,29 +77,28 @@ export function mountLeaderboard(): Leaderboard {
   let opener: HTMLElement | null = null;
   let request = 0;
 
-  const render = (entries: Entry[]) => {
+  const row = (e: Entry, place: number, mine: Set<number>) => {
+    const cls = [mine.has(e.id) ? 'mine' : '', e.id === highlight ? 'new' : ''].filter(Boolean).join(' ');
+    const medal = place <= 3 ? ` medal m${place}` : '';
+    return (
+      `<li${cls ? ` class="${cls}"` : ''}>` +
+      `<span class="pos${medal}">${place}</span>` +
+      `<span class="who">${esc(e.initials)}${mine.has(e.id) ? ` <i>${t.rank.mine}</i>` : ''}</span>` +
+      `<span class="pts">${e.score.toLocaleString(LANG)}</span>` +
+      `<span class="meta">${metaLine(e, true)} · ${t.rank.category[e.category] ?? ''}</span>` +
+      `</li>`
+    );
+  };
+
+  /** The top of the board, then the player's own best with its real place when it is lower down (after a gap row). */
+  const render = (entries: Entry[], me?: { rank: number; entry: Entry } | null) => {
     if (!entries.length) {
       list.innerHTML = `<p class="empty">${t.rank.empty}</p>`;
       return;
     }
     const mine = myScores();
-    list.innerHTML =
-      `<ol>` +
-      entries
-        .map((e, i) => {
-          const cls = [mine.has(e.id) ? 'mine' : '', e.id === highlight ? 'new' : ''].filter(Boolean).join(' ');
-          const medal = i < 3 ? ` medal m${i + 1}` : '';
-          return (
-            `<li${cls ? ` class="${cls}"` : ''}>` +
-            `<span class="pos${medal}">${i + 1}</span>` +
-            `<span class="who">${esc(e.initials)}${mine.has(e.id) ? ` <i>${t.rank.mine}</i>` : ''}</span>` +
-            `<span class="pts">${e.score.toLocaleString(LANG)}</span>` +
-            `<span class="meta">${metaLine(e, true)} · ${t.rank.category[e.category] ?? ''}</span>` +
-            `</li>`
-          );
-        })
-        .join('') +
-      `</ol>`;
+    const own = me && me.rank > entries.length ? `<li class="gap" aria-hidden="true">⋯</li>${row(me.entry, me.rank, mine)}` : '';
+    list.innerHTML = `<ol>${entries.map((e, i) => row(e, i + 1, mine)).join('')}${own}</ol>`;
     list.querySelector('.new')?.scrollIntoView({ block: 'center' });
   };
 
@@ -108,10 +107,11 @@ export function mountLeaderboard(): Leaderboard {
     for (const tab of tabs) tab.setAttribute('aria-selected', String(tab.dataset.period === p));
     list.innerHTML = `<p class="empty">${t.rank.loading}</p>`;
     const mine = ++request;
-    const res = await fetchBoard(p);
+    // Right after saving, the place shown is the new score's; otherwise the player's best.
+    const res = await fetchBoard(p, highlight ? [highlight] : myScores());
     if (mine !== request) return;
     if (failed(res)) list.innerHTML = `<p class="empty">${t.rank.unavailable}</p>`;
-    else render(res.entries);
+    else render(res.entries, res.me);
   };
 
   const hide = () => {

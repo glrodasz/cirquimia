@@ -120,8 +120,12 @@ export async function submitScore(runId: string, initials: string, durationMs: n
   return res;
 }
 
-export function fetchBoard(period: Period) {
-  return call<{ period: Period; day: string; entries: Entry[] }>(`/scores?period=${period}`);
+/** The top of a board; `mine` (the player's own score ids) adds their best place below it when they are not on it. */
+export function fetchBoard(period: Period, mine: Iterable<number> = []) {
+  const ids = [...mine].sort((a, b) => a - b).join(',');
+  return call<{ period: Period; day: string; entries: Entry[]; me?: { rank: number; entry: Entry } | null }>(
+    `/scores?period=${period}${ids ? `&mine=${ids}` : ''}`,
+  );
 }
 
 export function savedInitials(): string {

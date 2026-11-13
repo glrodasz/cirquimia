@@ -19,7 +19,7 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
 - `POST /api/scores {runId, initials, durationMs, damage, hints}` stores a won match; the server recomputes the
   score with the run's own difficulty, refuses impossible numbers (under 4 s or over 30 min, more than 40 damage
   a second or 300 per rival, a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
-- `GET /api/scores?period=today|week|month|all` returns the top 50. Days, weeks (Monday to Sunday) and months are UTC.
+- `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC.
 
 The board shows only Mobile / Tablet / Desktop; each row also stores OS, device (iPhone, iPad, Android
 phone/tablet, Mac, PC…), browser, model and OS version where the browser offers them, screen, language,
