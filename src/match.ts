@@ -144,10 +144,26 @@ export function mountMatchControls(match: MatchControls) {
   const levelBtn = button();
   levelBtn.classList.add('level');
 
+  // Training has a clear way back: one rival on Fácil, the gentlest real match (the pills still change it from there).
+  const battleBtn = document.createElement('button');
+  battleBtn.type = 'button';
+  battleBtn.id = 'battle-btn';
+  battleBtn.innerHTML = `${rivalsIcon(1)}<span class="cap">${t.match.toBattle}</span>`;
+  battleBtn.hidden = true;
+  battleBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+  battleBtn.addEventListener('pointerup', (e) => e.stopPropagation());
+  battleBtn.addEventListener('click', () => {
+    closeEnd();
+    match.setRivals(1);
+    match.setDifficulty('facil');
+    match.restart();
+    restarted(rivalsBtn);
+  });
+
   const toast = document.createElement('div');
   toast.id = 'match-toast';
   toast.setAttribute('role', 'status');
-  document.body.append(box, toast);
+  document.body.append(box, battleBtn, toast);
 
   const render = () => {
     const n = match.rivals;
@@ -160,6 +176,7 @@ export function mountMatchControls(match: MatchControls) {
     levelBtn.setAttribute('aria-label', t.match.levelAria(DIFFICULTY_LABEL[level]));
     // Training has no difficulty: the scarecrow never strikes back.
     levelBtn.hidden = n === 0;
+    battleBtn.hidden = n !== 0;
     save({ rivals: n, difficulty: level });
     fit();
   };

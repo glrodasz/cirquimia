@@ -762,6 +762,14 @@
       #match-end :is(.view, .again) .cap { white-space: nowrap; }
       @media (hover: hover) { #match-end .view:hover { background: rgba(31,26,21,.06); } }
       #match-end .view .cap::after, #match-end .ends:has(.view) .again .cap::after { content: none; }
+      /* Training's way back to a real match: a red seal top centre, under the HUD row on phones. */
+      #battle-btn { position: fixed; top: var(--edge-top); left: 50%; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 16px 0 12px; border: 0; border-radius: 0; background: var(--g-red); color: var(--g-paper); box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7), 0 2px 8px rgba(20,28,24,.2); font: 500 19px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .06em; white-space: nowrap; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
+      #battle-btn[hidden] { display: none; }
+      #battle-btn:active { transform: translateX(-50%) scale(.95); }
+      #battle-btn:focus-visible { outline: 1px solid var(--g-ink); outline-offset: 2px; }
+      #battle-btn .hud-icon { width: 20px; height: 20px; flex: none; margin-top: -2px; }
+      #battle-btn .hud-icon .red { fill: var(--g-paper); }
+      @media (max-width: 699.98px) { #battle-btn { top: calc(var(--edge-top) + 52px); height: 38px; font-size: 18px; } }
       #match-end p.train-tip { margin: -6px 0 14px; font-style: normal; color: var(--g-ink); }
       #match-end p.train-tip[hidden] { display: none; }
       #match-end .train .hud-icon { color: var(--g-ink); }

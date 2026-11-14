@@ -130,6 +130,7 @@ const es = {
     spotBody: 'Toca aquí para cambiar el número de rivales y la dificultad.',
     trainTip: 'Practica los símbolos sin rivales y vuelve más fuerte.',
     train: 'Entrenar',
+    toBattle: 'Ir al combate',
   },
   rank: {
     button: 'Ranking',
@@ -484,6 +485,7 @@ const en: Strings = {
     spotBody: 'Tap here to change the number of rivals and the difficulty.',
     trainTip: 'Practise the symbols with no rivals and come back stronger.',
     train: 'Train',
+    toBattle: 'Go to battle',
   },
   rank: {
     button: 'Leaderboard',
