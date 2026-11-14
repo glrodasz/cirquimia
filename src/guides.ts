@@ -1,6 +1,5 @@
 import type * as THREE from 'three';
 import { brushPath, shapeIcon, type Pt } from './ammo';
-import type { Drill } from './help';
 import { arc, segment } from './match';
 import type { ShapeKind } from './gestures';
 import { t, type GuideShape } from './i18n';
@@ -8,6 +7,8 @@ import { downArrow } from './icons';
 import { hasKeyboard } from './keys';
 
 type Fluid = 'fire' | 'water';
+/** A step of the loop, named after what ends up in hand. */
+type Drill = 'circle' | 'square' | 'triangle' | 'triangleDown' | 'rhombus' | 'pentagram' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar';
 /** One step of the loop: the strokes to draw in order (two for a combination, merged in hand) and what ends up in hand. */
 interface Step {
   id: Drill;
@@ -106,7 +107,8 @@ export class Guides {
   private pending = false;
   /** Seconds left on the "well done" line before the next step. */
   private praise = 0;
-  private readonly ticked = new Set<Drill>();
+  /** How many times each symbol was used in this lap: ticked from 1, ×2 and up shown on its box. */
+  private readonly counts = new Map<Drill, number>();
   private time = 0;
   /** Where the guide sits on screen, gliding after the alchemist rather than jumping. */
   private at: { x: number; y: number } | null = null;
@@ -171,7 +173,9 @@ export class Guides {
 
   /** A shape was drawn and kept (charged, merged, or gone off); `held` is what is in hand now. */
   drawn(kind: ShapeKind, held: ShapeKind | null) {
-    if (!this.on || this.praise > 0) return;
+    if (!this.on) return;
+    if (INSTANT.has(kind)) this.count(kind);
+    if (this.praise > 0) return;
     const step = this.step;
     if (kind === step.parts[this.part]) this.part++;
     else this.part = kind === step.parts[0] ? 1 : 0; // something else replaced the hand: start the step over
@@ -179,41 +183,47 @@ export class Guides {
       this.pending = false;
       return;
     }
-    if (INSTANT.has(step.result)) this.done();
+    if (INSTANT.has(step.result)) this.part = 0;
     else if (held === step.result) this.pending = true;
     else this.part = 0;
   }
 
   /** The shape in hand was cast. */
-  cast() {
+  cast(kind: ShapeKind) {
     if (!this.on) return;
-    if (this.pending) this.done();
-    else this.part = 0; // a half-made combination thrown on its own
+    this.pending = false;
+    this.part = 0; // done, or a half-made combination thrown on its own
+    this.count(kind);
   }
 
-  private done() {
-    this.pending = false;
-    this.part = 0;
-    this.ticked.add(this.step.id);
-    this.praise = this.ticked.size === STEPS.length ? ALL_AFTER : NEXT_AFTER;
+  /**
+   * Any symbol of the loop used, guided or not: ticked, and counted, so a repeat shows ×2, ×3… on its box. The one
+   * the guide asks for moves the loop on.
+   */
+  private count(kind: ShapeKind) {
+    const step = STEPS.find((s) => s.result === kind);
+    if (!step) return;
+    this.counts.set(step.id, (this.counts.get(step.id) ?? 0) + 1);
+    if (this.counts.size === STEPS.length && this.praise <= 0) this.praise = ALL_AFTER;
+    else if (step === this.step && this.praise <= 0) this.praise = NEXT_AFTER;
     this.paint();
   }
 
   /** On to the next step (from "another shape" too); after a whole loop the boxes clear and it starts over. */
   private advance() {
-    const lap = this.ticked.size === STEPS.length;
+    const lap = this.counts.size === STEPS.length;
     this.pending = false;
     this.part = 0;
     this.praise = 0;
     this.time = 0;
     if (lap) {
-      this.ticked.clear();
+      this.counts.clear();
       this.index = 0;
     } else {
       // The next step not ticked yet, so a skipped one comes back later in the lap.
       for (let i = 1; i <= STEPS.length; i++) {
         const j = (this.index + i) % STEPS.length;
-        if (!this.ticked.has(STEPS[j].id)) {
+        if (!this.counts.has(STEPS[j].id)) {
           this.index = j;
           break;
         }
@@ -226,7 +236,10 @@ export class Guides {
   private paint() {
     for (const li of this.boxes.children as HTMLCollectionOf<HTMLElement>) {
       const id = li.dataset.id as Drill;
-      li.classList.toggle('tick', this.ticked.has(id));
+      const n = this.counts.get(id) ?? 0;
+      li.classList.toggle('tick', n > 0);
+      if (n > 1) li.dataset.n = `×${n}`;
+      else delete li.dataset.n;
       li.classList.toggle('now', id === this.step.id && this.praise <= 0);
     }
   }
@@ -240,7 +253,7 @@ export class Guides {
         this.part = 0;
         this.pending = false;
         this.praise = 0;
-        this.ticked.clear();
+        this.counts.clear();
         this.hidden = false;
         this.paint();
       }
@@ -252,7 +265,7 @@ export class Guides {
 
     if (this.praise > 0) {
       this.praise -= dt;
-      const all = this.ticked.size === STEPS.length;
+      const all = this.counts.size === STEPS.length;
       this.say(all ? t.guides.allDone : t.guides.good, all ? t.guides.again : '');
       this.place(null);
       if (this.praise <= 0) this.advance();

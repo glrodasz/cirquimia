@@ -552,8 +552,6 @@ export class Combat {
   onEnd: (outcome: Outcome) => void = () => {};
   /** Called whenever a fresh match is set up (new rivals, everyone at full health). */
   onStart: () => void = () => {};
-  /** Called whenever the alchemist's strike hits the training scarecrow, and whether it came from a rune circle. */
-  onDummyHit: (element: Element, boosted: boolean) => void = () => {};
   /** Called when a training scarecrow is knocked down (a new one springs up a moment later). */
   onDummyDown: () => void = () => {};
   /** While set, rivals stand still and do not attack (the tutorial is showing a cast play out). */
@@ -910,7 +908,6 @@ export class Combat {
       if (d.down || Math.hypot(d.position.x - x, d.position.z - z) > area + DUMMY_RADIUS) continue;
       d.strike(DAMAGE[element], element, this.camera, boosted, (caster as Fighter | null)?.position);
       if (element === 'vine' && !d.down) this.snare(d, caster);
-      if (caster === this.hero) this.onDummyHit(element, boosted);
       if (d.down) this.onDummyDown();
     }
   }

@@ -28,7 +28,6 @@ import { KeyboardMove, groundDir } from './keys';
 import { mountKeysHint } from './keysHint';
 import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 import { mountPad } from './pad';
-import { Practice } from './practice';
 import { Guides } from './guides';
 import { mountLeaderboard } from './leaderboard/ui';
 import { Runs } from './leaderboard/client';
@@ -270,8 +269,6 @@ combat.onEnd = (outcome) => {
   if (outcome === 'victory' && rankedMatch) board.fillEnd(matchHud.endSlots, runs, match, snapshotMeadow());
 };
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
-const practice = new Practice();
-combat.onDummyHit = (element, boosted) => practice.hit(element, boosted);
 /** The nearest campfire (or lagoon) to the alchemist, on screen or not, for training's fire and water guides. */
 function nearestSource(element: 'fire' | 'water'): THREE.Vector3 | null {
   const from = hero.root.position;
@@ -549,7 +546,7 @@ function tapAt(clientX: number, clientY: number) {
     hold(null);
     castShape(kind, hit, lesson !== null);
     tutorial.cast();
-    guides.cast();
+    guides.cast(kind);
     return;
   }
   hero.setTarget(hit);
@@ -642,8 +639,6 @@ function finishStroke(stroke: Point[], tapLike: boolean) {
       chime(shape.kind);
       ink.end(shape);
       guides.drawn(shape.kind, held);
-      // The wall and the healing never hit the scarecrow: drawing them is trying them.
-      if (shape.kind === 'circle' || shape.kind === 'rhombus') practice.tried([shape.kind]);
       // What ends up in hand can differ from what was drawn: a merge (hourglass, fire or water star).
       combat.stored(held ?? shape.kind, held !== null);
     } else {
@@ -872,7 +867,6 @@ renderer.setAnimationLoop((time) => {
     spells.update(dt);
     combat.update(dt);
   }
-  practice.set(combat.rivalCount === 0);
   guides.update(dt);
   matchTimer.update();
   hudFade.update();

@@ -35,16 +35,6 @@ const SHAPES: Array<{ kind: ShapeKind; source?: 'fire' | 'water' }> = [
   { kind: 'spiral' },
 ];
 
-/** What training asks the player to try: every symbol (the attacks on the scarecrow), and any attack from a rune circle. */
-export type Drill = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
-export const DRILLS: Drill[] = ['circle', 'square', 'pentagram', 'triangle', 'triangleDown', 'rhombus', 'spiral', 'hourglass', 'fireStar', 'waterStar', 'rune'];
-/** The drills tried in this training session, shown ticked in the symbols book; null outside training. */
-let practice: ReadonlySet<Drill> | null = null;
-export function showPractice(done: ReadonlySet<Drill> | null) {
-  practice = done;
-}
-const drillClass = (id: Drill) => (practice ? ` class="${practice.has(id) ? 'tried' : 'todo'}"` : '');
-
 const fig = (cls: string, inner: string) => `<span class="fig ${cls}">${inner}</span>`;
 
 
@@ -98,7 +88,7 @@ function symbols() {
   // An index, like the contents of an old grimoire: the symbol in a fine nib and what it does.
   const shapes = SHAPES.map(
     (s) =>
-      `<li${DRILLS.includes(s.kind as Drill) ? drillClass(s.kind as Drill) : ''}>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.roles[s.kind]}</b>` +
+      `<li>${fig(s.kind, shapeIcon(s.kind, true))}<b>${t.help.roles[s.kind]}</b>` +
       (s.source ? `<span class="need">(${t.help.needs}<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>)</span>` : '') +
       `</li>`,
   ).join('');
@@ -112,19 +102,15 @@ function symbols() {
   )
     .map(
       ([a, b, out]) =>
-        `<li${drillClass(out)}>` +
+        `<li>` +
         `<span class="recipe">${fig(a, shapeIcon(a, true))}<i>+</i>${fig(b, shapeIcon(b, true))}<i>=</i>${fig(out, shapeIcon(out, true))}</span>` +
         `<b>${t.help.roles[out]}</b></li>`,
     )
     .join('');
-  const tried = practice ? DRILLS.filter((d) => practice!.has(d)).length : 0;
-  const progress = practice
-    ? `<p class="training">${tried === DRILLS.length ? t.practice.allDone : t.practice.progress(tried, DRILLS.length)}</p>`
-    : '';
   const index =
-    `${progress}<ol class="shapes">${shapes}</ol>` +
+    `<ol class="shapes">${shapes}</ol>` +
     `<h4 class="sep">${t.help.comboTitle}</h4><ol class="shapes combos">${combos}</ol>` +
-    `<ul class="notes rune-note"><li${drillClass('rune')}><img class="rune-shot" src="${runeShot}" alt="" draggable="false"><span>${t.help.runesNote}</span></li></ul>`;
+    `<ul class="notes rune-note"><li><img class="rune-shot" src="${runeShot}" alt="" draggable="false"><span>${t.help.runesNote}</span></li></ul>`;
   return index;
 }
 
