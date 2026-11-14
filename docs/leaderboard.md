@@ -21,7 +21,7 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
   any is saved as `ANON` with `anonymous = 1`, so a player really called ANON (`anonymous = 0`) stays distinct. The server recomputes the
   score with the run's own difficulty, refuses impossible numbers (under 4 s or over 30 min, more than 40 damage
   a second or 300 per rival, a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
-- `PATCH /api/scores {runId, initials}` renames the score just saved ("Change" on the victory card; the run id is the
+- `PATCH /api/scores {runId, initials}` renames the score just saved (leaving the initials line on the victory card, or Enter; the run id is the
   proof, only within an hour of saving) and clears `anonymous`. One row written, none when the name is unchanged. The
   new initials also become the device's handle for the next matches.
 - `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC.

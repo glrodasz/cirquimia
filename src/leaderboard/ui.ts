@@ -146,7 +146,7 @@ export function mountLeaderboard(): Leaderboard {
       `<div class="meta">${metaLine(match)}</div>` +
       `<form class="sign" novalidate><label><span>${t.rank.initials}</span>` +
       `<input name="initials" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="ABCD" required></label>` +
-      `<button type="submit" class="match-btn save"><span class="cap">${t.rank.change}</span></button></form>` +
+      `</form>` +
       `<p class="note" role="status"></p>`;
     // Secondary on the left of "Play again", as one row of the two ways on.
     actions.insertAdjacentHTML('afterbegin', `<button type="button" class="match-btn view">${trophyIcon()}<span class="cap">${t.rank.view}</span></button>`);
@@ -174,7 +174,6 @@ export function mountLeaderboard(): Leaderboard {
       `<button type="submit" class="match-btn"><span class="cap">${t.rank.go}</span></button></form></div>`;
     const form = slot.querySelector<HTMLFormElement>('.sign')!;
     const input = form.querySelector<HTMLInputElement>('input')!;
-    const save = form.querySelector<HTMLButtonElement>('.save')!;
     const note = slot.querySelector<HTMLElement>('.note')!;
     const say = (text: string) => {
       note.innerHTML = text;
@@ -259,7 +258,6 @@ export function mountLeaderboard(): Leaderboard {
     // A finger or the keyboard heading for the share buttons: get the card up before the tap lands.
     for (const type of ['pointerdown', 'focusin']) shared.addEventListener(type, () => void saved.then(ensureCard));
 
-    const caption = save.querySelector('.cap')!;
     say(t.rank.saving);
     const saving = runs.current().then(async (id) => {
       if (!id) {
@@ -322,25 +320,26 @@ export function mountLeaderboard(): Leaderboard {
     for (const btn of shared.querySelectorAll<HTMLButtonElement>('.net')) btn.addEventListener('click', () => void share(btn.dataset.to ?? ''));
     actions.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
 
-    form.addEventListener('submit', async (e) => {
+    // No button: the initials line is the name. Leaving it (or Enter) renames the score just saved, and the
+    // initials become the handle for the next matches. A blank or invalid line goes back to the saved name.
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
+      input.blur();
+    });
+    let renaming = 0;
+    input.addEventListener('change', async () => {
       const initials = cleanInitials(input.value);
       if (!validInitials(initials)) {
-        input.focus();
-        input.classList.remove('shake');
-        void input.offsetWidth;
-        input.classList.add('shake');
+        input.value = named;
         return;
       }
-      // The new handle for the next matches, whatever happens to this one.
       saveInitials(initials);
-      save.disabled = input.disabled = true;
-      caption.textContent = t.rank.changing;
+      const turn = ++renaming;
       const ok = await saving;
-      const res = ok && runId && initials !== named ? await renameScore(runId, initials) : null;
-      save.disabled = input.disabled = false;
-      caption.textContent = t.rank.change;
-      if (!ok) return;
+      if (!ok || !runId || initials === named) return;
+      say(`${placed}<br>${t.rank.saving}`);
+      const res = await renameScore(runId, initials);
+      if (turn !== renaming) return; // a newer name is on its way
       if (failed(res)) {
         say(`${placed}<br>${res === 'too-many' ? t.rank.tooMany : t.rank.changeFailed}`);
         return;
@@ -350,7 +349,6 @@ export function mountLeaderboard(): Leaderboard {
       ready = null; // the uploaded card still shows the old name
       card = draw();
       say(`${placed}<br>${t.rank.changed(esc(initials))}`);
-      input.blur();
     });
   };
 
