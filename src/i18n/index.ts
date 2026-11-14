@@ -267,11 +267,6 @@ const es = {
   sound: { mute: 'Silenciar sonido', unmute: 'Activar sonido' },
   practice: {
     hitMe: '¡Golpéame!',
-    progress: (n: number, total: number) => `Entrenamiento · ${n} de ${total} símbolos probados`,
-    allDone: '¡Probaste todos los símbolos!',
-    got: (name: string) => `¡${name}!`,
-    rune: 'Desde una runa',
-    bookAria: 'Símbolos: mira aquí los ataques que ya probaste',
   },
   guides: {
     draw: {
@@ -605,11 +600,6 @@ const en: Strings = {
   sound: { mute: 'Mute sound', unmute: 'Turn sound on' },
   practice: {
     hitMe: 'Hit me!',
-    progress: (n, total) => `Training · ${n} of ${total} symbols tried`,
-    allDone: 'You tried every symbol!',
-    got: (name) => `${name}!`,
-    rune: 'From a rune',
-    bookAria: 'Symbols: see the attacks you have tried here',
   },
   guides: {
     draw: {
