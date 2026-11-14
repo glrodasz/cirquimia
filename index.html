@@ -346,6 +346,38 @@
       #tutorial .tip.wrong span { color: #c0562f; }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tutorial .demo .stroke { fill: #7fb2f0; } :root:not([data-theme="light"]) #tutorial .tip.wrong span { color: #ff9a76; } }
       :root[data-theme="dark"] #tutorial .demo .stroke { fill: #7fb2f0; } :root[data-theme="dark"] #tutorial .tip.wrong span { color: #ff9a76; }
+      /* Training's shape guides (src/guides.ts): one symbol to trace on the meadow, and a line at the bottom right with the loop's checklist. */
+      #guides { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+      #guides[hidden], #guides [hidden] { display: none; }
+      #guides .guide { position: absolute; left: 0; top: 0; will-change: transform; }
+      #guides .guide svg, #guides .to-source svg { display: block; width: 100%; height: 100%; overflow: visible; }
+      #guides .guide .path { fill: none; stroke: #f1f5f2; stroke-width: 1; stroke-dasharray: 1.8 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .8; filter: drop-shadow(0 0 1.2px rgba(20,28,24,.55)); }
+      #guides .guide .head { fill: none; stroke: #f1f5f2; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+      #guides .guide .start { fill: #f1f5f2; stroke: #3f5a57; stroke-width: .6; }
+      #guides .guide .stroke { fill: #3d7fd6; filter: drop-shadow(0 0 2px rgba(255,255,255,.7)); }
+      #guides .guide .finger { fill: rgba(255,255,255,.85); stroke: #3d7fd6; stroke-width: .8; }
+      #guides .guide.at-source :is(.path, .head) { stroke: #fff6e0; }
+      #guides .guide.fire .stroke { fill: #d9483b; } #guides .guide.fire .finger { stroke: #d9483b; }
+      #guides .to-source { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; will-change: transform; }
+      #guides .to-source svg { fill: #e0a23c; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); animation: tutorial-bob .9s ease-in-out infinite alternate; }
+      #guides .tip { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: var(--edge-bottom); display: flex; flex-direction: column; gap: 4px; width: max-content; max-width: min(320px, calc(100vw - 24px)); box-sizing: border-box; padding: 7px 6px 8px 11px; border-radius: 12px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgba(20,28,24,.25); font: 500 13px/1.3 system-ui, -apple-system, sans-serif; }
+      #guides .tip .top { display: flex; align-items: flex-start; gap: 2px; }
+      #guides .tip .text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      #guides .tip b { font: 800 14px/1.2 system-ui, -apple-system, sans-serif; }
+      #guides .tip :is(.next, .close) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -5px 0 -6px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; opacity: .6; cursor: pointer; }
+      #guides .tip :is(.next, .close):hover { opacity: 1; background: rgba(127,127,127,.15); }
+      #guides .tip :is(.next, .close) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+      #guides .boxes { display: flex; flex-wrap: wrap; gap: 2px; margin: 0; padding: 0; list-style: none; }
+      #guides .boxes li { position: relative; width: 19px; height: 19px; border-radius: 6px; box-shadow: inset 0 0 0 1.2px rgba(127,127,127,.45); }
+      #guides .boxes li svg { width: 100%; height: 100%; display: block; }
+      #guides .boxes .glyph { fill: currentColor; opacity: .55; }
+      #guides .boxes li.now { box-shadow: inset 0 0 0 2px #e0a23c; }
+      #guides .boxes li.now .glyph { opacity: 1; }
+      #guides .boxes li.tick { background: #4fbf63; box-shadow: none; }
+      #guides .boxes li.tick .glyph { fill: #fff; opacity: .9; }
+      #guides .boxes li.tick::after { content: '✓'; position: absolute; right: -3px; bottom: -4px; width: 12px; height: 12px; border-radius: 50%; background: #2c6a36; color: #fff; font: 800 8px/12px system-ui, sans-serif; text-align: center; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #guides .guide .stroke { fill: #7fb2f0; } }
+      :root[data-theme="dark"] #guides .guide .stroke { fill: #7fb2f0; }
       /* A watermark, never a control: clear at first, then it fades back and stays out of the way. */
       #device-hint { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none; display: flex; align-items: center; gap: 7px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 6px 12px; border-radius: 999px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 12px/1.25 system-ui, -apple-system, sans-serif; text-align: center; animation: device-hint 6s ease-in-out both; }
       #device-hint[hidden] { display: none; }
@@ -386,6 +418,8 @@
       /* Phones: clear of the stick on the left. */
       .has-pad #tutorial .tip { max-width: min(300px, calc(100vw - max(12px, env(safe-area-inset-left)) - 152px)); }
       @media (min-width: 600px) and (min-height: 800px) { .has-pad #tutorial .tip { max-width: 320px; } }
+      .has-pad #guides .tip { max-width: calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - 130px); }
+      @media (min-width: 600px) and (min-height: 800px) { .has-pad #guides .tip { max-width: 340px; } }
       /* A note after the tutorial match (fire or water still to charge) sits on top of the match time, not over it. */
       @media (max-width: 699.98px) { body:has(#match-time:not([hidden])) #tutorial .tip { bottom: calc(var(--edge-bottom) + 44px); } }
       #fps { position: fixed; top: calc(var(--edge-top) + 50px); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }

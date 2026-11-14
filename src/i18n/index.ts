@@ -79,6 +79,8 @@ if (!PORTAL) try {
 }
 
 type Line = [title: string, body: string];
+/** The symbols training lays a traceable guide for. */
+export type GuideShape = 'square' | 'circle' | 'rhombus' | 'triangle' | 'triangleDown' | 'pentagram' | 'spiral';
 interface Lesson {
   draw: Line;
   aim: Line;
@@ -265,11 +267,31 @@ const es = {
   sound: { mute: 'Silenciar sonido', unmute: 'Activar sonido' },
   practice: {
     hitMe: '¡Golpéame!',
-    progress: (n: number, total: number) => `Entrenamiento · ${n} de ${total} ataques probados`,
-    allDone: '¡Probaste todos los ataques!',
+    progress: (n: number, total: number) => `Entrenamiento · ${n} de ${total} símbolos probados`,
+    allDone: '¡Probaste todos los símbolos!',
     got: (name: string) => `¡${name}!`,
     rune: 'Desde una runa',
     bookAria: 'Símbolos: mira aquí los ataques que ya probaste',
+  },
+  guides: {
+    draw: {
+      square: 'Dibuja un cuadrado',
+      circle: 'Dibuja un círculo',
+      rhombus: 'Dibuja un rombo',
+      triangle: 'Dibuja un triángulo sobre la fogata',
+      triangleDown: 'Dibuja un triángulo al revés sobre el agua',
+      pentagram: 'Dibuja una estrella de un solo trazo',
+      spiral: 'Dibuja una espiral',
+    } as Record<GuideShape, string>,
+    goTo: { fire: 'Acércate a la fogata', water: 'Acércate al agua' } as Record<'fire' | 'water', string>,
+    cast: '¡Bien! Ahora toca al muñeco',
+    castMouse: '¡Bien! Ahora haz clic en el muñeco',
+    good: '¡Bien hecho!',
+    allDone: '¡Muy bien! Los hiciste todos',
+    again: 'Vamos otra vuelta, desde el círculo.',
+    partOf: (n: number, total: number) => `paso ${n} de ${total}`,
+    next: 'Otra forma',
+    close: 'Ocultar guías',
   },
   device: {
     touch: 'También en tu móvil: cirquimia.pages.dev',
@@ -583,11 +605,31 @@ const en: Strings = {
   sound: { mute: 'Mute sound', unmute: 'Turn sound on' },
   practice: {
     hitMe: 'Hit me!',
-    progress: (n, total) => `Training · ${n} of ${total} attacks tried`,
-    allDone: 'You tried every attack!',
+    progress: (n, total) => `Training · ${n} of ${total} symbols tried`,
+    allDone: 'You tried every symbol!',
     got: (name) => `${name}!`,
     rune: 'From a rune',
     bookAria: 'Symbols: see the attacks you have tried here',
+  },
+  guides: {
+    draw: {
+      square: 'Draw a square',
+      circle: 'Draw a circle',
+      rhombus: 'Draw a diamond',
+      triangle: 'Draw a triangle over the campfire',
+      triangleDown: 'Draw an upside-down triangle over the water',
+      pentagram: 'Draw a star in one stroke',
+      spiral: 'Draw a spiral',
+    },
+    goTo: { fire: 'Walk up to the campfire', water: 'Walk up to the water' },
+    cast: 'Nice! Now tap the scarecrow',
+    castMouse: 'Nice! Now click the scarecrow',
+    good: 'Well done!',
+    allDone: 'Great! You did them all',
+    again: 'One more round, from the circle.',
+    partOf: (n, total) => `step ${n} of ${total}`,
+    next: 'Another shape',
+    close: 'Hide guides',
   },
   device: {
     touch: 'Also on your phone: cirquimia.pages.dev',

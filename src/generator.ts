@@ -23,7 +23,17 @@ export interface PlayArea {
   halfWidthAt(v: number): number;
   /** Ring the sides and the back with a band of forest, so the edge of the arena reads as the edge of a clearing. */
   forest: boolean;
+  /**
+   * Training only: campfires and ponds keep out of the near right corner, where the shape-guide card sits, so the
+   * triangles' guides over them are never under it.
+   */
+  clearCorner?: boolean;
 }
+
+/** Share of the walkable depth (from the near edge) and of the width (from the right) that `clearCorner` keeps free of sources. */
+const CORNER_DEPTH = 0.3;
+const CORNER_WIDTH = 0.65;
+const SOURCE_KINDS: Kind[] = ['estanque', 'fogata'];
 
 /**
  * What a 9:16 to 9:21 phone shows around the spawn (the narrow near edge is about 4.4 units wide): the default
@@ -311,6 +321,12 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
         z = Math.round(z / GROUND_CELL) * GROUND_CELL;
         [u, v] = toScreenAligned(x, z);
         if (v - insetV < area.vMin || v + insetV > area.vMax || Math.abs(u) > area.halfWidthAt(v - insetV) - insetU) continue;
+      }
+      if (area.clearCorner && SOURCE_KINDS.includes(w.kind)) {
+        const half = area.halfWidthAt(v);
+        const inDepth = v - r * 0.6 < area.vMin + (area.vMax - area.vMin) * CORNER_DEPTH;
+        const inWidth = u + r * 0.85 > half * (1 - 2 * CORNER_WIDTH);
+        if (inDepth && inWidth) continue;
       }
       const spawnGap = spec.solid ? r * 0.8 + SPAWN_CLEAR : r * 0.5 + SPAWN_CLEAR;
       if (x * x + z * z < spawnGap * spawnGap) continue;

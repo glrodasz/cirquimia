@@ -34,8 +34,13 @@ export class Practice {
 
   /** The alchemist's strike hit the scarecrow. */
   hit(element: Element, boosted: boolean) {
+    this.tried([DRILL_OF[element], ...(boosted ? (['rune'] as Drill[]) : [])]);
+  }
+
+  /** Symbols tried some other way: the wall and the healing, which never hit the scarecrow. */
+  tried(drills: Drill[]) {
     if (!this.on) return;
-    const fresh = [DRILL_OF[element], ...(boosted ? (['rune'] as Drill[]) : [])].filter((d) => !this.done.has(d));
+    const fresh = drills.filter((d) => !this.done.has(d));
     if (!fresh.length) return;
     for (const d of fresh) this.done.add(d);
     this.ring();

@@ -192,7 +192,7 @@ export class World {
     this.obstacles.length = 0;
 
     const required = this.required();
-    const area = (this.playArea = this.area());
+    const area = (this.playArea = { ...this.area(), clearCorner: this.requiredBy() === 'training' });
     const layout = generateLayout(seed, this.noRunes() ? { ...this.params, magia: 0 } : this.params, required, area);
     const drops: string[] = [];
     let built: { features: ReturnType<typeof buildFeatures>; solids: THREE.Group; walk: Walkability };
