@@ -769,7 +769,9 @@
       #battle-btn:focus-visible { outline: 1px solid var(--g-ink); outline-offset: 2px; }
       #battle-btn .hud-icon { width: 20px; height: 20px; flex: none; margin-top: -2px; }
       #battle-btn .hud-icon .red { fill: var(--g-paper); }
-      @media (max-width: 699.98px) { #battle-btn { top: calc(var(--edge-top) + 52px); height: 38px; font-size: 18px; } }
+      /* Phones: in the HUD row, right after the training pill. */
+      @media (max-width: 699.98px) { #battle-btn { left: calc(max(12px, env(safe-area-inset-left)) + 48px); transform: none; gap: 6px; padding: 0 12px 0 9px; font-size: 18px; letter-spacing: .03em; } #battle-btn:active { transform: scale(.95); } }
+      @media (max-width: 374.98px) { #battle-btn { padding: 0 7px; font-size: 15px; letter-spacing: 0; } #battle-btn .hud-icon { display: none; } }
       #match-end p.train-tip { margin: -6px 0 14px; font-style: normal; color: var(--g-ink); }
       #match-end p.train-tip[hidden] { display: none; }
       #match-end .train .hud-icon { color: var(--g-ink); }
