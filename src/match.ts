@@ -102,6 +102,23 @@ export function segment(a: Pt, b: Pt): Pt[] {
  * Player-facing match controls, bottom left (the gear on the right is for developers):
  * how many rivals to spar with and how hard they play. Each tap cycles the value and restarts the match.
  */
+/**
+ * The first real match (after the tutorial's own one) is remembered once it ends: lost, its end card suggests training.
+ * Absent = not played yet; blocked storage reads as played, so the suggestion never repeats.
+ */
+const FIRST_STORE = 'cirquimia.firstmatch';
+
+/** True only the first time a real match ends; from then on it is remembered. */
+export function firstRealMatchEnded(): boolean {
+  try {
+    if (localStorage.getItem(FIRST_STORE)) return false;
+    localStorage.setItem(FIRST_STORE, '1');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function mountMatchControls(match: MatchControls) {
   const saved = load();
   if (saved.difficulty && LEVELS.includes(saved.difficulty)) match.setDifficulty(saved.difficulty);
@@ -234,7 +251,7 @@ export function mountMatchControls(match: MatchControls) {
   end.setAttribute('role', 'dialog');
   end.setAttribute('aria-modal', 'true');
   end.innerHTML =
-    '<div class="card"><h2></h2><p></p><div class="scored" hidden></div>' +
+    `<div class="card"><h2></h2><p></p><p class="train-tip" hidden>${t.match.trainTip}</p><div class="scored" hidden></div>` +
     `<div class="ends"><button type="button" class="match-btn again"><span class="cap">${t.match.again}</span></button></div>` +
     '<section class="scored shared" hidden></section></div>';
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) end.addEventListener(type, (e) => e.stopPropagation());
@@ -243,6 +260,7 @@ export function mountMatchControls(match: MatchControls) {
   const scored = end.querySelector<HTMLElement>('.scored')!;
   const ends = end.querySelector<HTMLElement>('.ends')!;
   const shared = end.querySelector<HTMLElement>('.shared')!;
+  const tip = end.querySelector<HTMLElement>('.train-tip')!;
   again.addEventListener('click', () => {
     closeEnd();
     match.restart();
@@ -263,7 +281,8 @@ export function mountMatchControls(match: MatchControls) {
   return {
     /** The victory card's score, button row and share section, filled by the ranking for a match that counts. */
     endSlots: { score: scored, actions: ends, share: shared },
-    showEnd(outcome: Outcome) {
+    /** `suggestTraining`: a lost first real match also offers training (no rivals), beside playing again. */
+    showEnd(outcome: Outcome, suggestTraining = false) {
       for (const slot of [scored, shared]) {
         slot.hidden = true;
         slot.innerHTML = '';
@@ -279,6 +298,20 @@ export function mountMatchControls(match: MatchControls) {
         ? t.match.won(n, level)
         : t.match.lost(level);
       end.setAttribute('aria-label', won ? t.match.victoryAria : t.match.defeat);
+      tip.hidden = won || !suggestTraining;
+      if (!tip.hidden) {
+        const train = document.createElement('button');
+        train.type = 'button';
+        train.className = 'match-btn view train';
+        train.innerHTML = `${rivalsIcon(0)}<span class="cap">${t.match.train}</span>`;
+        train.addEventListener('click', () => {
+          closeEnd();
+          match.setRivals(0);
+          match.restart();
+          restarted(rivalsBtn);
+        });
+        ends.prepend(train);
+      }
       end.hidden = false;
       void end.offsetWidth; // let the fade-in start from hidden
       end.classList.add('show');

@@ -167,6 +167,11 @@ function flags(): Array<[string, Flag[]]> {
           ],
         },
         {
+          label: t.dev.flags.firstReal,
+          state: known('cirquimia.firstmatch', { '1': s.played }),
+          actions: [restart('cirquimia.firstmatch')],
+        },
+        {
           label: t.dev.flags.keys,
           state: known('cirquimia.keys', { '1': s.used }),
           actions: [restart('cirquimia.keys', 'cirquimia.keyset')],

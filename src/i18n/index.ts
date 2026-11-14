@@ -128,6 +128,8 @@ const es = {
     lost: (level: string) => `Has caído en combate · ${level}`,
     spotTitle: '¿Quieres más reto?',
     spotBody: 'Toca aquí para cambiar el número de rivales y la dificultad.',
+    trainTip: 'Practica los símbolos sin rivales y vuelve más fuerte.',
+    train: 'Entrenar',
   },
   rank: {
     button: 'Ranking',
@@ -401,6 +403,7 @@ const es = {
     flags: {
       tutorial: 'Tutorial (caminar, atacar, muro, fuego, agua)',
       hudspot: 'Aviso de rivales y nivel',
+      firstReal: 'Sugerir entrenamiento tras la 1.ª derrota',
       keys: 'Teclas WASD',
       desktop: 'Nota «también en tu móvil»',
       sound: 'Sonido',
@@ -423,6 +426,7 @@ const es = {
       done: 'hecho',
       next: 'próxima partida',
       shown: 'visto',
+      played: 'primera partida jugada',
       used: 'usadas',
       on: 'activado',
       off: 'apagado',
@@ -478,6 +482,8 @@ const en: Strings = {
     lost: (level) => `You fell in battle · ${level}`,
     spotTitle: 'Want more of a challenge?',
     spotBody: 'Tap here to change the number of rivals and the difficulty.',
+    trainTip: 'Practise the symbols with no rivals and come back stronger.',
+    train: 'Train',
   },
   rank: {
     button: 'Leaderboard',
@@ -739,6 +745,7 @@ const en: Strings = {
     flags: {
       tutorial: 'Tutorial (walk, attack, wall, fire, water)',
       hudspot: 'Rivals and level spotlight',
+      firstReal: 'Suggest training after the 1st defeat',
       keys: 'WASD keys',
       desktop: '“Also on your phone” note',
       sound: 'Sound',
@@ -761,6 +768,7 @@ const en: Strings = {
       done: 'done',
       next: 'next match',
       shown: 'seen',
+      played: 'first match played',
       used: 'used',
       on: 'on',
       off: 'off',

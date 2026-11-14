@@ -762,6 +762,11 @@
       #match-end :is(.view, .again) .cap { white-space: nowrap; }
       @media (hover: hover) { #match-end .view:hover { background: rgba(31,26,21,.06); } }
       #match-end .view .cap::after, #match-end .ends:has(.view) .again .cap::after { content: none; }
+      #match-end p.train-tip { margin: -6px 0 14px; font-style: normal; color: var(--g-ink); }
+      #match-end p.train-tip[hidden] { display: none; }
+      #match-end .train .hud-icon { color: var(--g-ink); }
+      #match-end .ends:has(.train) .match-btn { flex: 0 1 auto; font-size: 17px; letter-spacing: .03em; padding: 0 12px; }
+      #match-end .train .hud-icon .red { fill: var(--g-red); }
       /* Fewer boxes: the initials are a ruled line with a plain red "Save", the ranking a quiet link-like button. */
       #match-end .scored .sign { align-items: center; gap: 12px; margin-top: 2px; }
       #match-end .scored .sign label { flex-direction: row; align-items: center; gap: 10px; white-space: nowrap; }
