@@ -29,6 +29,7 @@ import { mountKeysHint } from './keysHint';
 import { FpsGuard, SETTINGS, TIERS, classify, parseTier, readSignals, type Reason, type Tier } from './quality';
 import { mountPad } from './pad';
 import { Practice } from './practice';
+import { Guides } from './guides';
 import { mountLeaderboard } from './leaderboard/ui';
 import { Runs } from './leaderboard/client';
 import { chime, fizzle, inkSound, sound } from './audio';
@@ -271,6 +272,27 @@ combat.onEnd = (outcome) => {
 // Training (no rivals): a scarecrow to hit in the middle, and a card of the attacks to try on it.
 const practice = new Practice();
 combat.onDummyHit = (element, boosted) => practice.hit(element, boosted);
+/** The nearest campfire (or lagoon) to the alchemist, on screen or not, for training's fire and water guides. */
+function nearestSource(element: 'fire' | 'water'): THREE.Vector3 | null {
+  const from = hero.root.position;
+  let best: THREE.Vector3 | null = null;
+  for (const f of world.layout.features) {
+    if (!SOURCES[element].includes(f.kind)) continue;
+    const at = new THREE.Vector3(f.x, heightAt(f.x, f.z), f.z);
+    if (!best || at.distanceToSquared(from) < best.distanceToSquared(from)) best = at;
+  }
+  return best;
+}
+// Training also lays one symbol at a time on the meadow to trace, so the shapes become second nature (src/guides.ts).
+const guides = new Guides({
+  training: () => combat.rivalCount === 0,
+  covered: () => help.open || dev.open || board.open || combat.over || tutorial.showing,
+  toScreen: (p, lift) => toScreen(p, lift),
+  hero: () => hero.root.position,
+  source: (element) => nearestSource(element),
+  selected: () => held,
+  drawing: () => router.isDrawing,
+});
 
 // Miniature look: the classic two-pass tilt-shift blur, focused on the alchemist's row.
 // Scene (MSAA, linear HDR) -> horizontal blur -> vertical blur straight to the canvas, which also tone maps.
@@ -527,6 +549,7 @@ function tapAt(clientX: number, clientY: number) {
     hold(null);
     castShape(kind, hit, lesson !== null);
     tutorial.cast();
+    guides.cast();
     return;
   }
   hero.setTarget(hit);
@@ -618,6 +641,9 @@ function finishStroke(stroke: Point[], tapLike: boolean) {
     if (useDrawn(shape.kind, shape.cx, shape.cy)) {
       chime(shape.kind);
       ink.end(shape);
+      guides.drawn(shape.kind, held);
+      // The wall and the healing never hit the scarecrow: drawing them is trying them.
+      if (shape.kind === 'circle' || shape.kind === 'rhombus') practice.tried([shape.kind]);
       // What ends up in hand can differ from what was drawn: a merge (hourglass, fire or water star).
       combat.stored(held ?? shape.kind, held !== null);
     } else {
@@ -847,6 +873,7 @@ renderer.setAnimationLoop((time) => {
     combat.update(dt);
   }
   practice.set(combat.rivalCount === 0);
+  guides.update(dt);
   matchTimer.update();
   hudFade.update();
   aimReticle(dt);

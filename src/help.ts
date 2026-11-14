@@ -35,9 +35,9 @@ const SHAPES: Array<{ kind: ShapeKind; source?: 'fire' | 'water' }> = [
   { kind: 'spiral' },
 ];
 
-/** What training asks the player to try on the scarecrow: each attack, and any of them from a rune circle. */
-export type Drill = 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
-export const DRILLS: Drill[] = ['square', 'pentagram', 'triangle', 'triangleDown', 'spiral', 'hourglass', 'fireStar', 'waterStar', 'rune'];
+/** What training asks the player to try: every symbol (the attacks on the scarecrow), and any attack from a rune circle. */
+export type Drill = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar' | 'rune';
+export const DRILLS: Drill[] = ['circle', 'square', 'pentagram', 'triangle', 'triangleDown', 'rhombus', 'spiral', 'hourglass', 'fireStar', 'waterStar', 'rune'];
 /** The drills tried in this training session, shown ticked in the symbols book; null outside training. */
 let practice: ReadonlySet<Drill> | null = null;
 export function showPractice(done: ReadonlySet<Drill> | null) {
