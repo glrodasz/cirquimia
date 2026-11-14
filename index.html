@@ -360,14 +360,15 @@
       #guides .guide.fire .stroke { fill: #d9483b; } #guides .guide.fire .finger { stroke: #d9483b; }
       #guides .to-source { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; will-change: transform; }
       #guides .to-source svg { fill: #e0a23c; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); animation: tutorial-bob .9s ease-in-out infinite alternate; }
-      #guides .tip { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: var(--edge-bottom); display: flex; align-items: flex-start; gap: 2px; width: max-content; max-width: min(320px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 6px 8px 12px; border-radius: 12px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgba(20,28,24,.25); font: 500 13px/1.3 system-ui, -apple-system, sans-serif; }
+      #guides .tip { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: var(--edge-bottom); display: flex; flex-direction: column; gap: 4px; width: max-content; max-width: min(320px, calc(100vw - 24px)); box-sizing: border-box; padding: 7px 6px 8px 11px; border-radius: 12px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgba(20,28,24,.25); font: 500 13px/1.3 system-ui, -apple-system, sans-serif; }
+      #guides .tip .top { display: flex; align-items: flex-start; gap: 2px; }
       #guides .tip .text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-      #guides .tip b { font: 800 15px/1.2 system-ui, -apple-system, sans-serif; }
-      #guides .tip :is(.next, .close) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin: -4px 0; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; opacity: .6; cursor: pointer; }
+      #guides .tip b { font: 800 14px/1.2 system-ui, -apple-system, sans-serif; }
+      #guides .tip :is(.next, .close) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -5px 0 -6px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; opacity: .6; cursor: pointer; }
       #guides .tip :is(.next, .close):hover { opacity: 1; background: rgba(127,127,127,.15); }
       #guides .tip :is(.next, .close) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      #guides .boxes { display: flex; flex-wrap: wrap; gap: 2px; margin: 5px 0 0; padding: 0; list-style: none; }
-      #guides .boxes li { position: relative; width: 20px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1.2px rgba(127,127,127,.45); }
+      #guides .boxes { display: flex; flex-wrap: wrap; gap: 2px; margin: 0; padding: 0; list-style: none; }
+      #guides .boxes li { position: relative; width: 19px; height: 19px; border-radius: 6px; box-shadow: inset 0 0 0 1.2px rgba(127,127,127,.45); }
       #guides .boxes li svg { width: 100%; height: 100%; display: block; }
       #guides .boxes .glyph { fill: currentColor; opacity: .55; }
       #guides .boxes li.now { box-shadow: inset 0 0 0 2px #e0a23c; }
@@ -417,7 +418,7 @@
       /* Phones: clear of the stick on the left. */
       .has-pad #tutorial .tip { max-width: min(300px, calc(100vw - max(12px, env(safe-area-inset-left)) - 152px)); }
       @media (min-width: 600px) and (min-height: 800px) { .has-pad #tutorial .tip { max-width: 320px; } }
-      .has-pad #guides .tip { max-width: calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - 140px); }
+      .has-pad #guides .tip { max-width: calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - 130px); }
       @media (min-width: 600px) and (min-height: 800px) { .has-pad #guides .tip { max-width: 340px; } }
       /* A note after the tutorial match (fire or water still to charge) sits on top of the match time, not over it. */
       @media (max-width: 699.98px) { body:has(#match-time:not([hidden])) #tutorial .tip { bottom: calc(var(--edge-bottom) + 44px); } }

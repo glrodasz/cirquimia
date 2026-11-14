@@ -135,13 +135,16 @@ export class Guides {
     this.boxes.className = 'boxes';
     this.boxes.setAttribute('aria-hidden', 'true');
     this.boxes.innerHTML = STEPS.map((s) => `<li data-id="${s.id}">${shapeIcon(s.result, true)}</li>`).join('');
-    text.append(this.title, this.body, this.boxes);
+    text.append(this.title, this.body);
     const next = this.button('next', t.guides.next, '<path d="M9 5l7 7-7 7"/>', () => this.advance());
     const close = this.button('close', t.guides.close, '<path d="M6 6l12 12M18 6 6 18"/>', () => {
       this.hidden = true;
       this.root.hidden = true;
     });
-    this.card.append(text, next, close);
+    const top = document.createElement('div');
+    top.className = 'top';
+    top.append(text, next, close);
+    this.card.append(top, this.boxes);
     this.root.append(this.guide, this.arrow, this.card);
     document.body.append(this.root);
   }
