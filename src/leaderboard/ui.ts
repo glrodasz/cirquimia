@@ -5,8 +5,8 @@
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
 import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, telegramLogo, threadsLogo, trophyIcon, whatsappLogo, xLogo } from '../icons';
-import { failed, fetchBoard, myScores, savedInitials, saveInitials, submitScore, uploadCard, type Entry, type Period, type Runs } from './client';
-import { isComposer, mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
+import { failed, fetchBoard, myScores, renameScore, savedInitials, saveInitials, submitScore, uploadCard, type Entry, type Period, type Runs } from './client';
+import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
 import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -146,7 +146,7 @@ export function mountLeaderboard(): Leaderboard {
       `<div class="meta">${metaLine(match)}</div>` +
       `<form class="sign" novalidate><label><span>${t.rank.initials}</span>` +
       `<input name="initials" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="ABCD" required></label>` +
-      `<button type="submit" class="match-btn save"><span class="cap">${t.rank.save}</span></button></form>` +
+      `<button type="submit" class="match-btn save"><span class="cap">${t.rank.change}</span></button></form>` +
       `<p class="note" role="status"></p>`;
     // Secondary on the left of "Play again", as one row of the two ways on.
     actions.insertAdjacentHTML('afterbegin', `<button type="button" class="match-btn view">${trophyIcon()}<span class="cap">${t.rank.view}</span></button>`);
@@ -210,37 +210,84 @@ export function mountLeaderboard(): Leaderboard {
     };
     let card = draw();
 
-    // The share link belongs to the saved score: sharing asks for the initials first (one step: type them, then
-    // "Save and share"), the server gives the score its link, and the card is uploaded right away as its preview.
-    // Without a ranking (offline, no run) there is nothing to save, and the post carries the game's own link.
+    // Every won match is saved as soon as it ends, under the player's initials or, when they never gave any, as
+    // anonymous (ANON): nobody loses a score for skipping the name. "Change" renames that score while this card is
+    // open, and the new initials stay for the next matches. The share link belongs to the saved score; its card
+    // (the link's preview) is uploaded only when the player shares, and again after a rename, to spare writes.
     let settle: (url: string | null) => void = () => {};
     const saved = new Promise<string | null>((r) => (settle = r));
-    let upload: Promise<unknown> = Promise.resolve();
+    let runId: string | null = null;
+    /** The initials the score is saved under; '' while anonymous. */
+    let named = '';
+    let placed = '';
+    let shareLink: string | null = null;
+    /** Whose name is on the uploaded card (null: none uploaded yet), and the link once that card is up to date. */
+    let cardFor: string | null = null;
     let ready: string | null = null;
+    let upload: Promise<unknown> = Promise.resolve();
+    const ensureCard = () => {
+      const id = runId;
+      const url = shareLink;
+      const who = named;
+      if (!id || !url || cardFor === who) return upload;
+      cardFor = who;
+      const snapshot = { ...data };
+      // In a row, so an older card never lands after a newer one. Always the bundled meadow: the link's card
+      // stands for the game, not for this match's frame.
+      upload = upload
+        .then(() => renderShareCard(snapshot, null, true))
+        .then((wide) => Promise.race([uploadCard(id, wide), new Promise((r) => setTimeout(r, 8000))]))
+        .then(() => {
+          if (cardFor === who) ready = url;
+        });
+      return upload;
+    };
     const link: ShareLink = {
-      peek: () => ready,
+      peek: () => {
+        void saved.then(ensureCard);
+        return ready;
+      },
       get: () =>
         Promise.race([
           saved.then(async (url) => {
-            await upload;
+            await ensureCard();
             return url;
           }),
           new Promise<null>((r) => setTimeout(() => r(null), 10_000)),
         ]),
     };
+    // A finger or the keyboard heading for the share buttons: get the card up before the tap lands.
+    for (const type of ['pointerdown', 'focusin']) shared.addEventListener(type, () => void saved.then(ensureCard));
+
     const caption = save.querySelector('.cap')!;
-    /** A share waiting for the initials: the target, kept so "Save and share" can finish it. */
-    let pending: string | null = null;
-    const needsName = () => !form.hidden && !input.disabled;
-    const askName = (to: string) => {
-      pending = to;
-      caption.textContent = t.rank.saveShare;
-      say(t.rank.nameToShare);
-      input.focus();
-      input.classList.remove('shake');
-      void input.offsetWidth;
-      input.classList.add('shake');
-    };
+    say(t.rank.saving);
+    const saving = runs.current().then(async (id) => {
+      if (!id) {
+        form.hidden = true;
+        say(t.rank.unavailable);
+        settle(null);
+        return false;
+      }
+      const res = await submitScore(id, savedInitials(), match.durationMs, match.damage);
+      if (failed(res)) {
+        form.hidden = true;
+        say(res === 'too-many' ? t.rank.tooMany : res === 'rejected' ? t.rank.rejected : t.rank.unavailable);
+        settle(null);
+        return false;
+      }
+      runId = id;
+      newId = res.id;
+      named = res.anonymous ? '' : res.initials;
+      placed = t.rank.placed(res.rank.today, res.rank.all);
+      shareLink = res.share ?? null;
+      // A name typed while the score was on its way goes in with "Change"; otherwise show what it was saved as.
+      if (document.activeElement !== input) input.value = named;
+      Object.assign(data, { score: res.score, initials: named || undefined, rank: res.rank });
+      card = draw();
+      say(named ? placed : `${placed}<br>${t.rank.anonymous}`);
+      settle(shareLink);
+      return true;
+    });
 
     const mastodon = (raw: string) => {
       const host = mastodonHost(raw);
@@ -253,7 +300,6 @@ export function mountLeaderboard(): Leaderboard {
       openComposer('mastodon', data, link, host);
     };
     const share = async (to: string) => {
-      if (needsName()) return askName(to);
       if (to === 'x' || to === 'bluesky' || to === 'threads' || to === 'whatsapp' || to === 'telegram') openComposer(to, data, link);
       else if (to === 'mastodon') mastodon(savedMastodon());
       else if (to === 'image') await saveImage(card, data);
@@ -276,14 +322,6 @@ export function mountLeaderboard(): Leaderboard {
     for (const btn of shared.querySelectorAll<HTMLButtonElement>('.net')) btn.addEventListener('click', () => void share(btn.dataset.to ?? ''));
     actions.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
 
-    void runs.current().then((id) => {
-      if (!id && form.isConnected) {
-        form.hidden = true;
-        say(t.rank.unavailable);
-        settle(null);
-      }
-    });
-
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const initials = cleanInitials(input.value);
@@ -294,44 +332,25 @@ export function mountLeaderboard(): Leaderboard {
         input.classList.add('shake');
         return;
       }
-      // A post waiting for the name opens its tab now, inside the tap, and reaches the network once the link is up.
-      const then = pending;
-      pending = null;
+      // The new handle for the next matches, whatever happens to this one.
       saveInitials(initials);
       save.disabled = input.disabled = true;
-      caption.textContent = t.rank.saving;
-      if (isComposer(then)) void share(then);
-      const id = await runs.current();
-      const res = id ? await submitScore(id, initials, match.durationMs, match.damage) : 'unavailable';
+      caption.textContent = t.rank.changing;
+      const ok = await saving;
+      const res = ok && runId && initials !== named ? await renameScore(runId, initials) : null;
+      save.disabled = input.disabled = false;
+      caption.textContent = t.rank.change;
+      if (!ok) return;
       if (failed(res)) {
-        save.disabled = input.disabled = false;
-        caption.textContent = t.rank.save;
-        if (res !== 'too-many') {
-          form.hidden = true;
-          settle(null);
-        }
-        say(res === 'too-many' ? t.rank.tooMany : res === 'rejected' ? t.rank.rejected : t.rank.unavailable);
+        say(`${placed}<br>${res === 'too-many' ? t.rank.tooMany : t.rank.changeFailed}`);
         return;
       }
-      newId = res.id;
-      form.hidden = true;
-      say(t.rank.placed(res.rank.today, res.rank.all));
-      Object.assign(data, { score: res.score, initials, rank: res.rank });
+      named = initials;
+      data.initials = initials;
+      ready = null; // the uploaded card still shows the old name
       card = draw();
-      // The card with the name and place, as the link's preview.
-      const url = res.share ?? null;
-      if (url && id) {
-        // Always the bundled meadow: the link's card stands for the game, not for this match's frame.
-        upload = renderShareCard(data, null, true)
-          .then((wide) => Promise.race([uploadCard(id, wide), new Promise((r) => setTimeout(r, 8000))]))
-          .then(() => (ready = url));
-      }
-      settle(url);
-      const next = then && !isComposer(then)
-        ? shared.querySelector<HTMLElement>(then === 'preview' ? '.preview' : `.net[data-to="${then}"]`)
-        : null;
-      if (next) say(`${t.rank.placed(res.rank.today, res.rank.all)}<br>${t.rank.readyToShare}`);
-      (next ?? shared.querySelector<HTMLElement>('.net'))!.focus({ preventScroll: true });
+      say(`${placed}<br>${t.rank.changed(esc(initials))}`);
+      input.blur();
     });
   };
 
