@@ -83,6 +83,8 @@ export interface ShareRow {
   /** When the card was uploaded, to bust caches; null when the score has no card, and the game's picture stands in. */
   card: number | null;
   initials: string | null;
+  /** 1 when nobody named the score (saved as ANON): the preview then names nobody. */
+  anonymous?: number | null;
   score: number;
   duration_ms: number;
   damage: number;
@@ -130,7 +132,7 @@ export function sharePage(row: ShareRow, origin: string) {
   const c = COPY[locale];
   const score = row.score.toLocaleString(locale);
   const level = isDifficulty(row.difficulty) ? c.level[row.difficulty] : row.difficulty;
-  const who = row.initials && validInitials(row.initials) ? row.initials : null;
+  const who = !row.anonymous && row.initials && validInitials(row.initials) ? row.initials : null;
   const title = c.title(who, score);
   const body = c.body(row.rivals, level, formatTime(row.duration_ms));
   const page = `${origin}/s/${row.id}`;
@@ -205,7 +207,7 @@ export async function serveShare(ctx: Ctx, param: string): Promise<Response> {
   }
   const row = await db
     .prepare(
-      `SELECT s.share_id AS id, s.locale, s.initials, s.score, s.duration_ms, s.damage, s.rivals, s.difficulty, s.seed, i.created_at AS card
+      `SELECT s.share_id AS id, s.locale, s.initials, s.anonymous, s.score, s.duration_ms, s.damage, s.rivals, s.difficulty, s.seed, i.created_at AS card
        FROM scores s LEFT JOIN share_images i ON i.share_id = s.share_id WHERE s.share_id = ?`,
     )
     .bind(id)

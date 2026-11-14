@@ -52,6 +52,9 @@ export function plausible(rivals: unknown, difficulty: unknown, durationMs: unkn
 export const INITIALS_LENGTH = 4;
 const INITIALS = /^[A-ZÑ0-9]{1,4}$/;
 
+/** What a score nobody named is saved as; the row's anonymous flag tells it apart from a player called ANON. */
+export const ANONYMOUS_INITIALS = 'ANON';
+
 /** Upper-cases and strips anything that is not a letter or digit; the result may still be empty. */
 export function cleanInitials(raw: string): string {
   return raw

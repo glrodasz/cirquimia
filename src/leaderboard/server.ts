@@ -9,7 +9,7 @@
 import { classifyDevice, type DeviceHints } from './device';
 import { newShareId } from './shareId';
 import { validSeed } from './challengeLink';
-import { dayOf, monthStart, weekStart, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
+import { ANONYMOUS_INITIALS, dayOf, monthStart, weekStart, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
 
 /** The slice of Cloudflare's D1 API used here. */
 export interface D1Result<T> {
@@ -42,7 +42,10 @@ export const RUN_TTL_MS = 3 * 60 * 60 * 1000;
 const CLOCK_SLACK_MS = 5000;
 export const WINDOW_MS = 10 * 60 * 1000;
 const MAX_RUNS_PER_WINDOW = 60;
-const MAX_SCORES_PER_WINDOW = 12;
+// Every won match is saved, named or not, so a fast player can win many in a row.
+const MAX_SCORES_PER_WINDOW = 20;
+/** The initials of the score that has just been saved can be changed for this long (the victory card is open). */
+export const RENAME_TTL_MS = 60 * 60 * 1000;
 const MAX_BODY = 4096;
 /** Rows on each board; the player's own best, when lower, is added below with its real place. */
 export const BOARD_SIZE = 20;
@@ -103,6 +106,8 @@ const MIGRATIONS = [
   // The meadow of the match, so a share link can replay it (src/leaderboard/challengeLink.ts).
   'ALTER TABLE runs ADD COLUMN seed TEXT',
   'ALTER TABLE scores ADD COLUMN seed TEXT',
+  // 1 when nobody named the score: it is saved as ANONYMOUS_INITIALS, unlike a player whose initials really are ANON.
+  'ALTER TABLE scores ADD COLUMN anonymous INTEGER NOT NULL DEFAULT 0',
 ];
 
 let ready: Promise<unknown> | null = null;
@@ -198,7 +203,10 @@ const entry = (r: Row) => ({
   at: r.created_at,
 });
 
-/** POST /api/scores {runId, initials, durationMs, damage, hints…} → {id, score, rank, total}. */
+/**
+ * POST /api/scores {runId, initials?, durationMs, damage, hints…} → {id, score, rank, total}. The game sends every
+ * won match as it ends; without initials (the player never gave any) the score is saved as ANON, flagged anonymous.
+ */
 export async function submitScore(ctx: Ctx): Promise<Response> {
   const s = await setup(ctx);
   if (!s) return fail('unavailable', 503);
@@ -206,7 +214,9 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   if (!body) return fail('bad-request', 400);
   const { runId, initials, durationMs, damage } = body;
   if (typeof runId !== 'string' || runId.length > 64) return fail('bad-request', 400);
-  if (!validInitials(initials)) return fail('bad-initials', 400);
+  const anonymous = initials === undefined || initials === null || initials === '';
+  if (!anonymous && !validInitials(initials)) return fail('bad-initials', 400);
+  const name = anonymous ? ANONYMOUS_INITIALS : (initials as string);
 
   const now = Date.now();
   const recent = await s.db.prepare('SELECT COUNT(*) AS n FROM scores WHERE ip_hash = ? AND created_at > ?').bind(s.ip, now - WINDOW_MS).first<{ n: number }>();
@@ -242,13 +252,14 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
 
   const inserted = await s.db
     .prepare(
-      `INSERT INTO scores (share_id, run_id, initials, score, duration_ms, damage, rivals, difficulty, seed, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO scores (share_id, run_id, initials, anonymous, score, duration_ms, damage, rivals, difficulty, seed, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .bind(
       shareId,
       runId,
-      initials,
+      name,
+      anonymous ? 1 : 0,
       score,
       duration,
       dealt,
@@ -292,6 +303,8 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   return json(
     {
       id: inserted?.id ?? null,
+      initials: name,
+      anonymous,
       score,
       durationMs: duration,
       damage: dealt,
@@ -304,6 +317,32 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
     },
     201,
   );
+}
+
+/**
+ * PATCH /api/scores {runId, initials} → {initials}: the player changed the initials of the score just saved, on
+ * its victory card. The run's id is the proof (only that game knows it), and it works only while the score is
+ * fresh. One row written, and only when the name really changes.
+ */
+export async function renameScore(ctx: Ctx): Promise<Response> {
+  const db = ctx.env.DB;
+  if (!db) return fail('unavailable', 503);
+  await ensureSchema(db);
+  const body = await readBody(ctx.request);
+  const runId = body?.runId;
+  const initials = body?.initials;
+  if (typeof runId !== 'string' || runId.length > 64) return fail('bad-request', 400);
+  if (!validInitials(initials)) return fail('bad-initials', 400);
+  const res = await db
+    .prepare('UPDATE scores SET initials = ?1, anonymous = 0 WHERE run_id = ?2 AND created_at > ?3 AND (initials != ?1 OR anonymous != 0)')
+    .bind(initials, runId, Date.now() - RENAME_TTL_MS)
+    .run();
+  if (res.meta.changes !== 1) {
+    // Nothing changed: either it already had that name, or the score is unknown or too old.
+    const row = await db.prepare('SELECT initials, anonymous, created_at FROM scores WHERE run_id = ?').bind(runId).first<{ initials: string; anonymous: number; created_at: number }>();
+    if (!row || Date.now() - row.created_at > RENAME_TTL_MS || row.initials !== initials || row.anonymous) return fail('unknown-score', 409);
+  }
+  return json({ initials });
 }
 
 export const PERIODS = ['today', 'week', 'month', 'all'] as const;

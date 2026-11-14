@@ -106,8 +106,8 @@
       #match-end p { margin: 0 0 10px; opacity: .75; }
       #match-end .again { padding: 0 20px; height: 44px; font-size: 15px; background: #3f5a57; color: #f1f5f2; }
       #match-end .again .cap::after { content: " ↻"; opacity: .7; }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #match-end.victory h2 { color: #ffd27a; } :root:not([data-theme="light"]) #match-end .again { background: #9fbcb4; color: #14201c; } :root:not([data-theme="light"]) #match-end .hero { fill: #7fb2f0; } }
-      :root[data-theme="dark"] #match-end.victory h2 { color: #ffd27a; } :root[data-theme="dark"] #match-end .again { background: #9fbcb4; color: #14201c; } :root[data-theme="dark"] #match-end .hero { fill: #7fb2f0; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #match-end .hero { fill: #7fb2f0; } }
+      :root[data-theme="dark"] #match-end .hero { fill: #7fb2f0; }
       #match-end .card { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
       #match-end .scored { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; margin: -2px 0 12px; }
       #match-end .scored[hidden] { display: none; }

@@ -16,9 +16,14 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
 `src/leaderboard/server.ts`) on a D1 database bound as `DB`. Tables create themselves on first use.
 
 - `POST /api/runs {rivals, difficulty}` opens a run when a ranked match starts.
-- `POST /api/scores {runId, initials, durationMs, damage, hints}` stores a won match; the server recomputes the
+- `POST /api/scores {runId, initials?, durationMs, damage, hints}` stores a won match. The game sends every ranked
+  victory as soon as it ends, with the initials saved on the device (`cirquimia.initials`); a player who never gave
+  any is saved as `ANON` with `anonymous = 1`, so a player really called ANON (`anonymous = 0`) stays distinct. The server recomputes the
   score with the run's own difficulty, refuses impossible numbers (under 4 s or over 30 min, more than 40 damage
   a second or 300 per rival, a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
+- `PATCH /api/scores {runId, initials}` renames the score just saved (leaving the initials line on the victory card, or Enter; the run id is the
+  proof, only within an hour of saving) and clears `anonymous`. One row written, none when the name is unchanged. The
+  new initials also become the device's handle for the next matches.
 - `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC.
 
 The board shows only Mobile / Tablet / Desktop; each row also stores OS, device (iPhone, iPad, Android
@@ -51,12 +56,11 @@ npx wrangler pages dev dist --d1 DB=local-cirquimia
 
 A share link belongs to a saved score. Saving a score gives it a random `share_id` (8 readable characters, not the
 row id, so links cannot be walked through), and the link is `/s/<share_id>`, built from that score row. Right after
-saving, the game uploads a 1200×630 JPEG of the card (`POST /api/shares` with the run id as proof,
-`src/leaderboard/shares.ts`), kept in D1's `share_images` table (~100 KB each) as the link's `og:image`.
-
-Sharing asks for the initials first: tapping a share button (or the card) before saving shows "Add your initials to
-share your card" and turns Save into "Save and share"; saving then opens the network's composer with the link
-(X, Bluesky, Threads, Mastodon) or points at the button to tap again (Discord, save image, the card).
+sharing (the first tap on a share button or the card, or a finger heading there), the game uploads a 1200×630 JPEG
+of the card (`POST /api/shares` with the run id as proof, `src/leaderboard/shares.ts`), kept in D1's `share_images`
+table (~100 KB each) as the link's `og:image`. Matches nobody shares never upload a card, which spares D1 writes now
+that every victory is saved; after a rename the next share uploads the card again with the new initials. An
+anonymous score's preview names nobody.
 
 Only link-preview robots (by user agent) get the page with the tags; people who open the link are redirected
 straight to the game (302), and an in-app browser that looks like a robot is sent on by the page's instant

@@ -27,6 +27,9 @@ export interface Entry {
 
 export interface Submitted {
   id: number | null;
+  /** The name it was saved under: the player's initials, or ANON when they never gave any. */
+  initials: string;
+  anonymous: boolean;
   score: number;
   durationMs: number;
   damage: number;
@@ -105,10 +108,11 @@ async function hints() {
   };
 }
 
+/** Saves a won match; without initials (`''`) it is saved as anonymous. */
 export async function submitScore(runId: string, initials: string, durationMs: number, damage: number) {
   const body = {
     runId,
-    initials,
+    initials: initials || undefined,
     durationMs,
     damage,
     hints: await hints(),
@@ -118,6 +122,11 @@ export async function submitScore(runId: string, initials: string, durationMs: n
   const res = await call<Submitted>('/scores', { method: 'POST', body: JSON.stringify(body) });
   if (!failed(res) && res.id !== null) rememberMine(res.id);
   return res;
+}
+
+/** New initials for the score just saved from this run (one row written on the server). */
+export function renameScore(runId: string, initials: string) {
+  return call<{ initials: string }>('/scores', { method: 'PATCH', body: JSON.stringify({ runId, initials }) });
 }
 
 /** The top of a board; `mine` (the player's own score ids) adds their best place below it when they are not on it. */
