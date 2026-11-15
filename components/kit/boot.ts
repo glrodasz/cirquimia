@@ -102,6 +102,12 @@ async function start(load: () => Promise<StoryModule>, id: string, opts: SceneOp
   await run(ctx);
 }
 
+// On a Docs page each story is a frame inside the docs frame. The game's page swallows the wheel and the finger
+// (orbit zoom, drawing, touch-action: none), so the docs page could not scroll over it: there the frame is a picture
+// that the page scrolls past. Open the story itself to use it.
+const docsFrame = window.frameElement as HTMLElement | null;
+if (docsFrame?.closest('.docs-story')) docsFrame.style.pointerEvents = 'none';
+
 // Links (the book's language tab) never navigate the canvas: they switch the toolbar's language instead.
 document.addEventListener(
   'click',

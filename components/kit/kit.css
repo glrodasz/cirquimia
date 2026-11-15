@@ -39,4 +39,8 @@ html.kit-doc body { padding: 20px 20px 60px; background: var(--hud-solid); color
 
 /* Docs pages (and the intro) are Storybook's own pages in the same canvas: they scroll like any page. The game's
    fixed, non-scrolling page only applies once a story mounts (boot.ts adds .kit-story). */
-html:not(.kit-story), html:not(.kit-story) body { position: static; height: auto; min-height: 100%; overflow: auto; touch-action: auto; overscroll-behavior: auto; -webkit-user-select: text; user-select: text; }
+html:not(.kit-story) { overflow: auto; }
+html:not(.kit-story), html:not(.kit-story) body { position: static; height: auto; min-height: 100%; overflow-x: hidden; touch-action: auto; overscroll-behavior: auto; -webkit-user-select: text; user-select: text; }
+/* A story's frame on a Docs page is an inline iframe: its baseline gap made each story block scroll by 4px, and that
+   tiny scroller caught the wheel before the page did. */
+.docs-story iframe { display: block; }
