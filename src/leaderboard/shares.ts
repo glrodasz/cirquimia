@@ -62,15 +62,16 @@ export async function uploadCard(ctx: Ctx): Promise<Response> {
 /**
  * Keeps share_images small: at most KEEP_TOP all-time + KEEP_TOP this month + KEEP_TOP today (the lists overlap),
  * plus the cards younger than CARD_TTL_MS. The weekly board needs no rule: a week is never older than the TTL.
- * The score rows stay, so pruned links still work and still replay the match.
+ * The score rows stay, so pruned links still work and still replay the match. Only the duel's boards count here:
+ * horde scores sort far above them and have no share card yet.
  */
 export async function pruneCards(db: D1Database, now: number): Promise<number> {
   const res = await db
     .prepare(
       `DELETE FROM share_images WHERE created_at < ?1
-       AND share_id NOT IN (SELECT share_id FROM scores WHERE share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)
-       AND share_id NOT IN (SELECT share_id FROM scores WHERE day = ?2 AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)
-       AND share_id NOT IN (SELECT share_id FROM scores WHERE created_at >= ?4 AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)`,
+       AND share_id NOT IN (SELECT share_id FROM scores WHERE mode = 'duel' AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)
+       AND share_id NOT IN (SELECT share_id FROM scores WHERE mode = 'duel' AND day = ?2 AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)
+       AND share_id NOT IN (SELECT share_id FROM scores WHERE mode = 'duel' AND created_at >= ?4 AND share_id IS NOT NULL ORDER BY score DESC, created_at ASC LIMIT ?3)`,
     )
     .bind(now - CARD_TTL_MS, dayOf(now), KEEP_TOP, monthStart(now))
     .run();

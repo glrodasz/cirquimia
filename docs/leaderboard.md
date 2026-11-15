@@ -10,6 +10,15 @@ Damage is the health the alchemist's own strikes took off the rivals: rivals kno
 score nothing for the player. Seconds are play time (the game holds still while a card is open). Rules live in `src/leaderboard/score.ts`,
 shared by the game and the server.
 
+## Horde boards
+
+The Horde (src/horde.ts) has its own boards, picked with the Duelo / Horda selector on the ranking card. A horde
+score is the wave reached (every wave before it cleared, so from wave 2 on) and the game time it took to get there:
+higher wave first, then the quicker run. It is stored in the same `scores` table with `mode = 'horde'` and `wave`,
+as `score = wave × 100 000 − seconds`, so the boards sort it like any score (index `scores_mode`). The run is opened
+with `{mode: 'horde'}`; the server checks the damage against the golems' health of the cleared waves
+(`plausibleHorde` in score.ts). Horde scores have no share card yet.
+
 ## Backend
 
 Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, logic in

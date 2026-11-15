@@ -5,7 +5,8 @@ import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
 import { AREA_OF, PILLAR_AREA, PILLAR_WARN, ROOT_TIME, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells, type StarCage } from './spells';
 import { t } from './i18n';
-import { RivalMind, TUNING, type Difficulty, type Fluid, type MindView, type Plan, type Tuning } from './rivalMind';
+import { RivalMind, TUNING, golemTuning, type Difficulty, type Fluid, type MindView, type Plan, type Tuning } from './rivalMind';
+import { MAX_ALIVE, SPAWN_GAP, WAVE_HEAL, WAVE_PAUSE, waveSize } from './horde';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
 // the blast (fire and water merged into an hourglass) 45 over a smaller area, each tip of a fire or water star
@@ -46,6 +47,18 @@ const RIVAL_LOOKS = [
   { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
   { coat: '#55406b', coatDark: '#3e2f50', ink: '#9b6fd8' },
 ];
+// The horde are stone golems, all alike (shared model, src/character.ts), with a stone-grey ink for bars and strikes.
+const GOLEM_LOOK = { coat: '', coatDark: '', ink: '#9a917f', golem: true };
+/** A fallen golem lies still this long, then sinks into the ground over SINK_TIME and is gone (the meadow never fills up). */
+const GOLEM_LINGER = 1.6;
+const SINK_TIME = 1.2;
+const SINK_DEPTH = 1.9;
+/** A golem rises out of the ground over this long when it is summoned, before it starts to fight. */
+const RISE_TIME = 0.7;
+
+/** Duel: 0 to 3 rivals in a free-for-all (0 is training). Horde: waves of golems against the alchemist alone. */
+export type GameMode = 'duel' | 'horde';
+
 const ELEMENT_COLOR: Record<Element, string> = {
   earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c', fireStar: '#ffb35c', waterStar: '#9fd6e3', vine: '#8cc46a',
 };
@@ -102,6 +115,8 @@ class Fighter<B extends Body = Body> {
   private ghostTo = 1;
   /** Position on the previous frame, to tell where it is heading. */
   readonly prev = new THREE.Vector3();
+  /** Its bar and symbol stay hidden (a golem still rising out of the ground). */
+  veiled = false;
 
   /** Ring at the feet in the fighter's ink, shown while standing in a rune circle (strikes are boosted). */
   private readonly aura: THREE.Mesh;
@@ -255,7 +270,7 @@ class Fighter<B extends Body = Body> {
   /** Keeps the bar over the head; a fallen fighter's bar goes away once the body is on the ground. */
   update(camera: THREE.Camera) {
     this.fill.style.transform = `scaleX(${this.hp / MAX_HP})`;
-    const visible = this.screen(camera);
+    const visible = this.screen(camera) && !this.veiled;
     this.bar.hidden = !visible;
     this.bar.classList.toggle('gone', this.down);
     if (visible) {
@@ -334,11 +349,16 @@ class Rival extends Fighter<Character> {
   private walled = 0;
   /** Set while the tutorial keeps it still as a sparring partner: it cannot fall then. */
   sparring = false;
+  /** Seconds since it fell (horde golems sink away after a while), and seconds left rising out of the ground. */
+  downFor = 0;
+  rising = 0;
 
   constructor(
     obstacles: Obstacle[],
-    look: { coat: string; coatDark: string; ink: string },
+    look: { coat: string; coatDark: string; ink: string; golem?: boolean },
     private readonly tuning: Tuning,
+    /** One of the horde: fights only the alchemist, and the other golems' strikes pass it by. */
+    readonly golem = false,
   ) {
     super(new Character(obstacles, { ...look, speed: tuning.speed }), look.ink);
     this.mind = new RivalMind(tuning);
@@ -606,6 +626,18 @@ export class Combat {
   heroArmed = false;
   private count = 1;
   private level: Difficulty = 'normal';
+  private gameMode: GameMode = 'duel';
+  /** Horde: the wave on now (0 before the first), golems of it still to walk in, and seconds to the next one walking in. */
+  private wave = 0;
+  private toSpawn = 0;
+  private spawnTimer = 0;
+  /** Horde: the wave a night starts on (1; dev mode may jump ahead with ?wave=N to test big waves). */
+  firstWave = 1;
+  /** Horde: seconds of calm left before the next wave starts. */
+  private wavePause = 0;
+  /** Horde: the wave reached (every wave before it cleared) and the game time it was reached at. */
+  private reached = 1;
+  private reachedAt = 0;
   private outcome: Outcome | null = null;
   private endTimer = 0;
   /** Where everyone on the meadow stands: the alchemist, the rivals and the training scarecrows. */
@@ -618,6 +650,8 @@ export class Combat {
   onStart: () => void = () => {};
   /** Called when a training scarecrow is knocked down (a new one springs up a moment later). */
   onDummyDown: () => void = () => {};
+  /** Horde: wave `n` is about to start (its banner shows during the calm before it). */
+  onWave: (n: number) => void = () => {};
   /** While set, rivals stand still and do not attack (the tutorial is showing a cast play out). */
   private held = false;
   /** Set for the whole tutorial: the rivals stand still as sparring partners and cannot fall, until the duel starts. */
@@ -663,6 +697,26 @@ export class Combat {
     return this.count;
   }
 
+  get mode(): GameMode {
+    return this.gameMode;
+  }
+
+  /** Duel with no rivals: the scarecrow to practise on. */
+  get training() {
+    return this.gameMode === 'duel' && this.count === 0;
+  }
+
+  /** Horde: the wave reached (every wave before it cleared) and how long it took, in game time. */
+  get hordeResult() {
+    return { wave: this.reached, durationMs: Math.round(this.reachedAt * 1000) };
+  }
+
+  /** Horde: the wave in play or about to start, and how many golems of it are still to fall. */
+  get hordeWave() {
+    const left = this.toSpawn + this.rivals.filter((r) => !r.down).length;
+    return { wave: Math.max(this.wave, this.reached), left: this.wavePause > 0 ? waveSize(this.reached) : left };
+  }
+
   get difficulty() {
     return this.level;
   }
@@ -703,6 +757,13 @@ export class Combat {
   setDifficulty(level: Difficulty) {
     this.level = level;
     this.respawn();
+  }
+
+  /** Mode, rivals and level at once, without a respawn (the next match picks them up). */
+  configure(mode: GameMode, count: number, level: Difficulty) {
+    this.gameMode = mode;
+    this.count = THREE.MathUtils.clamp(Math.round(count), 0, MAX_RIVALS);
+    this.level = level;
   }
 
   /** The alchemist raises a wall; its protected zone shows in the alchemist's ink. */
@@ -858,6 +919,7 @@ export class Combat {
         const was = c.inside.get(f);
         c.inside.set(f, inside);
         if (c.standing <= 0 || was === undefined || was === inside || c.struck.has(f) || this.over) continue;
+        if (c.caster instanceof Rival && c.caster.golem && f instanceof Rival && f.golem) continue;
         this.hurt(f, c.element, c.caster);
         c.struck.add(f);
       }
@@ -879,6 +941,18 @@ export class Combat {
     this.endTimer = 0;
     this.played = 0;
     this.dealt = 0;
+    this.wave = 0;
+    this.toSpawn = 0;
+    this.reached = this.firstWave;
+    this.reachedAt = 0;
+    if (this.gameMode === 'horde') {
+      // The first wave after a short calm, with its banner.
+      this.wavePause = WAVE_PAUSE * 0.6;
+      this.onStart();
+      this.onWave(this.firstWave);
+      return;
+    }
+    this.wavePause = 0;
     const center = this.hero.position;
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
@@ -903,6 +977,70 @@ export class Combat {
     }
     if (this.count === 0) this.spawnDummy();
     this.onStart();
+  }
+
+  /** Horde: a golem rises out of the ground somewhere on screen, a few steps from the alchemist, and turns to it. */
+  private spawnGolem() {
+    const hero = this.hero.position;
+    const rival = new Rival(this.obstacles, GOLEM_LOOK, golemTuning(this.wave), true);
+    rival.body.bounds = this.onScreen;
+    const base = Math.random() * Math.PI * 2;
+    let spot = new THREE.Vector3(hero.x, 0, hero.z);
+    for (let tries = 0; tries < 24; tries++) {
+      const a = base + tries * 2.4;
+      const r = THREE.MathUtils.randFloat(tries < 16 ? 2.2 : 1.4, tries < 16 ? 3.2 : 2.2);
+      const at = new THREE.Vector3(hero.x + Math.sin(a) * r, 0, hero.z + Math.cos(a) * r);
+      const blocked = this.obstacles.some((o) => Math.hypot(o.x - at.x, o.z - at.z) < o.r + BODY_RADIUS + 0.05);
+      const crowded = this.rivals.some((o) => !o.down && Math.hypot(o.position.x - at.x, o.position.z - at.z) < 0.6);
+      if (blocked || crowded || !this.onScreen(at)) continue;
+      spot = at;
+      break;
+    }
+    rival.body.root.position.set(spot.x, heightAt(spot.x, spot.z) - SINK_DEPTH, spot.z);
+    rival.body.setTarget(new THREE.Vector3(spot.x, heightAt(spot.x, spot.z), spot.z));
+    rival.body.face(hero);
+    rival.rising = RISE_TIME;
+    rival.prev.copy(rival.position);
+    this.rivals.push(rival);
+    this.root.add(rival.body.root);
+  }
+
+  /** Horde: golems walk in a few at a time until the wave is spent; once every one of them is down, a calm, then the next. */
+  private updateHorde(dt: number) {
+    // Fallen golems sink away after a moment, so a long night never fills the meadow.
+    for (const r of [...this.rivals]) {
+      if (!r.down) continue;
+      r.downFor += dt;
+      const sink = (r.downFor - GOLEM_LINGER) / SINK_TIME;
+      if (sink <= 0) continue;
+      if (sink < 1) continue;
+      this.root.remove(r.body.root);
+      r.dispose();
+      this.rivals.splice(this.rivals.indexOf(r), 1);
+    }
+    if (this.over) return;
+    if (this.wavePause > 0) {
+      if ((this.wavePause -= dt) > 0) return;
+      this.wave = this.reached;
+      this.toSpawn = waveSize(this.wave);
+      this.spawnTimer = 0;
+    }
+    const alive = this.rivals.filter((r) => !r.down).length;
+    if (this.toSpawn > 0) {
+      if ((this.spawnTimer -= dt) <= 0 && alive < MAX_ALIVE) {
+        this.spawnGolem();
+        this.toSpawn--;
+        this.spawnTimer = SPAWN_GAP;
+      }
+      return;
+    }
+    if (alive > 0 || this.wave === 0) return;
+    // Wave cleared: the next one is reached now, and the alchemist gets some health back during the calm.
+    this.reached = this.wave + 1;
+    this.reachedAt = this.played;
+    if (this.hero.hp < MAX_HP) this.hero.heal(Math.min(WAVE_HEAL, MAX_HP - this.hero.hp), this.camera);
+    this.wavePause = WAVE_PAUSE;
+    this.onWave(this.reached);
   }
 
   /** Everyone the alchemist can strike, standing: each rival (with where it will be in `seconds`) and the scarecrow. */
@@ -977,8 +1115,10 @@ export class Combat {
 
   private strike(x: number, z: number, element: Element, caster: unknown, area: number, cage: StarCage | null = null) {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
+    const fromGolem = caster instanceof Rival && caster.golem;
     for (const f of [this.hero, ...this.rivals]) {
       if (f === caster || f.down || this.over) continue;
+      if (fromGolem && f instanceof Rival && f.golem) continue; // the horde fights as one
       if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
       this.hurt(f, element, caster);
       // Hit by a tip, it walks off that column freely: crossing the ring will not strike it again.
@@ -1013,20 +1153,27 @@ export class Combat {
     if (!this.outcome) {
       this.played += dt;
       if (this.hero.down) this.outcome = 'defeat';
-      else if (this.rivals.length > 0 && this.rivals.every((r) => r.down)) this.outcome = 'victory';
+      else if (this.gameMode === 'duel' && this.rivals.length > 0 && this.rivals.every((r) => r.down)) this.outcome = 'victory';
       if (this.outcome) this.endTimer = END_DELAY;
     } else if (this.endTimer > 0 && (this.endTimer -= dt) <= 0) {
       this.onEnd(this.outcome);
     }
 
+    if (this.gameMode === 'horde') this.updateHorde(dt);
     const all = [this.hero, ...this.rivals];
     const standing = all.filter((f) => !f.down);
+    // The horde only goes for the alchemist; in a duel everyone fights everyone.
+    const foesOf = (r: Rival) => (r.golem ? (this.hero.down ? [] : [this.hero]) : standing.filter((f) => f !== r));
     for (const r of this.rivals) {
-      // Fallen rivals lie still; once the match is decided nobody attacks any more.
+      // Fallen rivals lie still; once the match is decided nobody attacks any more. A golem still rising waits.
       r.sparring = this.sparring;
-      if (!r.down && !this.over && !this.held && !this.sparring) r.think(dt, standing.filter((f) => f !== r), this, this.onScreen);
+      if (r.rising > 0) r.rising = Math.max(0, r.rising - dt);
+      r.veiled = r.rising > 0;
+      if (!r.down && r.rising <= 0 && !this.over && !this.held && !this.sparring) r.think(dt, foesOf(r), this, this.onScreen);
       else r.cancel();
       r.body.update(dt);
+      if (r.rising > 0) r.body.root.position.y -= (r.rising / RISE_TIME) * SINK_DEPTH;
+      else if (r.golem && r.down) r.body.root.position.y -= THREE.MathUtils.clamp((r.downFor - GOLEM_LINGER) / SINK_TIME, 0, 1) * SINK_DEPTH * 0.5;
       r.update(this.camera);
     }
     this.updateDummies(dt);

@@ -21,6 +21,22 @@ export function rivalsIcon(count: number) {
   return box(figure(-2.5, 0.6, 'red') + figure(4.8, 0.6, 'green') + figure(12.1, 0.6, 'plum'));
 }
 
+/** The horde: a stone golem, square head sunk in broad shoulders, long arms with rock fists, glowing eyes. */
+export function hordeIcon() {
+  return box(
+    '<path class="ink golem" fill-rule="evenodd" d="M9 2.5H15V6.4H18.6L21.4 9.2V15.6H18.2V11.6L17.4 11V14.8L16 16.4V21.5H13.2V17.4H10.8V21.5H8V16.4L6.6 14.8V11L5.8 11.6V15.6H2.6V9.2L5.4 6.4H9ZM10.2 3.9V5.1H11.4V3.9ZM12.6 3.9V5.1H13.8V3.9Z"/>' +
+      '<rect class="red" x="10.2" y="3.9" width="1.2" height="1.2"/><rect class="red" x="12.6" y="3.9" width="1.2" height="1.2"/>',
+  );
+}
+
+/** New game: two crossed swords, blades up. */
+export function newGameIcon() {
+  return box(
+    '<path class="ink" d="M4.2 2.4 7.2 2.6 17 12.4 15.4 14 5.6 4.2ZM17.6 13.4 19 14.8 17.6 16.2 20.6 19.2 19.2 20.6 16.2 17.6 14.8 19 13.4 17.6Z"/>' +
+      '<path class="ink" d="M19.8 2.4 16.8 2.6 11.6 7.8 13.2 9.4 18.4 4.2ZM8.8 12.3 6.4 14.8 5 13.4 3.6 14.8 6.4 17.6 3.4 20.6 4.8 22 7.8 19 10.6 21.8 12 20.4 10.6 19 13.1 16.5Z"/>',
+  );
+}
+
 /** Four rising bars, solid up to the level, like a signal meter. */
 export function levelIcon(filled: number) {
   return box(

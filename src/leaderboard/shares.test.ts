@@ -14,7 +14,7 @@ const { DatabaseSync } = (await import(/* @vite-ignore */ sqlite)) as { Database
 function memoryD1(): D1Database & { raw: DatabaseSync } {
   const raw = new DatabaseSync(':memory:');
   raw.exec(`CREATE TABLE scores (share_id TEXT, score INTEGER, day TEXT, created_at INTEGER, locale TEXT,
-              initials TEXT, duration_ms INTEGER, damage INTEGER, rivals INTEGER, difficulty TEXT, seed TEXT);
+              initials TEXT, duration_ms INTEGER, damage INTEGER, rivals INTEGER, difficulty TEXT, seed TEXT, mode TEXT NOT NULL DEFAULT 'duel');
             CREATE TABLE share_images (share_id TEXT PRIMARY KEY, image BLOB NOT NULL, created_at INTEGER NOT NULL);`);
   const statement = (sql: string, args: unknown[] = []): D1Statement => ({
     bind: (...values) => statement(sql, values),

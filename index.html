@@ -837,6 +837,61 @@
       @media (hover: hover) { #match-end .scored .nets .brand:hover { filter: brightness(1.15); } }
       @media (max-width: 359px) { #match-end .scored .nets .brand .cap { display: none; } }
       @media (max-width: 359px) { #match-end .scored .acts .brand .verb, #match-end .scored .acts [data-to="x"] .cap { display: none; } }
+      /* ===== Modes: Training and New game top left, the New game sheet (Duel or Horde), and the horde's wave. ===== */
+      #match .match-btn.on { background: var(--g-ink); color: var(--g-paper); box-shadow: inset 0 0 0 2px var(--g-ink), inset 0 0 0 2.6px rgba(245,239,224,.55), 0 2px 6px rgba(20,28,24,.18); }
+      #match .match-btn.on .hud-icon .ink { fill: var(--g-paper); }
+      #match .match-btn .cap::after { content: none; }
+      
+      #match.spot .match-btn:not(.newgame) { box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 2px 6px rgba(20,28,24,.18); animation: none; }
+      #newgame { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 45%, rgba(201,211,209,.35), rgba(35,50,42,.6)); backdrop-filter: blur(2px) saturate(.8); -webkit-backdrop-filter: blur(2px) saturate(.8); opacity: 0; transition: opacity .3s; touch-action: pan-y; }
+      #newgame[hidden] { display: none; }
+      #newgame.show { opacity: 1; }
+      #newgame .card { position: relative; display: flex; flex-direction: column; width: min(620px, 100%); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; padding: 20px 18px 18px; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), var(--g-lift); font-family: var(--g-font); outline: none; transform: translateY(10px) scale(.97); transition: transform .4s cubic-bezier(.2,1.4,.4,1); }
+      #newgame.show .card { transform: none; }
+      #newgame h2 { margin: 2px 36px 14px; padding-bottom: 10px; border-bottom: 3px double var(--g-ink); font: 500 25px/1.1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .14em; color: var(--g-red); text-align: center; }
+      #newgame .x { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; padding: 0; border: 0; background: transparent; color: var(--g-ink); font: 300 30px/1 var(--g-font); opacity: .75; cursor: pointer; }
+      #newgame .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      #newgame .mode { display: flex; flex-direction: column; gap: 8px; padding: 14px 14px 14px; box-shadow: inset 0 0 0 1px rgba(31,26,21,.45); }
+      #newgame .mode.current { box-shadow: inset 0 0 0 1px var(--g-red), inset 0 0 0 3px rgba(163,39,28,.12); }
+      #newgame .head { display: flex; align-items: center; gap: 8px; }
+      #newgame .head .disc { display: block; width: 30px; height: 30px; flex: none; }
+      #newgame .hud-icon { display: block; width: 100%; height: 100%; overflow: visible; }
+      #newgame .hud-icon .ink { fill: var(--g-ink); } #newgame .hud-icon .faint { fill: var(--g-ink); opacity: .2; }
+      #newgame .hud-icon .red { fill: var(--g-red); } #newgame .hud-icon .green { fill: #3d6b3a; } #newgame .hud-icon .plum { fill: #6a3f7a; }
+      #newgame .hud-icon .golem { fill: #6c685e; }
+      #newgame h3 { margin: 0; font: 500 23px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .08em; }
+      #newgame p { margin: 0; font: 400 16px/1.3 var(--g-font); }
+      #newgame .waves { color: var(--g-soft); font-style: italic; }
+      #newgame .field { display: flex; flex-direction: column; gap: 4px; }
+      #newgame .label { color: var(--g-soft); font: 500 14px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .08em; }
+      #newgame .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      #newgame .opts.levels { grid-template-columns: repeat(2, 1fr); }
+      #newgame .opt { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 8px; border: 1px solid rgba(31,26,21,.45); border-radius: 0; background: transparent; color: var(--g-ink); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .04em; font-variant-numeric: lining-nums; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      #newgame .opt .hud-icon { width: 20px; height: 20px; flex: none; }
+      #newgame .opt[aria-pressed="true"] { border-color: var(--g-ink); background: var(--g-ink); color: var(--g-paper); }
+      #newgame .opt[aria-pressed="true"] .hud-icon :is(.ink, .faint) { fill: var(--g-paper); }
+      #newgame .opt[aria-pressed="true"] .hud-icon .red { fill: #ff8a7a; } #newgame .opt[aria-pressed="true"] .hud-icon .green { fill: #8fd68f; } #newgame .opt[aria-pressed="true"] .hud-icon .plum { fill: #c9a6e6; }
+      #newgame .play { margin-top: auto; height: 46px; border: 0; border-radius: 0; background: var(--g-red); color: var(--g-paper); box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7); font: 500 20px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .1em; cursor: pointer; touch-action: manipulation; }
+      #newgame .play:active, #newgame .opt:active { transform: scale(.97); }
+      #newgame :is(.opt, .play, .x):focus-visible { outline: 1px solid var(--g-red); outline-offset: 2px; }
+      @media (hover: hover) { #newgame .opt:not([aria-pressed="true"]):hover { background: rgba(31,26,21,.06); } }
+      @media (max-width: 559.98px) { #newgame .modes { grid-template-columns: 1fr; gap: 10px; } #newgame .card { padding: 16px 14px 14px; } #newgame h2 { margin-bottom: 10px; } #newgame .mode { padding: 12px; } #newgame .play { height: 44px; } }
+      /* The horde's wave rides on the time plaque: "Wave 3 · 2 left", then the hourglass and the clock. */
+      #match-time .wave { display: flex; align-items: baseline; gap: 6px; margin-right: 6px; padding-right: 8px; border-right: 1px solid rgba(31,26,21,.35); font-variant-caps: small-caps; }
+      #match-time .wave[hidden] { display: none; }
+      #match-time .wave b { font-weight: 600; color: var(--g-red); }
+      #match-time .wave i { font-style: italic; font-size: .78em; color: var(--g-soft); font-variant-caps: normal; }
+      #wave-banner { position: fixed; left: 50%; top: 32%; z-index: 4; pointer-events: none; transform: translate(-50%, -50%); padding: 10px 28px 12px; background: var(--g-paper); color: var(--g-red); box-shadow: var(--g-rule), var(--g-lift); font: 500 clamp(30px, 8vw, 44px)/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .14em; white-space: nowrap; opacity: 0; }
+      #wave-banner[hidden] { display: none; }
+      #wave-banner.show { animation: wave-in 2.2s ease both; }
+      @keyframes wave-in { 0% { opacity: 0; transform: translate(-50%, -40%) scale(.92); } 14%, 78% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; transform: translate(-50%, -58%); } }
+      #match-end .scored .pts.wave b { font: 500 40px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .08em; color: var(--g-red); }
+      #match-end.horde h2 { color: var(--g-ink); }
+      #match-end p b { color: var(--g-red); font-weight: 600; }
+      #rank .modes { display: flex; justify-content: center; margin: -4px auto 10px; box-shadow: inset 0 0 0 1px var(--g-ink); }
+      #rank .modes button { flex: 1; min-width: 110px; height: 34px; padding: 0 14px; border: 0; border-radius: 0; background: none; color: var(--g-ink); font: 500 18px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .1em; cursor: pointer; }
+      #rank .modes [aria-selected="true"] { background: var(--g-ink); color: var(--g-paper); }
+      #rank .pts.wave { font: 500 18px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; color: var(--g-red); white-space: nowrap; }
     </style>
   </head>
   <body>

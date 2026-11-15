@@ -7,7 +7,7 @@ import { LANG, t } from '../i18n';
 import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, telegramLogo, threadsLogo, trophyIcon, whatsappLogo, xLogo } from '../icons';
 import { failed, fetchBoard, myScores, renameScore, savedInitials, saveInitials, submitScore, uploadCard, type Entry, type Period, type Runs } from './client';
 import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
-import { cleanInitials, formatTime, scoreFor, validInitials } from './score';
+import { cleanInitials, formatTime, hordeScore, scoreFor, validInitials, type BoardMode } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -30,7 +30,7 @@ export interface EndSlots {
 
 export interface Leaderboard {
   readonly open: boolean;
-  show(period?: Period): void;
+  show(period?: Period, mode?: BoardMode): void;
   /**
    * Fills the victory card's score block for a won match; `runs` holds the server run if it counts and
    * `meadow` the frame of the match for the share card.
@@ -41,6 +41,8 @@ export interface Leaderboard {
     match: { rivals: number; difficulty: Difficulty; durationMs: number; damage: number },
     meadow?: Promise<CanvasImageSource | null>,
   ): void;
+  /** The horde's card: the wave reached and how long it took, saved to the horde's boards (no share card yet). */
+  fillHordeEnd(slots: EndSlots, runs: Runs, result: { wave: number; durationMs: number; damage: number }): void;
 }
 
 export function mountLeaderboard(): Leaderboard {
@@ -60,6 +62,9 @@ export function mountLeaderboard(): Leaderboard {
     `<div class="card" tabindex="-1">` +
     `<button type="button" class="x" aria-label="${t.rank.close}">×</button>` +
     `<h2 id="rank-title">${t.rank.title}</h2>` +
+    `<div class="modes" role="tablist" aria-label="${t.rank.modes}">` +
+    (['duel', 'horde'] as const).map((m) => `<button type="button" role="tab" data-mode="${m}">${t.rank[m]}</button>`).join('') +
+    `</div>` +
     `<div class="tabs" role="tablist">` +
     (['today', 'week', 'month', 'all'] as const).map((p) => `<button type="button" role="tab" data-period="${p}">${t.rank[p]}</button>`).join('') +
     `</div>` +
@@ -70,9 +75,12 @@ export function mountLeaderboard(): Leaderboard {
   document.body.append(button, overlay);
 
   const list = overlay.querySelector<HTMLElement>('.list')!;
-  const tabs = [...overlay.querySelectorAll<HTMLButtonElement>('[role=tab]')];
+  const tabs = [...overlay.querySelectorAll<HTMLButtonElement>('[data-period]')];
+  const modeTabs = [...overlay.querySelectorAll<HTMLButtonElement>('[data-mode]')];
+  const rule = overlay.querySelector<HTMLElement>('.rule')!;
   let open = false;
   let period: Period = 'today';
+  let boardMode: BoardMode = 'duel';
   let highlight: number | null = null;
   let opener: HTMLElement | null = null;
   let request = 0;
@@ -84,8 +92,9 @@ export function mountLeaderboard(): Leaderboard {
       `<li${cls ? ` class="${cls}"` : ''}>` +
       `<span class="pos${medal}">${place}</span>` +
       `<span class="who">${esc(e.initials)}${mine.has(e.id) ? ` <i>${t.rank.mine}</i>` : ''}</span>` +
-      `<span class="pts">${e.score.toLocaleString(LANG)}</span>` +
-      `<span class="meta">${metaLine(e, true)} · ${t.rank.category[e.category] ?? ''}</span>` +
+      (e.mode === 'horde'
+        ? `<span class="pts wave">${t.rank.wave(e.wave)}</span><span class="meta">⏱ ${t.rank.hordeTime(formatTime(e.durationMs))} · ${t.rank.category[e.category] ?? ''}</span>`
+        : `<span class="pts">${e.score.toLocaleString(LANG)}</span><span class="meta">${metaLine(e, true)} · ${t.rank.category[e.category] ?? ''}</span>`) +
       `</li>`
     );
   };
@@ -102,13 +111,16 @@ export function mountLeaderboard(): Leaderboard {
     list.querySelector('.new')?.scrollIntoView({ block: 'center' });
   };
 
-  const load = async (p: Period) => {
+  const load = async (p: Period, m: BoardMode = boardMode) => {
     period = p;
+    boardMode = m;
     for (const tab of tabs) tab.setAttribute('aria-selected', String(tab.dataset.period === p));
+    for (const tab of modeTabs) tab.setAttribute('aria-selected', String(tab.dataset.mode === m));
+    rule.textContent = m === 'horde' ? t.rank.hordeRule : t.rank.rule;
     list.innerHTML = `<p class="empty">${t.rank.loading}</p>`;
     const mine = ++request;
     // Right after saving, the place shown is the new score's; otherwise the player's best.
-    const res = await fetchBoard(p, highlight ? [highlight] : myScores());
+    const res = await fetchBoard(p, highlight ? [highlight] : myScores(), m);
     if (mine !== request) return;
     if (failed(res)) list.innerHTML = `<p class="empty">${t.rank.unavailable}</p>`;
     else render(res.entries, res.me);
@@ -121,7 +133,7 @@ export function mountLeaderboard(): Leaderboard {
     opener?.focus({ preventScroll: true });
   };
 
-  const show = (p: Period = period, newId: number | null = null) => {
+  const show = (p: Period = period, newId: number | null = null, m: BoardMode = boardMode) => {
     opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     highlight = newId;
     overlay.hidden = false;
@@ -129,7 +141,7 @@ export function mountLeaderboard(): Leaderboard {
     void overlay.offsetWidth;
     overlay.classList.add('show');
     overlay.querySelector<HTMLElement>('.card')!.focus({ preventScroll: true });
-    void load(p);
+    void load(p, m);
   };
 
   button.addEventListener('click', () => show());
@@ -137,13 +149,25 @@ export function mountLeaderboard(): Leaderboard {
   overlay.addEventListener('click', (e) => e.target === overlay && hide());
   overlay.addEventListener('keydown', (e) => e.key === 'Escape' && hide());
   for (const tab of tabs) tab.addEventListener('click', () => load(tab.dataset.period as Period));
+  for (const tab of modeTabs) tab.addEventListener('click', () => load(period, tab.dataset.mode as BoardMode));
 
-  const fillEnd: Leaderboard['fillEnd'] = ({ score: slot, actions, share: shared }, runs, match, meadow) => {
-    const data: ShareData = { ...match, score: scoreFor(match.damage, match.difficulty, match.durationMs) };
-    slot.hidden = shared.hidden = false;
+  const fillEnd = (
+    { score: slot, actions, share: shared }: EndSlots,
+    runs: Runs,
+    match: { rivals: number; difficulty: Difficulty; durationMs: number; damage: number },
+    meadow?: Promise<CanvasImageSource | null>,
+    /** Horde: the wave reached. It goes to the horde's boards, and has no share card yet. */
+    wave?: number,
+  ) => {
+    const horde = wave !== undefined;
+    const mode: BoardMode = horde ? 'horde' : 'duel';
+    const data: ShareData = { ...match, score: horde ? hordeScore(wave, match.durationMs) : scoreFor(match.damage, match.difficulty, match.durationMs) };
+    slot.hidden = false;
+    shared.hidden = horde;
     slot.innerHTML =
-      `<div class="pts"><b>${data.score.toLocaleString(LANG)}</b> ${t.rank.points(data.score)}</div>` +
-      `<div class="meta">${metaLine(match)}</div>` +
+      (horde
+        ? `<div class="pts wave"><b>${t.rank.wave(wave)}</b></div><div class="meta">⏱ ${formatTime(match.durationMs)}</div>`
+        : `<div class="pts"><b>${data.score.toLocaleString(LANG)}</b> ${t.rank.points(data.score)}</div><div class="meta">${metaLine(match)}</div>`) +
       `<form class="sign" novalidate><label><span>${t.rank.initials}</span>` +
       `<input name="initials" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="ABCD" required></label>` +
       `</form>` +
@@ -151,6 +175,7 @@ export function mountLeaderboard(): Leaderboard {
     // Secondary on the left of "Play again", as one row of the two ways on.
     actions.insertAdjacentHTML('afterbegin', `<button type="button" class="match-btn view">${trophyIcon()}<span class="cap">${t.rank.view}</span></button>`);
     shared.setAttribute('aria-label', t.rank.share);
+    // Built for the horde too, so the wiring below stays the same; it just stays hidden there.
     shared.innerHTML =
       `<h3>${t.rank.share}</h3>` +
       `<div class="share">` +
@@ -197,6 +222,7 @@ export function mountLeaderboard(): Leaderboard {
     const img = preview.querySelector('img')!;
     let shown = '';
     const draw = () => {
+      if (horde) return Promise.resolve(new Blob());
       dare.textContent = t.rank.dare(data.score.toLocaleString(LANG), t.rank.points(data.score));
       const next = scene.then((m) => renderShareCard(data, m));
       void next.then((blob) => {
@@ -268,7 +294,7 @@ export function mountLeaderboard(): Leaderboard {
         settle(null);
         return false;
       }
-      const res = await submitScore(id, savedInitials(), match.durationMs, match.damage);
+      const res = await submitScore(id, savedInitials(), match.durationMs, match.damage, wave);
       if (failed(res)) {
         form.hidden = true;
         say(res === 'too-many' ? t.rank.tooMany : res === 'rejected' ? t.rank.rejected : t.rank.unavailable);
@@ -323,7 +349,7 @@ export function mountLeaderboard(): Leaderboard {
     // The ranking opens at once; when it just took the typed initials, it reloads once the score carries them.
     actions.querySelector('.view')!.addEventListener('click', () => {
       const renamed = commit();
-      show(newId ? 'today' : period, newId);
+      show(newId ? 'today' : period, newId, mode);
       void renamed.then((done) => {
         if (done && open) void load(period);
       });
@@ -379,7 +405,8 @@ export function mountLeaderboard(): Leaderboard {
     get open() {
       return open;
     },
-    show: (p) => show(p),
-    fillEnd,
+    show: (p, m) => show(p, null, m),
+    fillEnd: (slots, runs, match, meadow) => fillEnd(slots, runs, match, meadow),
+    fillHordeEnd: (slots, runs, { wave, durationMs, damage }) => fillEnd(slots, runs, { rivals: 0, difficulty: 'normal', durationMs, damage }, undefined, wave),
   };
 }

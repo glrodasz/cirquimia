@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { heightAt } from './noise';
 import type { Obstacle } from './meadow';
 import { findPath, type Waypoint } from './path';
@@ -135,6 +136,69 @@ export interface CharacterLook {
   coat?: string;
   coatDark?: string;
   speed?: number;
+  /** A stone golem (the horde) instead of an alchemist in uniform. */
+  golem?: boolean;
+}
+
+/*
+ * The horde's golems: built for many on screen. Every golem shares the same three geometries and one material
+ * (stone, moss and glowing eyes are vertex colours), so each one costs five small draw calls and allocates nothing.
+ * They cast no real shadow (the soft blob under the feet does that job), which keeps them out of the shadow pass.
+ * The rig is the alchemist's (hips and shoulders), with stiff limbs and no knees or elbows: a heavy, simple gait.
+ */
+const GOLEM_STONE = '#a8a291';
+const GOLEM_DARK = '#7d776a';
+/** Golems stand a little taller than an alchemist and much broader. */
+const GOLEM_SCALE = 0.37;
+const GOLEM_MOSS = '#5f7a45';
+const GOLEM_EYES = '#ffd36a';
+const GOLEM_HIP = 0.62;
+const GOLEM_SHOULDER = 1.28;
+interface GolemParts {
+  body: THREE.BufferGeometry;
+  arm: THREE.BufferGeometry;
+  leg: THREE.BufferGeometry;
+  material: THREE.MeshLambertMaterial;
+}
+let golemParts: GolemParts | null = null;
+function golemShared(): GolemParts {
+  if (golemParts) return golemParts;
+  const tint = (geo: THREE.BufferGeometry, hex: string, x = 0, y = 0, z = 0, rx = 0) => {
+    const g = geo.index ? geo.toNonIndexed() : geo;
+    if (rx) g.rotateX(rx);
+    g.translate(x, y, z);
+    const c = new THREE.Color(hex);
+    const colors = new Float32Array(g.attributes.position.count * 3);
+    for (let i = 0; i < colors.length; i += 3) colors.set([c.r, c.g, c.b], i);
+    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    g.deleteAttribute('uv');
+    return g;
+  };
+  const merge = (parts: THREE.BufferGeometry[]) => mergeGeometries(parts)!;
+  const body = merge([
+    // A broad boulder of a chest, a smaller one for the hips, a squat head sunk between the shoulders.
+    tint(new THREE.DodecahedronGeometry(0.42, 0).scale(1.15, 0.95, 0.8), GOLEM_STONE, 0, 1.12, 0),
+    tint(new THREE.BoxGeometry(0.5, 0.26, 0.34), GOLEM_DARK, 0, 0.72, 0),
+    tint(new THREE.BoxGeometry(0.3, 0.26, 0.28), GOLEM_DARK, 0, 1.52, 0.04),
+    tint(new THREE.BoxGeometry(0.07, 0.04, 0.02), GOLEM_EYES, -0.07, 1.54, 0.19),
+    tint(new THREE.BoxGeometry(0.07, 0.04, 0.02), GOLEM_EYES, 0.07, 1.54, 0.19),
+    // Moss on the shoulders and the crown.
+    tint(new THREE.DodecahedronGeometry(0.16, 0).scale(1.2, 0.5, 1), GOLEM_MOSS, -0.34, 1.42, -0.02),
+    tint(new THREE.DodecahedronGeometry(0.13, 0).scale(1.2, 0.5, 1), GOLEM_MOSS, 0.3, 1.44, 0.02),
+    tint(new THREE.BoxGeometry(0.24, 0.05, 0.2), GOLEM_MOSS, 0, 1.67, 0.02),
+  ]);
+  // An arm hangs from the shoulder: a long block ending in a big rock fist.
+  const arm = merge([
+    tint(new THREE.BoxGeometry(0.2, 0.52, 0.22), GOLEM_STONE, 0, -0.3, 0),
+    tint(new THREE.DodecahedronGeometry(0.17, 0), GOLEM_DARK, 0, -0.66, 0.02),
+  ]);
+  // A leg hangs from the hip: a stubby pillar on a flat stone foot.
+  const leg = merge([
+    tint(new THREE.BoxGeometry(0.22, 0.5, 0.24), GOLEM_DARK, 0, -0.26, 0),
+    tint(new THREE.BoxGeometry(0.26, 0.1, 0.32), GOLEM_STONE, 0, -0.55, 0.04),
+  ]);
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  return (golemParts = { body, arm, leg, material });
 }
 
 // A hit turns the whole figure white for a moment.
@@ -150,9 +214,11 @@ export class Character {
   readonly target = new THREE.Vector3();
   private readonly model = new THREE.Group();
   private readonly torso = new THREE.Group();
-  private readonly coatTail: THREE.Mesh;
-  private readonly legL = buildLeg(-1);
-  private readonly legR = buildLeg(1);
+  private readonly coatTail: THREE.Object3D;
+  private readonly legL: Limb;
+  private readonly legR: Limb;
+  /** A golem: its geometry is shared with every other one, so it is never freed with it. */
+  private readonly golem: boolean;
   private readonly armL: Limb;
   private readonly armR: Limb;
   private readonly speed: number;
@@ -192,6 +258,39 @@ export class Character {
     const coat = look.coat ?? COAT;
     const coatDark = look.coatDark ?? COAT_DARK;
     this.speed = look.speed ?? SPEED;
+    this.golem = look.golem ?? false;
+    // The same root, pivots and animation for both; only what hangs from them differs.
+    this.shadow = blob();
+    this.root.add(this.shadow);
+    if (this.golem) {
+      const g = golemShared();
+      const limb = (geo: THREE.BufferGeometry, x: number, y: number): Limb => {
+        const upper = new THREE.Group();
+        upper.position.set(x, y, 0);
+        upper.add(new THREE.Mesh(geo, g.material));
+        const lower = new THREE.Group(); // no knee or elbow: stiff stone limbs
+        upper.add(lower);
+        return { upper, lower };
+      };
+      this.legL = limb(g.leg, -0.15, GOLEM_HIP);
+      this.legR = limb(g.leg, 0.15, GOLEM_HIP);
+      this.armL = limb(g.arm, -0.5, GOLEM_SHOULDER);
+      this.armR = limb(g.arm, 0.5, GOLEM_SHOULDER);
+      this.coatTail = new THREE.Object3D();
+      this.torso.add(new THREE.Mesh(g.body, g.material), this.armL.upper, this.armR.upper);
+      this.model.add(this.torso, this.legL.upper, this.legR.upper);
+      this.model.scale.setScalar(GOLEM_SCALE);
+      this.shadow.scale.setScalar(1.3);
+      this.root.add(this.model);
+      this.root.position.set(0, heightAt(0, 0), 0);
+      this.target.copy(this.root.position);
+      this.model.traverse((o) => {
+        if (o instanceof THREE.Mesh) o.userData.material = o.material;
+      });
+      return;
+    }
+    this.legL = buildLeg(-1);
+    this.legR = buildLeg(1);
     this.armL = buildArm(-1, coat, coatDark);
     this.armR = buildArm(1, coat, coatDark);
     // Greatcoat: fitted chest, then long tails down to the knee, open at the front so the legs can stride.
@@ -254,9 +353,7 @@ export class Character {
     this.model.traverse((o) => {
       if (o instanceof THREE.Mesh) o.userData.material = o.material;
     });
-    // On the root, not the model: it stays flat on the ground when the body falls, and never flashes white.
-    this.shadow = blob();
-    this.root.add(this.shadow);
+    // The blob shadow is on the root, not the model: it stays flat on the ground when the body falls, and never flashes white.
   }
 
   /** True while walking somewhere. */
@@ -274,7 +371,7 @@ export class Character {
       if (!(o instanceof THREE.Mesh)) return;
       const base = (o.userData.base ??= o.userData.material) as THREE.MeshLambertMaterial;
       o.userData.material = solid ? base : ghostOf(base);
-      o.castShadow = solid;
+      o.castShadow = solid && !this.golem;
       if (this.flashTimer <= 0) o.material = o.userData.material;
     });
     this.shadow.material = solid ? blobMaterial! : ghostOf(blobMaterial as unknown as THREE.MeshLambertMaterial);
@@ -291,6 +388,7 @@ export class Character {
 
   /** Frees the model's geometries (materials are shared between characters and stay). */
   dispose() {
+    if (this.golem) return; // shared by every golem
     this.model.traverse((o) => {
       if (o instanceof THREE.Mesh) o.geometry.dispose();
     });

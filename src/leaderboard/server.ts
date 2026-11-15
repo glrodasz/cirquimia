@@ -9,7 +9,7 @@
 import { classifyDevice, type DeviceHints } from './device';
 import { newShareId } from './shareId';
 import { validSeed } from './challengeLink';
-import { ANONYMOUS_INITIALS, dayOf, monthStart, weekStart, isDifficulty, plausible, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS } from './score';
+import { ANONYMOUS_INITIALS, dayOf, monthStart, weekStart, hordeScore, isBoardMode, isDifficulty, plausible, plausibleHorde, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS, type BoardMode } from './score';
 
 /** The slice of Cloudflare's D1 API used here. */
 export interface D1Result<T> {
@@ -108,6 +108,11 @@ const MIGRATIONS = [
   'ALTER TABLE scores ADD COLUMN seed TEXT',
   // 1 when nobody named the score: it is saved as ANONYMOUS_INITIALS, unlike a player whose initials really are ANON.
   'ALTER TABLE scores ADD COLUMN anonymous INTEGER NOT NULL DEFAULT 0',
+  // The horde has its own boards: its runs and scores say so, and a horde score keeps the wave it reached.
+  "ALTER TABLE runs ADD COLUMN mode TEXT NOT NULL DEFAULT 'duel'",
+  "ALTER TABLE scores ADD COLUMN mode TEXT NOT NULL DEFAULT 'duel'",
+  'ALTER TABLE scores ADD COLUMN wave INTEGER NOT NULL DEFAULT 0',
+  'CREATE INDEX IF NOT EXISTS scores_mode ON scores (mode, score DESC, created_at)',
 ];
 
 let ready: Promise<unknown> | null = null;
@@ -158,14 +163,16 @@ export async function setup(ctx: Ctx) {
   return { db, ip: await hashIp(ctx.request, ctx.env.SCORE_SALT ?? 'cirquimia') };
 }
 
-/** POST /api/runs {rivals, difficulty} → {id}: a match against rivals has started. */
+/** POST /api/runs {rivals, difficulty} or {mode: 'horde'} → {id}: a duel against rivals, or a horde, has started. */
 export async function startRun(ctx: Ctx): Promise<Response> {
   const s = await setup(ctx);
   if (!s) return fail('unavailable', 503);
   const body = await readBody(ctx.request);
-  const rivals = body?.rivals;
-  const difficulty = body?.difficulty;
-  if (!Number.isInteger(rivals) || (rivals as number) < MIN_RIVALS || (rivals as number) > MAX_RIVALS || !isDifficulty(difficulty)) {
+  const mode: BoardMode = body?.mode === 'horde' ? 'horde' : 'duel';
+  // The horde has no rivals to count nor a level to pick: it stores 0 and the default level.
+  const rivals = mode === 'horde' ? 0 : body?.rivals;
+  const difficulty = mode === 'horde' ? 'normal' : body?.difficulty;
+  if (mode === 'duel' && (!Number.isInteger(rivals) || (rivals as number) < MIN_RIVALS || (rivals as number) > MAX_RIVALS || !isDifficulty(difficulty))) {
     return fail('bad-request', 400);
   }
   const now = Date.now();
@@ -173,7 +180,7 @@ export async function startRun(ctx: Ctx): Promise<Response> {
   if ((recent?.n ?? 0) >= MAX_RUNS_PER_WINDOW) return fail('too-many', 429);
   const id = crypto.randomUUID();
   const seed = validSeed(body?.seed) ? body.seed : null;
-  await s.db.prepare('INSERT INTO runs (id, created_at, rivals, difficulty, ip_hash, seed) VALUES (?, ?, ?, ?, ?, ?)').bind(id, now, rivals, difficulty, s.ip, seed).run();
+  await s.db.prepare('INSERT INTO runs (id, created_at, rivals, difficulty, ip_hash, seed, mode) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, now, rivals, difficulty, s.ip, seed, mode).run();
   // Now and then, forget runs nobody finished.
   if (Math.random() < 0.05) await s.db.prepare('DELETE FROM runs WHERE created_at < ?').bind(now - 24 * 60 * 60 * 1000).run();
   return json({ id }, 201);
@@ -189,6 +196,8 @@ interface Row {
   difficulty: string;
   category: string;
   created_at: number;
+  mode: string;
+  wave: number;
 }
 
 const entry = (r: Row) => ({
@@ -201,6 +210,8 @@ const entry = (r: Row) => ({
   difficulty: r.difficulty,
   category: r.category,
   at: r.created_at,
+  mode: r.mode,
+  wave: r.wave,
 });
 
 /**
@@ -212,7 +223,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   if (!s) return fail('unavailable', 503);
   const body = await readBody(ctx.request);
   if (!body) return fail('bad-request', 400);
-  const { runId, initials, durationMs, damage } = body;
+  const { runId, initials, durationMs, damage, wave } = body;
   if (typeof runId !== 'string' || runId.length > 64) return fail('bad-request', 400);
   const anonymous = initials === undefined || initials === null || initials === '';
   if (!anonymous && !validInitials(initials)) return fail('bad-initials', 400);
@@ -223,11 +234,13 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   if ((recent?.n ?? 0) >= MAX_SCORES_PER_WINDOW) return fail('too-many', 429);
 
   const run = await s.db
-    .prepare('SELECT created_at, rivals, difficulty, used, seed FROM runs WHERE id = ?')
+    .prepare('SELECT created_at, rivals, difficulty, used, seed, mode FROM runs WHERE id = ?')
     .bind(runId)
-    .first<{ created_at: number; rivals: number; difficulty: string; used: number; seed: string | null }>();
+    .first<{ created_at: number; rivals: number; difficulty: string; used: number; seed: string | null; mode: string | null }>();
   if (!run || run.used || now - run.created_at > RUN_TTL_MS) return fail('unknown-run', 409);
-  if (!isDifficulty(run.difficulty) || !plausible(run.rivals, run.difficulty, durationMs, damage)) return fail('implausible', 422);
+  const mode: BoardMode = isBoardMode(run.mode) ? run.mode : 'duel';
+  if (!isDifficulty(run.difficulty)) return fail('implausible', 422);
+  if (mode === 'horde' ? !plausibleHorde(wave, durationMs, damage) : !plausible(run.rivals, run.difficulty, durationMs, damage)) return fail('implausible', 422);
   const duration = Math.round(durationMs as number);
   if (now - run.created_at + CLOCK_SLACK_MS < duration) return fail('implausible', 422);
 
@@ -245,15 +258,16 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   const ua = ctx.request.headers.get('User-Agent') ?? '';
   const device = classifyDevice(ua, hints);
   const dealt = damage as number;
-  const score = scoreFor(dealt, run.difficulty, duration);
+  const reached = mode === 'horde' ? (wave as number) : 0;
+  const score = mode === 'horde' ? hordeScore(reached, duration) : scoreFor(dealt, run.difficulty, duration);
   const day = dayOf(now);
   const country = (ctx.request as Request & { cf?: { country?: string } }).cf?.country ?? null;
   const shareId = newShareId();
 
   const inserted = await s.db
     .prepare(
-      `INSERT INTO scores (share_id, run_id, initials, anonymous, score, duration_ms, damage, rivals, difficulty, seed, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO scores (share_id, run_id, initials, anonymous, score, duration_ms, damage, rivals, difficulty, seed, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at, mode, wave)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .bind(
       shareId,
@@ -279,6 +293,8 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       s.ip,
       day,
       now,
+      mode,
+      reached,
     )
     .first<{ id: number }>();
 
@@ -286,18 +302,18 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   const since = { week: weekStart(now), month: monthStart(now) };
   const [today, week, month, all] = await Promise.all([
     s.db
-      .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE day = ?1 AND (score > ?2 OR (score = ?2 AND created_at < ?3))) + 1 AS rank, (SELECT COUNT(*) FROM scores WHERE day = ?1) AS total')
-      .bind(day, score, now)
+      .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE mode = ?4 AND day = ?1 AND (score > ?2 OR (score = ?2 AND created_at < ?3))) + 1 AS rank, (SELECT COUNT(*) FROM scores WHERE mode = ?4 AND day = ?1) AS total')
+      .bind(day, score, now, mode)
       .first<{ rank: number; total: number }>(),
     ...[since.week, since.month].map((from) =>
       s.db
-        .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE created_at >= ?1 AND (score > ?2 OR (score = ?2 AND created_at < ?3))) + 1 AS rank, (SELECT COUNT(*) FROM scores WHERE created_at >= ?1) AS total')
-        .bind(from, score, now)
+        .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE mode = ?4 AND created_at >= ?1 AND (score > ?2 OR (score = ?2 AND created_at < ?3))) + 1 AS rank, (SELECT COUNT(*) FROM scores WHERE mode = ?4 AND created_at >= ?1) AS total')
+        .bind(from, score, now, mode)
         .first<{ rank: number; total: number }>(),
     ),
     s.db
-      .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE score > ?1 OR (score = ?1 AND created_at < ?2)) + 1 AS rank, (SELECT COUNT(*) FROM scores) AS total')
-      .bind(score, now)
+      .prepare('SELECT (SELECT COUNT(*) FROM scores WHERE mode = ?3 AND (score > ?1 OR (score = ?1 AND created_at < ?2))) + 1 AS rank, (SELECT COUNT(*) FROM scores WHERE mode = ?3) AS total')
+      .bind(score, now, mode)
       .first<{ rank: number; total: number }>(),
   ]);
   return json(
@@ -311,6 +327,8 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       rivals: run.rivals,
       difficulty: run.difficulty,
       category: device.category,
+      mode,
+      wave: reached,
       rank: { today: today?.rank ?? 1, week: week?.rank ?? 1, month: month?.rank ?? 1, all: all?.rank ?? 1 },
       total: { today: today?.total ?? 1, week: week?.total ?? 1, month: month?.total ?? 1, all: all?.total ?? 1 },
       share: `${new URL(ctx.request.url).origin}/s/${shareId}`,
@@ -356,7 +374,7 @@ export function parseMine(raw: string | null): number[] {
 }
 
 /**
- * GET /api/scores?period=today|week|month|all[&mine=ids] → the top BOARD_SIZE of the board, plus `me`: the best of
+ * GET /api/scores?period=today|week|month|all[&mode=duel|horde][&mine=ids] → the top BOARD_SIZE of the board, plus `me`: the best of
  * the player's own scores on that board with its place, when it is below the top. Days, weeks (from Monday) and
  * months are UTC. Reads only, so the board costs no D1 writes.
  */
@@ -368,15 +386,19 @@ export async function listScores(ctx: Ctx): Promise<Response> {
   const asked = url.searchParams.get('period');
   const period: Period = (PERIODS as readonly string[]).includes(asked ?? '') ? (asked as Period) : 'today';
   const mine = parseMine(url.searchParams.get('mine'));
+  const askedMode = url.searchParams.get('mode');
+  const mode: BoardMode = isBoardMode(askedMode) ? askedMode : 'duel';
   const now = Date.now();
   const day = dayOf(now);
-  const [where, args]: [string, unknown[]] =
+  const [when, whenArgs]: [string, unknown[]] =
     period === 'all'
       ? ['1 = 1', []]
       : period === 'today'
         ? ['day = ?', [day]]
         : ['created_at >= ?', [period === 'week' ? weekStart(now) : monthStart(now)]];
-  const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at';
+  const where = `mode = ? AND ${when}`;
+  const args = [mode, ...whenArgs];
+  const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at, mode, wave';
   const order = 'ORDER BY score DESC, created_at ASC LIMIT ?';
   const { results } = await s.prepare(`SELECT ${columns} FROM scores WHERE ${where} ${order}`).bind(...args, BOARD_SIZE).all<Row>();
 
@@ -396,7 +418,7 @@ export async function listScores(ctx: Ctx): Promise<Response> {
       me = { rank: (above?.n ?? 0) + 1, entry: entry(best) };
     }
   }
-  return json({ period, day, entries: results.map(entry), me }, 200, mine.length ? 'private, max-age=10' : 'public, max-age=10');
+  return json({ period, mode, day, entries: results.map(entry), me }, 200, mine.length ? 'private, max-age=10' : 'public, max-age=10');
 }
 
 /** Any error becomes a plain 500 the game can show as "ranking unavailable". */
