@@ -363,7 +363,7 @@
       #guides .tip .reset[hidden] { display: none; }
       #guides .tip :is(.reset, .fold):hover { opacity: 1; background: rgba(31,26,21,.08); }
       #guides .tip :is(.reset, .fold) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      #guides .boxes { display: grid; grid-template-columns: repeat(5, minmax(0, 46px)); gap: 7px; justify-content: space-between; margin: 0; padding: 3px 0 0; list-style: none; }
+      #guides .boxes { display: grid; grid-template-columns: repeat(6, minmax(0, 46px)); gap: 7px; justify-content: space-between; margin: 0; padding: 3px 0 0; list-style: none; }
       #guides .boxes li { position: relative; aspect-ratio: 1; color: var(--g-ink); box-shadow: inset 0 0 0 1px rgba(31,26,21,.45); }
       #guides .boxes li svg { width: 100%; height: 100%; display: block; }
       #guides .tip .fold svg { transition: transform .2s; }
@@ -432,7 +432,7 @@
       :is(#help .fig, #help .mini).rhombus { color: #4f7a52; }
       :is(#help .fig, #help .mini).pentagram { color: #6a4f8a; }
       :is(#help .fig, #help .mini).spiral { color: #3f6a2c; }
-      :is(#help .fig, #help .mini).hourglass { color: #a8402a; background: radial-gradient(circle, #ffd0a0 0%, #f08a3a55 40%, #d9ecef66 60%, rgba(255,250,235,0) 74%); }
+      :is(#help .fig, #help .mini):is(.hourglass, .blastStar) { color: #a8402a; background: radial-gradient(circle, #ffd0a0 0%, #f08a3a55 40%, #d9ecef66 60%, rgba(255,250,235,0) 74%); }
       :is(#help .fig, #help .mini).fireStar { color: #b0482c; background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, rgba(255,250,235,0) 74%); }
       :is(#help .fig, #help .mini).waterStar { color: #8a3f5c; background: radial-gradient(circle, #d9ecef 0%, #7fb3c299 45%, rgba(255,250,235,0) 74%); }
       :is(#help .fig, #help .mini).charged.triangle { background: radial-gradient(circle, #ffcf7a 0%, #f08a3a99 45%, var(--hud-bg) 75%); }
@@ -647,8 +647,8 @@
       #help .fig .glyph { opacity: 1; }
       :is(#help .fig, #help .mini) { color: var(--g-ink); }
       #help :is(.fig, .mini):is(.circle, .square, .triangleDown, .rhombus, .pentagram) { color: var(--g-ink); }
-      #help :is(.fig, .mini):is(.triangle, .hourglass) { color: var(--g-red); }
-      #help .fig.charged:is(.triangle, .triangleDown), #help .fig.hourglass { background: none; }
+      #help :is(.fig, .mini):is(.triangle, .hourglass, .blastStar) { color: var(--g-red); }
+      #help .fig.charged:is(.triangle, .triangleDown), #help .fig:is(.hourglass, .blastStar) { background: none; }
       #match-end .again:focus-visible { outline: 1px solid var(--g-ink); outline-offset: 3px; }
       #help .shapes { display: flex; flex-direction: column; gap: 2px; width: 100%; counter-reset: none; }
       #help .shapes li { flex-direction: row; align-items: center; gap: 8px; padding: 2px 4px; }

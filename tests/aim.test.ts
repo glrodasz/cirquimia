@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { aimMarks, Reticle } from '../src/aim';
-import { AREA_OF, PILLAR_AREA, RUNE_BOOST, STAR_REACH, starTips } from '../src/spells';
+import { AREA_OF, BLAST_STAR_OUTER, PILLAR_AREA, RUNE_BOOST, STAR_REACH, blastStarTips, starTips } from '../src/spells';
 
 describe('aimMarks', () => {
   it('is one strike-sized circle for the square, fire and water', () => {
@@ -42,6 +42,23 @@ describe('aimMarks', () => {
   it('is the star\'s five marks for the fire and water stars', () => {
     expect(aimMarks('fireStar', false)).toEqual(aimMarks('pentagram', false));
     expect(aimMarks('waterStar', true)).toEqual(aimMarks('pentagram', true));
+  });
+
+  it('is ten small blast-sized marks for the explosion star, one on the target, spread wider from the runes', () => {
+    for (const boosted of [false, true]) {
+      const scale = boosted ? RUNE_BOOST : 1;
+      const marks = aimMarks('blastStar', boosted);
+      const tips = blastStarTips(new THREE.Vector3(), scale);
+      expect(marks).toHaveLength(10);
+      expect(marks[0]).toMatchObject({ x: 0, z: 0 });
+      marks.forEach((m, i) => {
+        expect(m.x).toBeCloseTo(tips[i].at.x);
+        expect(m.z).toBeCloseTo(tips[i].at.z);
+        expect(m.r).toBeCloseTo(PILLAR_AREA * AREA_OF.blast * scale);
+      });
+      const widest = Math.max(...marks.map((m) => Math.hypot(m.x, m.z)));
+      expect(widest).toBeCloseTo(BLAST_STAR_OUTER * scale);
+    }
   });
 
   it('has nothing for shapes that need no target', () => {

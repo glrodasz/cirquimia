@@ -3,7 +3,8 @@
 export type Point = { x: number; y: number };
 // The compound shapes are never recognized from a stroke: they are what two symbols merge into when one is drawn
 // while the other is in hand (src/main.ts useDrawn). 'hourglass' = charged fire triangle + charged water triangle;
-// 'fireStar' / 'waterStar' = the pentagram + a charged fire / water triangle.
+// 'fireStar' / 'waterStar' = the pentagram + a charged fire / water triangle; 'blastStar' = the hourglass + the pentagram
+// (also reached from a fire star + water, or a water star + fire).
 export type ShapeKind =
   | 'circle'
   | 'triangle'
@@ -14,17 +15,22 @@ export type ShapeKind =
   | 'spiral'
   | 'hourglass'
   | 'fireStar'
-  | 'waterStar';
+  | 'waterStar'
+  | 'blastStar';
 
 const MERGES: Array<[ShapeKind, ShapeKind, ShapeKind]> = [
   ['triangle', 'triangleDown', 'hourglass'],
   ['pentagram', 'triangle', 'fireStar'],
   ['pentagram', 'triangleDown', 'waterStar'],
+  ['hourglass', 'pentagram', 'blastStar'],
+  ['fireStar', 'triangleDown', 'blastStar'],
+  ['waterStar', 'triangle', 'blastStar'],
 ];
 
 /**
  * What is in hand after `drawn` is stored: fire and water merge into the hourglass, the star and fire (or water) into
- * a fire (or water) star, in either order; anything else simply replaces what was held.
+ * a fire (or water) star, and the hourglass and the star (all three: fire, water and the star) into the explosion
+ * star, in either order; anything else simply replaces what was held.
  */
 export function mergedInHand(held: ShapeKind | null, drawn: ShapeKind): ShapeKind {
   const merge = MERGES.find(([a, b]) => (held === a && drawn === b) || (held === b && drawn === a));

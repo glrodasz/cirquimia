@@ -13,11 +13,15 @@ const OUTLINES: Record<Exclude<ShapeKind, 'circle' | 'spiral'>, Pt[]> = {
   // A fire or water star is drawn as the star; its element shows in its colour and glow.
   fireStar: STAR,
   waterStar: STAR,
+  // The explosion star: the hourglass, with a small star drawn over it as a second stroke (see shapeIcon).
+  blastStar: [[11, 9], [37, 9], [11, 39], [37, 39]],
   // Fire's triangle on top of water's, tips meeting in the middle: one stroke across the top, down, across, back up.
   hourglass: [[11, 9], [37, 9], [11, 39], [37, 39]],
 };
 // Outlines that cross themselves: always started from their first point, and drawn with a finer brush.
-const SELF_CROSSING = new Set<ShapeKind>(['pentagram', 'hourglass', 'fireStar', 'waterStar']);
+const SELF_CROSSING = new Set<ShapeKind>(['pentagram', 'hourglass', 'fireStar', 'waterStar', 'blastStar']);
+/** The small star drawn over the explosion star's hourglass. */
+const SMALL_STAR: Pt[] = STAR.map(([x, y]) => [24 + (x - 24) * 0.55, 24 + (y - 24) * 0.55]);
 const RING_R = 22.2; // the enso around an icon
 const STEP = 0.7; // px between brush samples
 const OVERSHOOT = 0.06; // fraction of the outline drawn past the start, like a hand closing a shape
@@ -82,7 +86,7 @@ function ribbon(line: Pt[], widths: number[], shift: number, half: number, base 
 }
 
 /** Samples a closed outline from a random-ish corner, past the start by a little, with a slight hand tremor. */
-function strokeLine(kind: ShapeKind, rand: () => number): { line: Pt[]; corners: number[] } {
+function strokeLine(kind: ShapeKind, rand: () => number, outline?: Pt[]): { line: Pt[]; corners: number[] } {
   const line: Pt[] = [];
   const corners: number[] = [];
   const tremor = (l: number, k: number) => 0.45 * Math.sin(l * 0.21 + k) + 0.25 * Math.sin(l * 0.53 + k * 3);
@@ -110,7 +114,7 @@ function strokeLine(kind: ShapeKind, rand: () => number): { line: Pt[]; corners:
     }
     return { line, corners };
   }
-  const poly = OUTLINES[kind];
+  const poly = outline ?? OUTLINES[kind];
   const sides = poly.length;
   const first = SELF_CROSSING.has(kind) ? 0 : Math.floor(rand() * sides);
   const pts = Array.from({ length: sides + 1 }, (_, i) => poly[(first + i) % sides]);
@@ -167,7 +171,14 @@ export function shapeIcon(kind: ShapeKind, fine = false): string {
   const rand = () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
   const id = `brush${++iconId}`;
   const { line, corners } = strokeLine(kind, rand);
-  const glyph = brushPath(line, (kind === 'spiral' ? 2.8 : SELF_CROSSING.has(kind) ? 3.2 : 3.9) * (fine ? 0.5 : 1), rand, corners);
+  const nib = (kind === 'spiral' ? 2.8 : SELF_CROSSING.has(kind) ? 3.2 : 3.9) * (fine ? 0.5 : 1);
+  const glyph = brushPath(line, nib, rand, corners);
+  if (kind === 'blastStar') {
+    const star = strokeLine('pentagram', rand, SMALL_STAR);
+    const over = brushPath(star.line, nib * 0.85, rand, star.corners);
+    glyph.ink += over.ink;
+    glyph.dry += over.dry;
+  }
   if (fine) return `<svg viewBox="0 0 48 48" aria-hidden="true"><path class="glyph" d="${glyph.ink}"/></svg>`;
 
   const ring = brushPath(ensoLine(rand), 2.2, rand);
