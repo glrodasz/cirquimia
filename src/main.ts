@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { DEV, mountDevTools, savedQuality } from './devtools';
-import { mountMatchControls, savedRivals } from './match';
+import { firstRealMatchEnded, mountMatchControls, savedRivals } from './match';
 import { mountMatchTimer } from './matchTimer';
 import { mountVersionBadge } from './version';
 import { mountHudFade } from './hudFade';
@@ -264,7 +264,9 @@ combat.onStart = () => {
 };
 combat.onEnd = (outcome) => {
   const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs, damage: combat.heroDamage };
-  matchHud.showEnd(outcome);
+  // The first real match, lost: training is offered beside playing again.
+  const firstReal = combat.rivalCount > 0 && !tutorialMatch && tutorial.done && firstRealMatchEnded();
+  matchHud.showEnd(outcome, outcome !== 'victory' && firstReal);
   // Score, initials and sharing only where the score can be saved.
   if (outcome === 'victory' && rankedMatch) board.fillEnd(matchHud.endSlots, runs, match, snapshotMeadow());
 };
