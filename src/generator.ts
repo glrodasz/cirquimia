@@ -34,6 +34,15 @@ export interface PlayArea {
 const CORNER_DEPTH = 0.3;
 const CORNER_WIDTH = 0.65;
 const SOURCE_KINDS: Kind[] = ['estanque', 'fogata'];
+/**
+ * Training spreads the campfire and the lagoon out: of a few free spots, each takes the one that best keeps off the
+ * spawn (where the scarecrow stands) and away from the other source, at a clearly different distance from the spawn
+ * (one near, one far). Each term counts up to its cap in world units, so a roomy screen does not chase the edges.
+ */
+const SPREAD_SPOTS = 40;
+const SPREAD_OFF_SPAWN = 2;
+const SPREAD_APART = 2.5;
+const SPREAD_REACH_DIFF = 1.6;
 
 /**
  * What a 9:16 to 9:21 phone shows around the spawn (the narrow near edge is about 4.4 units wide): the default
@@ -307,7 +316,11 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
     }
     let placed: Feature | null = null;
     const tries = must(w.kind) ? 400 : 80;
-    for (let attempt = 0; attempt < tries && !placed; attempt++) {
+    const spread = !!area.clearCorner && SOURCE_KINDS.includes(w.kind);
+    const other = spread ? features.find((f) => SOURCE_KINDS.includes(f.kind)) : undefined;
+    let spots = 0;
+    let best = -Infinity;
+    for (let attempt = 0; attempt < tries && (spread ? spots < SPREAD_SPOTS : !placed); attempt++) {
       let v = THREE.MathUtils.lerp(area.vMin + insetV, area.vMax - insetV, rand());
       // The near edge is the narrowest: a round piece must clear the side at its own nearest depth.
       const room = area.halfWidthAt(whole ? v - insetV : v) - insetU;
@@ -336,6 +349,17 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
         return (f.x - x) ** 2 + (f.z - z) ** 2 < ((f.r + r) * 0.8 + gap) ** 2; // footprints include a soft margin
       });
       if (crowded) continue;
+      if (spread) {
+        spots++;
+        const reach = Math.hypot(x, z);
+        let score = 2 * Math.min(reach - r, SPREAD_OFF_SPAWN) + rand() * 0.6; // a little luck, so meadows differ
+        if (other) {
+          score += Math.min(Math.hypot(other.x - x, other.z - z) - other.r - r, SPREAD_APART);
+          score += 2 * Math.min(Math.abs(Math.hypot(other.x, other.z) - reach), SPREAD_REACH_DIFF);
+        }
+        if (score <= best) continue;
+        best = score;
+      }
       placed = {
         kind: w.kind,
         material: spec.material,

@@ -158,8 +158,9 @@ const tutorial = new Tutorial({
   },
 });
 combat.spar(!tutorial.done);
-// The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
-world.noRunes = () => !tutorial.done;
+// The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson. Training's have none
+// either, so the meadow stays quiet around the guides.
+world.noRunes = () => !tutorial.done || world.requiredBy() === 'training';
 
 /** A clear spot a short walk from the alchemist, on screen and away from props and water, for the walking lesson. */
 function walkGoal(): THREE.Vector3 | null {

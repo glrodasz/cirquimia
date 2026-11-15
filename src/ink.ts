@@ -18,6 +18,11 @@ const WIDTH_MAX = 11; // px, at rest
 const WIDTH_MIN = 4; // px, at full speed
 const FAST = 2.2; // px/ms counted as full speed
 const WIDTH_EASE = 0.2; // how quickly the width follows the speed
+
+/** Screen px of the ink at a steady `speed` (px/ms): what a stroke drawn at that pace settles to. */
+export function inkWidthAt(speed: number): number {
+  return WIDTH_MAX + (WIDTH_MIN - WIDTH_MAX) * Math.min(1, speed / FAST);
+}
 const TAPER_IN = 14; // px of stroke to swell in from a point
 const TAPER_OUT = 26; // px of stroke to thin out to a point
 
@@ -84,7 +89,7 @@ export class Ink {
     const now = performance.now();
     const speed = step / Math.max(1, now - this.lastTime);
     this.lastTime = now;
-    const target = WIDTH_MAX + (WIDTH_MIN - WIDTH_MAX) * Math.min(1, speed / FAST);
+    const target = inkWidthAt(speed);
     this.width += (target - this.width) * WIDTH_EASE;
     this.points.push(this.tip);
     this.widths.push(this.width);
