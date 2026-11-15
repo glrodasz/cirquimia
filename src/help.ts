@@ -55,7 +55,7 @@ function bookCard() {
     `<div class="book" tabindex="-1"><button type="button" class="x" aria-label="${t.help.close}">×</button>` +
     `<h2 id="help-title"></h2>` +
     `<div class="pages">${pages}</div>` +
-    `<p class="ver">v${VERSION}</p>` +
+    `<p class="ver">v${VERSION.split('-')[0]}</p>` +
     `<div class="foot"><div class="tabs">` +
     `<button type="button" class="tab" data-to="symbols">${circleTabIcon()}<span>${t.help.symbolsButton}</span></button>` +
     `<button type="button" class="tab" data-to="guide">${quillTabIcon()}<span>${t.help.howTo}</span></button>` +
