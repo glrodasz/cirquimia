@@ -389,7 +389,8 @@ export class Guides {
     this.guide.innerHTML =
       `<svg viewBox="0 0 48 48" aria-hidden="true"><path class="path" d="${guide}"/>` +
       `<path class="head" d="M${head[0]}L${ahead[0].toFixed(1)} ${ahead[1].toFixed(1)}L${head[1]}"/>` +
-      `<circle class="start" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.2"/>${ink}</svg>`;
+      `<circle class="start" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.2"/>${ink}</svg>` +
+      (this.step.parts.length > 1 ? `<span class="step-tag">${t.guides.step} <em>${this.part + 1}</em></span>` : '');
   }
 
   private say(title: string, body: string) {
