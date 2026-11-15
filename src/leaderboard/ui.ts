@@ -4,9 +4,9 @@
  */
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
-import { blueskyLogo, discordLogo, mastodonLogo, saveIcon, telegramLogo, threadsLogo, trophyIcon, whatsappLogo, xLogo } from '../icons';
+import { blueskyLogo, checkIcon, discordLogo, linkIcon, mastodonLogo, saveIcon, telegramLogo, threadsLogo, trophyIcon, whatsappLogo, xLogo } from '../icons';
 import { failed, fetchBoard, myScores, renameScore, savedInitials, saveInitials, submitScore, uploadCard, type Entry, type Period, type Runs } from './client';
-import { mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
+import { copyShareText, mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
 import { cleanInitials, formatTime, hordeScore, scoreFor, validInitials, type BoardMode } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -194,7 +194,8 @@ export function mountLeaderboard(): Leaderboard {
       `<button type="button" class="match-btn net brand" data-to="bluesky" aria-label="Bluesky">${blueskyLogo()}<span class="cap">Bluesky</span></button>` +
       `<button type="button" class="match-btn net brand" data-to="threads" aria-label="Threads">${threadsLogo()}<span class="cap">Threads</span></button>` +
       `<button type="button" class="match-btn net brand" data-to="mastodon" aria-label="Mastodon">${mastodonLogo()}<span class="cap">Mastodon</span></button>` +
-      `<button type="button" class="match-btn net save-img" data-to="image" aria-label="${t.rank.saveImage}" title="${t.rank.saveImage}">${saveIcon()}</button></div>` +
+      `<button type="button" class="match-btn net save-img" data-to="image" aria-label="${t.rank.saveImage}" title="${t.rank.saveImage}">${saveIcon()}</button>` +
+      `<button type="button" class="match-btn net save-img copy-link" data-to="link" aria-label="${t.rank.copyLink}" title="${t.rank.copyLink}">${linkIcon()}<span class="tip" aria-hidden="true">${t.rank.copied}</span></button></div>` +
       `<form class="masto" hidden novalidate><input name="host" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" enterkeyhint="go" placeholder="${t.rank.mastodonHost}" aria-label="${t.rank.mastodonHost}">` +
       `<button type="submit" class="match-btn"><span class="cap">${t.rank.go}</span></button></form></div>`;
     const form = slot.querySelector<HTMLFormElement>('.sign')!;
@@ -325,10 +326,29 @@ export function mountLeaderboard(): Leaderboard {
       masto.hidden = true;
       openComposer('mastodon', data, link, host);
     };
+    const copyBtn = shared.querySelector<HTMLButtonElement>('.copy-link')!;
+    let copiedTimer = 0;
+    const copyLink = async () => {
+      if (!(await copyShareText(data, link))) {
+        say(t.rank.copyFailed);
+        return;
+      }
+      // A tick and a little "Copied" over the button for a moment.
+      copyBtn.innerHTML = `${checkIcon()}<span class="tip" aria-hidden="true">${t.rank.copied}</span>`;
+      copyBtn.classList.add('done');
+      copyBtn.setAttribute('aria-label', t.rank.copied);
+      clearTimeout(copiedTimer);
+      copiedTimer = window.setTimeout(() => {
+        copyBtn.classList.remove('done');
+        copyBtn.innerHTML = `${linkIcon()}<span class="tip" aria-hidden="true">${t.rank.copied}</span>`;
+        copyBtn.setAttribute('aria-label', t.rank.copyLink);
+      }, 1600);
+    };
     const share = async (to: string) => {
       if (to === 'x' || to === 'bluesky' || to === 'threads' || to === 'whatsapp' || to === 'telegram') openComposer(to, data, link);
       else if (to === 'mastodon') mastodon(savedMastodon());
       else if (to === 'image') await saveImage(card, data);
+      else if (to === 'link') await copyLink();
       else if (to === 'preview') await shareImage(card, data, link);
       else if (to === 'discord') {
         const result = await shareDiscord(card, data, link);

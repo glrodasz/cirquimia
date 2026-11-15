@@ -9,6 +9,7 @@ const RIVALS: Array<[string, CharacterLook]> = [
   ['Rojo', { coat: '#6b3a3a', coatDark: '#4f2a2b' }],
   ['Verde', { coat: '#3f5e3c', coatDark: '#2e452c' }],
   ['Ciruela', { coat: '#55406b', coatDark: '#3e2f50' }],
+  ['Ocre', { coat: '#7a6230', coatDark: '#5a4822' }],
 ];
 
 /** Walks in a small circle (the keyboard's steering, turned a little each frame), so the gait can be watched in place. */
@@ -68,7 +69,7 @@ const rivals: StoryFn = () => {
   const people = [new Character([], {}), ...RIVALS.map(([, look]) => new Character([], look))];
   const group = new THREE.Group();
   people.forEach((c, i) => {
-    c.root.position.set((i - 1.5) * 0.75, 0, 0);
+    c.root.position.set((i - (people.length - 1) / 2) * 0.75, 0, 0);
     c.halt(); // a character walks to its target, the origin until told otherwise
     c.face(new THREE.Vector3(c.root.position.x + 1, 0, 6));
     group.add(c.root);

@@ -65,7 +65,7 @@ Drawing a new symbol replaces the one in hand, so a square followed by a triangl
 
 **Runes.** Cast from inside a rune circle on the ground and your power grows: +25% strike area, and heals restore 33 instead of 25. Walls cannot be raised inside one, so nobody can turtle up there.
 
-A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. The two pills at the bottom left set the number of rivals (0 to 2, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard); the book at the bottom right reopens the guide. A first visit goes straight into the first match, which teaches by playing: walk to a mark, draw a square, raise a wall, then a hand tracing the triangle over the campfire, and then the lagoon, until each has been charged once. The "?" opens a three-page guide (move, draw, cast).
+A fighter at 0 HP falls. Knock out every rival for **¡Victoria!**; fall yourself and it is **Game Over**. Each new game starts on a new meadow. New game (top left) sets a duel's number of rivals (1 to 4, free-for-all) and the difficulty (Easy, Normal, Hard, Very hard, Hardcore), or starts the horde; the book at the bottom right reopens the guide. A first visit goes straight into the first match, which teaches by playing: walk to a mark, draw a square, raise a wall, then a hand tracing the triangle over the campfire, and then the lagoon, until each has been charged once. The "?" opens a three-page guide (move, draw, cast).
 
 ## How it works
 

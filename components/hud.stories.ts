@@ -16,8 +16,8 @@ export const Duel: StoryObj = {
     backdrop: true,
     args: { rivals: 2, level: 'normal' },
     argTypes: {
-      rivals: { name: 'Rivales', control: { type: 'inline-radio' }, options: [1, 2, 3] },
-      level: { name: 'Nivel', control: { type: 'select', labels: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' } }, options: ['facil', 'normal', 'dificil', 'experto'] },
+      rivals: { name: 'Rivales', control: { type: 'inline-radio' }, options: [1, 2, 3, 4] },
+      level: { name: 'Nivel', control: { type: 'select', labels: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil', hardcore: 'Hardcore' } }, options: ['facil', 'normal', 'dificil', 'experto', 'hardcore'] },
     },
   }),
 };

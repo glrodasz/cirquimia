@@ -126,6 +126,7 @@ const training: StoryFn = async () => {
     covered: () => false,
     toScreen: (p, lift) => v.toScreen(p, lift),
     hero: () => hero.root.position,
+    home: () => new THREE.Vector3(0, 0, 0),
     dummy: () => dummy.root.position,
     hitMe: () => {},
     source: (element) => source(world, element, hero.root.position),

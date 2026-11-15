@@ -105,7 +105,7 @@ export function challengeUrl(row: Pick<ShareRow, 'locale' | 'rivals' | 'difficul
 
 const COPY = {
   en: {
-    level: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard' } as Record<Difficulty, string>,
+    level: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard', hardcore: 'Hardcore' } as Record<Difficulty, string>,
     title: (who: string | null, score: string) => `${who ? `${who}: ` : ''}${score} points in Cirquimia`,
     body: (rivals: number, level: string, time: string) =>
       `Beat ${rivals === 1 ? '1 rival' : `${rivals} rivals`} on ${level} in ${time}. Can you beat it?`,
@@ -113,7 +113,7 @@ const COPY = {
     alt: (score: string) => `Cirquimia victory card: ${score} points`,
   },
   es: {
-    level: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' } as Record<Difficulty, string>,
+    level: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil', hardcore: 'Hardcore' } as Record<Difficulty, string>,
     title: (who: string | null, score: string) => `${who ? `${who}: ` : ''}${score} puntos en Cirquimia`,
     body: (rivals: number, level: string, time: string) =>
       `Venció a ${rivals === 1 ? '1 rival' : `${rivals} rivales`} en ${level} en ${time}. ¿Lo superas?`,

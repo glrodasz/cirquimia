@@ -2,7 +2,7 @@ import type { Pt } from './ammo';
 import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
 import { ending } from './audio';
 import { t } from './i18n';
-import { hordeIcon, levelIcon, newGameIcon, rivalsIcon } from './icons';
+import { hordeIcon, levelIcon, newGameIcon, rivalsIcon, skullIcon } from './icons';
 import { formatTime } from './leaderboard/score';
 import { challenge } from './challenge';
 
@@ -35,13 +35,13 @@ function setSpot(value: 'next' | '1') {
   }
 }
 
-/** Training (the scarecrow), a duel against 1–3 rivals, or the horde's waves. */
+/** Training (the scarecrow), a duel against 1–4 rivals, or the horde's waves. */
 export type Mode = 'training' | 'duel' | 'horde';
 
 /** What the HUD needs from the game: the current match and a way to restart it. */
 export interface MatchControls {
   readonly mode: Mode;
-  /** Rivals in a duel (1–3); training and the horde keep it for the next duel. */
+  /** Rivals in a duel (1–4); training and the horde keep it for the next duel. */
   readonly rivals: number;
   readonly difficulty: Difficulty;
   /** Sets the mode (and, for a duel, its rivals and level) without restarting. */
@@ -209,7 +209,13 @@ export function mountMatchControls(match: MatchControls) {
   void document.fonts?.ready.then(fit);
 
   let toastTimer = 0;
+  const hideToast = () => {
+    clearTimeout(toastTimer);
+    toast.classList.remove('show');
+  };
   const say = (text: string, ms = 1600) => {
+    // The New game pointer already talks about the match; one note at a time.
+    if (spotting) return;
     toast.textContent = text;
     toast.classList.remove('show');
     void toast.offsetWidth; // restart the fade when tapping quickly
@@ -245,8 +251,10 @@ export function mountMatchControls(match: MatchControls) {
   spotTip.innerHTML = `<b>${t.match.spotTitle}</b><span>${t.match.spotBody}</span>`;
   document.body.append(spotTip);
   let spotTimer = 0;
+  let spotting = false;
   const unspot = () => {
     clearTimeout(spotTimer);
+    spotting = false;
     box.classList.remove('spot');
     spotTip.hidden = true;
   };
@@ -254,6 +262,8 @@ export function mountMatchControls(match: MatchControls) {
   const spotNext = () => {
     if (spotState() !== 'next') return;
     setSpot('1');
+    hideToast();
+    spotting = true;
     box.classList.add('spot');
     spotTip.hidden = false;
     spotTimer = window.setTimeout(unspot, SPOT_MS);
@@ -282,16 +292,16 @@ export function mountMatchControls(match: MatchControls) {
     `<section class="mode duel" aria-labelledby="newgame-duel"><div class="head"><span class="disc">${rivalsIcon(2)}</span><h3 id="newgame-duel">${p.duel}</h3></div>` +
     `<p>${p.duelBody}</p>` +
     `<div class="field"><span class="label">${p.rivals}</span><div class="opts" role="group" aria-label="${p.rivals}">` +
-    [1, 2, 3].map((n) => choice('rivals', String(n), `${rivalsIcon(n)}<span>${n}</span>`, t.rank.rivals(n))).join('') +
+    [1, 2, 3, 4].map((n) => choice('rivals', String(n), `${rivalsIcon(n)}<span>${n}</span>`, t.rank.rivals(n))).join('') +
     `</div></div>` +
     `<div class="field"><span class="label">${p.level}</span><div class="opts levels" role="group" aria-label="${p.level}">` +
-    LEVELS.map((l, i) => choice('level', l, `${levelIcon(i + 1)}<span>${DIFFICULTY_LABEL[l]}</span>`, DIFFICULTY_LABEL[l])).join('') +
+    LEVELS.map((l, i) => choice('level', l, `${l === 'hardcore' ? skullIcon() : levelIcon(i + 1)}<span>${DIFFICULTY_LABEL[l]}</span>`, DIFFICULTY_LABEL[l])).join('') +
     `</div></div>` +
-    `<button type="button" class="play" data-play="duel">${p.play}</button></section>` +
+    `<button type="button" class="play" data-play="duel">${p.playDuel}</button></section>` +
     `<section class="mode horde" aria-labelledby="newgame-horde"><div class="head"><span class="disc">${hordeIcon()}</span><h3 id="newgame-horde">${p.horde}</h3></div>` +
     `<p>${p.hordeBody}</p>` +
     `<p class="waves">${p.waves}</p>` +
-    `<button type="button" class="play" data-play="horde">${p.play}</button></section>` +
+    `<button type="button" class="play" data-play="horde">${p.playHorde}</button></section>` +
     `</div></div>`;
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) picker.addEventListener(type, (e) => e.stopPropagation());
   document.body.append(picker);
@@ -369,8 +379,8 @@ export function mountMatchControls(match: MatchControls) {
   again.addEventListener('click', () => {
     closeEnd();
     match.restart();
-    restarted(again);
     spotNext();
+    restarted(again);
   });
   // A challenge link set this match up: say so once, where a restart would.
   if (challenge) {

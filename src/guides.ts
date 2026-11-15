@@ -4,6 +4,7 @@ import { arc, segment } from './match';
 import type { ShapeKind } from './gestures';
 import { t, type GuideShape } from './i18n';
 import { downArrow } from './icons';
+import { inkWidthAt } from './ink';
 import { hasKeyboard } from './keys';
 import { Popover } from './popover';
 
@@ -73,6 +74,17 @@ function guideLine(kind: GuideShape): Pt[] {
   return c.slice(1).flatMap((p, i) => segment(c[i], p).slice(i ? 1 : 0));
 }
 
+/** px/ms of a player's usual stroke (a guide-sized circle in well under a second), faster than the hand's slow demo. */
+const PLAYER_PACE = 1;
+
+/**
+ * The example stroke's width in the guide's 48-unit box: as wide on screen as the player's own ink drawn at their
+ * usual pace, however big the guide is.
+ */
+function inkUnits(size: number) {
+  return inkWidthAt(PLAYER_PACE) / (size / 48);
+}
+
 function seeded(seed: number) {
   return () => ((seed = (seed * 16807) % 2147483647) & 0xffff) / 0xffff;
 }
@@ -87,6 +99,8 @@ export interface GuidesHost {
   toScreen(p: THREE.Vector3, lift: number): { x: number; y: number };
   /** Where the alchemist stands. */
   hero(): THREE.Vector3;
+  /** Where the alchemist started training (below the scarecrow), which the guides stay around. */
+  home(): THREE.Vector3;
   /** The scarecrow standing now, if any. */
   dummy(): THREE.Vector3 | null;
   /** Shows or hides the scarecrow's "Hit me!" (off during the guided round, which says it in its bubbles). */
@@ -102,7 +116,7 @@ export interface GuidesHost {
 /**
  * Training's shape loop: one symbol at a time lies on the meadow as a dashed outline with a dot where the stroke
  * starts and an arrowhead for the way to go, and a hand traces it now and then, so players learn the symbols by
- * following them. Circle, square, diamond, star and spiral sit beside the alchemist; the triangles over the campfire
+ * following them. Circle, square, diamond, star and spiral sit across the middle, around where the alchemist starts; the triangles over the campfire
  * and the water (an arrow points there while it is off screen); the combinations ask for their two strokes in turn
  * ("Step 1", "hold it", "Step 2", "throw it"). What to do is said in a speech bubble next to where to do it.
  * Drawn (and, for what waits in hand, cast), a step is ticked on the grimoire sheet at the bottom right and the next
@@ -133,7 +147,6 @@ export class Guides {
   private time = 0;
   /** Where the guide sits on screen, gliding after the alchemist rather than jumping. */
   private at: { x: number; y: number } | null = null;
-  private side = 1;
   private shownKey = '';
 
   private readonly root = document.createElement('div');
@@ -373,9 +386,10 @@ export class Guides {
       return;
     }
     const size = boxSize();
-    const at = this.besideHero(dt, size);
+    const at = this.centred(dt, size);
     this.place(at, size, null, dt);
-    this.say(t.guides.draw[shape], { x: at.x, y: at.y - size / 2 + 8 }, dt, label, at.y + size / 2 - 8);
+    // Over the guide's left shoulder rather than its middle: the scarecrow stands straight above it.
+    this.say(t.guides.draw[shape], { x: at.x - size * 0.42, y: at.y - size / 2 + 8 }, dt, label, at.y + size / 2 - 8);
   }
 
   /** Over the scarecrow's "Hit me!" label (or its head when the label is not up). */
@@ -387,24 +401,18 @@ export class Guides {
     return d ? this.host.toScreen(d, 1.25) : null;
   }
 
-  /** A clear spot beside the alchemist, off the HUD at the top and the stick and this line at the bottom. */
-  private besideHero(dt: number, size: number) {
-    const h = this.host.toScreen(this.host.hero(), 0.35);
+  /**
+   * Centred across the screen, around where the alchemist started (below the scarecrow, so it stays in sight), kept
+   * clear of the HUD at the top and of the stick and the sheet of circles at the bottom.
+   */
+  private centred(dt: number, size: number) {
     const half = size / 2;
     const top = 96 + half;
-    const bottom = innerHeight - (touch() ? 170 : 120) - half; // phones: clear of the sheet of circles too
-    const fits = (x: number, y: number) => x - half > 8 && x + half < innerWidth - 8 && y > top && y < bottom;
-    const gap = half + 46;
-    const tries = [
-      { x: h.x + gap * this.side, y: h.y - 20, side: this.side },
-      { x: h.x - gap * this.side, y: h.y - 20, side: -this.side },
-      { x: h.x, y: h.y - gap - 20, side: this.side },
-      { x: h.x, y: h.y + gap, side: this.side },
-    ];
-    const spot = tries.find((s) => fits(s.x, s.y)) ?? { x: innerWidth / 2, y: innerHeight * 0.42, side: this.side };
-    this.side = spot.side; // keeps to the same side while it fits, so it does not flip back and forth
+    const bottom = innerHeight - (touch() ? 170 : 120) - half;
+    const home = this.host.toScreen(this.host.home(), 0.35);
+    const spot = { x: innerWidth / 2, y: Math.max(top, Math.min(bottom, home.y)) };
     const k = this.at ? 1 - Math.exp(-dt * 6) : 1;
-    const at = (this.at ??= { x: spot.x, y: spot.y });
+    const at = (this.at ??= { ...spot });
     at.x += (spot.x - at.x) * k;
     at.y += (spot.y - at.y) * k;
     return at;
@@ -462,7 +470,7 @@ export class Guides {
     if (tracing && fade > 0) {
       const n = Math.max(2, Math.round(line.length * eased));
       const drawn = line.slice(0, n);
-      const brush = brushPath(drawn, 3.2, seeded(7), []);
+      const brush = brushPath(drawn, inkUnits(size), seeded(7), []);
       const [fx, fy] = drawn[drawn.length - 1];
       ink =
         `<g style="opacity:${fade.toFixed(2)}"><path class="stroke" d="${brush.ink}"/>` +

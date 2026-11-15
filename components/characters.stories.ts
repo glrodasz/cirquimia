@@ -19,7 +19,7 @@ export const Alchemist: StoryObj = {
 export const Rivals: StoryObj = {
   name: 'Rivales',
   ...scene(load, 'rivals', {
-    doc: 'Los tres rivales (rojo, verde, ciruela) junto al alquimista.',
+    doc: 'Los cuatro rivales (rojo, verde, ciruela, ocre) junto al alquimista.',
     source: 'src/character.ts, combat.ts',
   }),
 };

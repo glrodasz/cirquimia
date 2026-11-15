@@ -110,7 +110,7 @@ interface MoveLesson {
 const es = {
   title: 'Cirquimia',
   switchLanguage: 'Cambiar a español',
-  difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' },
+  difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil', hardcore: 'Hardcore' },
   match: {
     toolbar: 'Partida',
     time: 'Tiempo de partida',
@@ -137,13 +137,14 @@ const es = {
     picker: {
       title: 'Nuevo juego',
       duel: 'Duelo',
-      duelBody: 'Contra la computadora: tú contra uno, dos o tres alquimistas.',
+      duelBody: 'Contra la computadora: tú contra uno, dos, tres o cuatro alquimistas.',
       rivals: 'Rivales',
       level: 'Dificultad',
       horde: 'Horda',
       hordeBody: 'Tú solo contra oleadas de golems de piedra que atacan con tierra.',
       waves: 'Oleadas de 1, 2, 3, 5, 8… golems',
-      play: 'Jugar',
+      playDuel: 'Jugar Duelo',
+      playHorde: 'Jugar Horda',
       close: 'Cerrar',
     },
     hordeStarted: 'Horda · ¡Aguanta las oleadas!',
@@ -176,6 +177,9 @@ const es = {
     share: 'Compartir',
     more: 'Más',
     saveImage: 'Guardar imagen',
+    copyLink: 'Copiar mensaje y enlace',
+    copied: 'Copiado',
+    copyFailed: 'No se pudo copiar.',
     dare: (score: string, points: string) => `¿Quién supera tus ${score} ${points}?`,
     postOnX: 'Publicar en', // + X
     post: 'Publicar', // beside the X logo
@@ -493,7 +497,7 @@ export type Strings = typeof es;
 const en: Strings = {
   title: 'Cirquimia',
   switchLanguage: 'Switch to English',
-  difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard' },
+  difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard', hardcore: 'Hardcore' },
   match: {
     toolbar: 'Match',
     time: 'Match time',
@@ -519,13 +523,14 @@ const en: Strings = {
     picker: {
       title: 'New game',
       duel: 'Duel',
-      duelBody: 'Against the computer: you against one, two or three alchemists.',
+      duelBody: 'Against the computer: you against one to four alchemists.',
       rivals: 'Rivals',
       level: 'Difficulty',
       horde: 'Horde',
       hordeBody: 'You alone against waves of stone golems that strike with earth.',
       waves: 'Waves of 1, 2, 3, 5, 8… golems',
-      play: 'Play',
+      playDuel: 'Play Duel',
+      playHorde: 'Play Horde',
       close: 'Close',
     },
     hordeStarted: 'Horde · Hold out against the waves!',
@@ -558,6 +563,9 @@ const en: Strings = {
     share: 'Share',
     more: 'More',
     saveImage: 'Save image',
+    copyLink: 'Copy message and link',
+    copied: 'Copied',
+    copyFailed: 'Could not copy.',
     dare: (score, points) => `Who can beat your ${score} ${points}?`,
     postOnX: 'Post on',
     post: 'Post',
