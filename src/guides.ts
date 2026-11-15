@@ -99,6 +99,8 @@ export interface GuidesHost {
   toScreen(p: THREE.Vector3, lift: number): { x: number; y: number };
   /** Where the alchemist stands. */
   hero(): THREE.Vector3;
+  /** Where the alchemist started training (below the scarecrow), which the guides stay around. */
+  home(): THREE.Vector3;
   /** The scarecrow standing now, if any. */
   dummy(): THREE.Vector3 | null;
   /** Shows or hides the scarecrow's "Hit me!" (off during the guided round, which says it in its bubbles). */
@@ -114,7 +116,7 @@ export interface GuidesHost {
 /**
  * Training's shape loop: one symbol at a time lies on the meadow as a dashed outline with a dot where the stroke
  * starts and an arrowhead for the way to go, and a hand traces it now and then, so players learn the symbols by
- * following them. Circle, square, diamond, star and spiral sit in the middle of the screen; the triangles over the campfire
+ * following them. Circle, square, diamond, star and spiral sit across the middle, around where the alchemist starts; the triangles over the campfire
  * and the water (an arrow points there while it is off screen); the combinations ask for their two strokes in turn
  * ("Step 1", "hold it", "Step 2", "throw it"). What to do is said in a speech bubble next to where to do it.
  * Drawn (and, for what waits in hand, cast), a step is ticked on the grimoire sheet at the bottom right and the next
@@ -398,12 +400,16 @@ export class Guides {
     return d ? this.host.toScreen(d, 1.25) : null;
   }
 
-  /** The middle of the screen, kept clear of the HUD at the top and of the stick and the sheet of circles at the bottom. */
+  /**
+   * Centred across the screen, around where the alchemist started (below the scarecrow, so it stays in sight), kept
+   * clear of the HUD at the top and of the stick and the sheet of circles at the bottom.
+   */
   private centred(dt: number, size: number) {
     const half = size / 2;
     const top = 96 + half;
     const bottom = innerHeight - (touch() ? 170 : 120) - half;
-    const spot = { x: innerWidth / 2, y: Math.max(top, Math.min(bottom, innerHeight / 2)) };
+    const home = this.host.toScreen(this.host.home(), 0.35);
+    const spot = { x: innerWidth / 2, y: Math.max(top, Math.min(bottom, home.y)) };
     const k = this.at ? 1 - Math.exp(-dt * 6) : 1;
     const at = (this.at ??= { ...spot });
     at.x += (spot.x - at.x) * k;

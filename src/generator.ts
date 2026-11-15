@@ -28,6 +28,27 @@ export interface PlayArea {
    * triangles' guides over them are never under it.
    */
   clearCorner?: boolean;
+  /**
+   * Training: where the alchemist starts and where the scarecrow stands, as screen-aligned depth (0 = the centre).
+   * The alchemist starts nearer the camera and the scarecrow further up, so it stands clear above them and their
+   * guides. Both spots are kept clear like the centre.
+   */
+  spawnV?: number;
+  dummyV?: number;
+}
+
+/** Training's start, towards the camera from the centre, and the scarecrow's spot, away from it. */
+export const TRAINING_SPAWN_V = -1.5;
+export const TRAINING_DUMMY_V = 1.8;
+
+/** Where the alchemist starts on this play area, in world x/z. */
+export function spawnOf(area: PlayArea): [number, number] {
+  return area.spawnV ? toWorld(0, area.spawnV) : [0, 0];
+}
+
+/** Where the scarecrow stands on this play area, in world x/z. */
+export function dummyOf(area: PlayArea): [number, number] {
+  return area.dummyV ? toWorld(0, area.dummyV) : [0, 0];
 }
 
 /** Share of the walkable depth (from the near edge) and of the width (from the right) that `clearCorner` keeps free of sources. */
@@ -301,6 +322,8 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
 
   const features: Feature[] = [];
   const skipped: string[] = [];
+  const spawn = spawnOf(area);
+  const dummy = dummyOf(area);
   let animated = 0;
   for (const w of wanted) {
     const spec = KINDS[w.kind];
@@ -343,6 +366,7 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
       }
       const spawnGap = spec.solid ? r * 0.8 + SPAWN_CLEAR : r * 0.5 + SPAWN_CLEAR;
       if (x * x + z * z < spawnGap * spawnGap) continue;
+      if ([spawn, dummy].some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < spawnGap * spawnGap)) continue;
       if (spec.solid && trail && distToPath(x, z, trail) < r * 0.35) continue; // the narrow screen leaves little room beside the trail
       const crowded = features.some((f) => {
         const gap = f.solid && spec.solid ? 0.4 : 0;
@@ -351,11 +375,12 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
       if (crowded) continue;
       if (spread) {
         spots++;
-        const reach = Math.hypot(x, z);
-        let score = 2 * Math.min(reach - r, SPREAD_OFF_SPAWN) + rand() * 0.6; // a little luck, so meadows differ
+        // Off both the scarecrow and the alchemist's start; near or far is measured from the start.
+        const reach = Math.hypot(x - spawn[0], z - spawn[1]);
+        let score = 2 * Math.min(Math.min(reach, Math.hypot(x - dummy[0], z - dummy[1])) - r, SPREAD_OFF_SPAWN) + rand() * 0.6; // a little luck, so meadows differ
         if (other) {
           score += Math.min(Math.hypot(other.x - x, other.z - z) - other.r - r, SPREAD_APART);
-          score += 2 * Math.min(Math.abs(Math.hypot(other.x, other.z) - reach), SPREAD_REACH_DIFF);
+          score += 2 * Math.min(Math.abs(Math.hypot(other.x - spawn[0], other.z - spawn[1]) - reach), SPREAD_REACH_DIFF);
         }
         if (score <= best) continue;
         best = score;

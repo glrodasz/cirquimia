@@ -16,6 +16,8 @@ import {
   type Kind,
   type Layout,
   type PlayArea,
+  TRAINING_DUMMY_V,
+  TRAINING_SPAWN_V,
 } from './generator';
 
 /** Same as the alchemist's body radius: a cell is walkable if the alchemist fits there. */
@@ -192,7 +194,8 @@ export class World {
     this.obstacles.length = 0;
 
     const required = this.required();
-    const area = (this.playArea = { ...this.area(), clearCorner: this.requiredBy() === 'training' });
+    const training = this.requiredBy() === 'training';
+    const area = (this.playArea = { ...this.area(), clearCorner: training, spawnV: training ? TRAINING_SPAWN_V : undefined, dummyV: training ? TRAINING_DUMMY_V : undefined });
     const layout = generateLayout(seed, this.noRunes() ? { ...this.params, magia: 0 } : this.params, required, area);
     const drops: string[] = [];
     let built: { features: ReturnType<typeof buildFeatures>; solids: THREE.Group; walk: Walkability };

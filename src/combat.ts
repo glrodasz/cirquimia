@@ -629,6 +629,8 @@ export class Combat {
   private rivals: Rival[] = [];
   /** Training (no rivals): the standing scarecrow last in the list, fallen ones before it until they fade. */
   private dummies: Dummy[] = [];
+  /** Where training's scarecrow stands (world x/z), set with each meadow. */
+  dummyHome: [number, number] = [0, 0];
   /** The alchemist holds a symbol to cast: the rivals can read it over its head. */
   heroArmed = false;
   private count = 1;
@@ -1101,9 +1103,10 @@ export class Combat {
     d.dispose();
   }
 
-  /** A new scarecrow in the middle of the meadow, or as near it as there is room, facing the alchemist. */
+  /** A new scarecrow at its spot (`dummyHome`, the middle unless training moves it), or as near as there is room. */
   private spawnDummy() {
     const hero = this.hero.position;
+    const [hx, hz] = this.dummyHome;
     // Up the screen from the centre first: away from the camera, so it stands in plain view above the alchemist.
     const away = Math.atan2(-this.camera.position.x, -this.camera.position.z);
     const free = (x: number, z: number) =>
@@ -1111,16 +1114,16 @@ export class Combat {
       this.dummies.every((d) => Math.hypot(x - d.position.x, z - d.position.z) > 0.6) &&
       this.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.r + DUMMY_RADIUS + 0.15) &&
       this.onScreen(new THREE.Vector3(x, 0, z));
-    let spot: [number, number] | null = free(0, 0) ? [0, 0] : null;
+    let spot: [number, number] | null = free(hx, hz) ? [hx, hz] : null;
     for (const r of [1.3, 1.7, 2.1]) {
       for (let i = 0; i < 12 && !spot; i++) {
         const a = away + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (Math.PI / 6);
-        const x = Math.sin(a) * r;
-        const z = Math.cos(a) * r;
+        const x = hx + Math.sin(a) * r;
+        const z = hz + Math.cos(a) * r;
         if (free(x, z)) spot = [x, z];
       }
     }
-    const [x, z] = spot ?? [Math.sin(away) * 1.3, Math.cos(away) * 1.3];
+    const [x, z] = spot ?? [hx + Math.sin(away) * 1.3, hz + Math.cos(away) * 1.3];
     const dummy = new Dummy(new THREE.Vector3(x, heightAt(x, z), z));
     dummy.body.face(hero);
     this.obstacles.push(dummy.obstacle);
