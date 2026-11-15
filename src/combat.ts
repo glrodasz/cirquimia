@@ -1194,8 +1194,10 @@ export class Combat {
     if (this.gameMode === 'horde') this.updateHorde(dt);
     const all = [this.hero, ...this.rivals];
     const standing = all.filter((f) => !f.down);
-    // The horde only goes for the alchemist; in a duel everyone fights everyone.
-    const foesOf = (r: Rival) => (r.golem ? (this.hero.down ? [] : [this.hero]) : standing.filter((f) => f !== r));
+    // The horde and Hardcore rivals only go for the alchemist (a Hardcore strike still hurts any rival it catches);
+    // in any other duel everyone fights everyone.
+    const huntHero = (r: Rival) => r.golem || this.level === 'hardcore';
+    const foesOf = (r: Rival) => (huntHero(r) ? (this.hero.down ? [] : [this.hero]) : standing.filter((f) => f !== r));
     for (const r of this.rivals) {
       // Fallen rivals lie still; once the match is decided nobody attacks any more. A golem still rising waits.
       r.sparring = this.sparring;
