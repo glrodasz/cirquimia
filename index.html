@@ -438,6 +438,7 @@
       /* A fighter tracing the shape of its spell over its head, in its ink: slowly for rivals before they cast, briefly for the alchemist. */
       .sketch { position: fixed; left: 0; top: 0; width: 30px; height: 30px; margin: -50px 0 0 -15px; overflow: visible; pointer-events: none; z-index: 1; will-change: transform; filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
       .sketch.off { visibility: hidden; }
+      .sketch.over-you { margin-top: -66px; }
       .sketch path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
       .sketch.drawing path { animation: sketch-trace var(--draw, .7s) linear forwards; }
       @keyframes sketch-trace { to { stroke-dashoffset: 0; } }

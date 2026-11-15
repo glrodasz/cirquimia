@@ -22,7 +22,7 @@ const END_DELAY = 1.3;
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 const YOU_SIZE = 0.075; // the "you" crystal over the alchemist's head (half width before stretching)
-const YOU_HEIGHT = 0.78; // its centre, world units above the feet: between the head and the health bar
+const YOU_HEIGHT = 1.3; // its centre, world units above the feet: just over the health bar
 const GHOST = 0.3; // opacity of a rival the tutorial has not introduced yet
 export const MAX_RIVALS = 3;
 // While the tutorial's rival stands still as a sparring partner, it cannot be knocked out: it holds on at this much health.
@@ -159,6 +159,7 @@ class Fighter<B extends Body = Body> {
     this.you.scale.set(0.6, 1.6, 0.6);
     this.you.position.y = YOU_HEIGHT;
     this.body.root.add(this.you);
+    this.sketch.classList.add('over-you'); // the symbol in hand floats above the crystal
   }
 
   /** Fades the body (and its bar) to see-through, or back to solid. */
