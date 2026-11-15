@@ -287,11 +287,11 @@ export function mountMatchControls(match: MatchControls) {
     `<div class="field"><span class="label">${p.level}</span><div class="opts levels" role="group" aria-label="${p.level}">` +
     LEVELS.map((l, i) => choice('level', l, `${levelIcon(i + 1)}<span>${DIFFICULTY_LABEL[l]}</span>`, DIFFICULTY_LABEL[l])).join('') +
     `</div></div>` +
-    `<button type="button" class="play" data-play="duel">${p.play}</button></section>` +
+    `<button type="button" class="play" data-play="duel">${p.playDuel}</button></section>` +
     `<section class="mode horde" aria-labelledby="newgame-horde"><div class="head"><span class="disc">${hordeIcon()}</span><h3 id="newgame-horde">${p.horde}</h3></div>` +
     `<p>${p.hordeBody}</p>` +
     `<p class="waves">${p.waves}</p>` +
-    `<button type="button" class="play" data-play="horde">${p.play}</button></section>` +
+    `<button type="button" class="play" data-play="horde">${p.playHorde}</button></section>` +
     `</div></div>`;
   for (const type of ['pointerdown', 'pointerup', 'pointermove']) picker.addEventListener(type, (e) => e.stopPropagation());
   document.body.append(picker);
