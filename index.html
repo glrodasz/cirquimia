@@ -876,11 +876,8 @@
       #newgame .label { color: var(--g-soft); font: 500 14px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .08em; }
       #newgame .opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
       #newgame .opts.levels { grid-template-columns: repeat(2, 1fr); }
-      /* Hardcore gets the whole last row, in red ink: a level apart. */
-      #newgame .opts.levels .opt[data-level="hardcore"] { grid-column: 1 / -1; color: var(--g-red); border-color: rgba(163,39,28,.6); }
-      #newgame .opts.levels .opt[data-level="hardcore"] .hud-icon .ink { fill: var(--g-red); }
-      #newgame .opts.levels .opt[data-level="hardcore"][aria-pressed="true"] { background: var(--g-red); border-color: var(--g-red); color: var(--g-paper); }
-      #newgame .opts.levels .opt[data-level="hardcore"][aria-pressed="true"] .hud-icon .ink { fill: var(--g-paper); }
+      /* Hardcore, the fifth level, takes the whole last row; it looks like the other levels. */
+      #newgame .opts.levels .opt[data-level="hardcore"] { grid-column: 1 / -1; }
       #newgame .opt { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 8px; border: 1px solid rgba(31,26,21,.45); border-radius: 0; background: transparent; color: var(--g-ink); font: 500 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .04em; font-variant-numeric: lining-nums; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       #newgame .opt .hud-icon { width: 20px; height: 20px; flex: none; }
       #newgame .opt[aria-pressed="true"] { border-color: var(--g-ink); background: var(--g-ink); color: var(--g-paper); }
