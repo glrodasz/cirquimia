@@ -92,12 +92,13 @@ function symbols() {
       (s.source ? `<span class="need">(${t.help.needs}<span class="src">${s.source === 'fire' ? flameIcon() : dropIcon()}</span>)</span>` : '') +
       `</li>`,
   ).join('');
-  // Two symbols merged in hand, drawn as the strokes that make them: fire + water = the blast, the star + fire or water = a fire or water star.
+  // Two symbols merged in hand, drawn as the strokes that make them: fire + water = the blast, the star + fire or water = a fire or water star, the blast + the star = the explosion star.
   const combos = (
     [
       ['triangle', 'triangleDown', 'hourglass'],
       ['pentagram', 'triangle', 'fireStar'],
       ['pentagram', 'triangleDown', 'waterStar'],
+      ['hourglass', 'pentagram', 'blastStar'],
     ] as const
   )
     .map(

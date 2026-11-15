@@ -41,3 +41,18 @@ Keep the summary short, imperative and in English; put the details in the PR bod
 
 - The build stamps the version from `git describe --tags` (`vite.config.ts`, `__GAME_VERSION__`): `0.3.0` on a release, `0.3.0-2-gabc1234` on later builds (previews, local). `GAME_VERSION=...` overrides it.
 - Read it from `src/version.ts` (`VERSION`). On screen it only shows with `?dev`, as a small label at the bottom centre.
+
+## Adding a new spell (circle or combination)
+
+Every new spell ships complete in the same PR. Go through this list and say in the PR body which items applied:
+
+1. **Recognition or merge** (`src/gestures.ts`): a new `ShapeKind`; a drawn shape gets a recognizer, a combination gets a row in `MERGES` (it is merged in hand, in either order).
+2. **Effect and damage**: `Element`, `AREA_OF` and `WARNING` in `src/spells.ts` (plus its look in `PillarStrike`), `DAMAGE` and colours in `src/combat.ts`, the cast in `castShape` (`src/main.ts`).
+3. **Aim reticle** (`src/aim.ts` `aimMarks`) for anything cast at a target.
+4. **Icons**: the hand/book glyph in `src/ammo.ts` and the sketch over a fighter's head (`SKETCH_PATH` / `SKETCH_FOR` in `src/combat.ts`).
+5. **Sound** (`src/audio.ts`, the `switch` on the element): reuse a clip or synth that fits.
+6. **Book**: the Símbolos index in `src/help.ts` (a symbol in `SHAPES`, a combination in the combinations list), its name in `t.help.roles` / `t.help.names` for **both** languages (`src/i18n/index.ts`), and the `.fig` colour in `index.html`. The book never shows numbers.
+7. **Training**: a step in the guide loop (`STEPS` in `src/guides.ts`, the strokes in drawing order) so it gets a box on the "Círculos disponibles" checklist; new single strokes also need a guide line and the `t.guides.draw` text.
+8. **Rivals** (`src/rivalMind.ts`): a `Tuning` chance per level if rivals may cast it (Fácil never combines).
+9. **Tests**: recognition or merge (`tests/gestures.test.ts`), the reticle (`tests/aim.test.ts`), and the rival tuning (`tests/rivalMind.test.ts`) when it applies.
+10. **Screenshots** of the effect on a phone and the book entry in the PR.

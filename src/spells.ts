@@ -45,6 +45,12 @@ export interface StarCage {
   readonly struck: Set<unknown>;
 }
 
+// Explosion star = the hourglass's blast merged with the star: ten small blasts thrown wide around the target,
+// one on it, then a ring of three, then six further out, landing as a wave that spreads from the middle.
+export const BLAST_STAR_INNER = 0.95; // world units from the target to the ring of three
+export const BLAST_STAR_OUTER = 1.9; // to the ring of six: about a third of a phone's meadow
+export const BLAST_STAR_STAGGER = 0.07; // s between two blasts of the wave
+
 /** Strikes cast from inside a rune circle are this much bigger: area, and the star's spread. */
 export const RUNE_BOOST = 1.25;
 
@@ -55,6 +61,29 @@ export function starOffsets(reach = STAR_REACH) {
   return [0, 2, 4, 1, 3].map((k) => {
     const a = up + (k / 5) * Math.PI * 2;
     return { x: Math.sin(a) * reach, z: Math.cos(a) * reach };
+  });
+}
+
+/**
+ * Where the explosion star's ten blasts land from its centre on the ground (x, z), in the order they go off: the
+ * centre, three around it (one straight down the screen), then six further out between and beyond them.
+ */
+export function blastStarOffsets(scale = 1) {
+  const up = Math.PI + CAMERA_YAW;
+  const ring = (n: number, reach: number, turn: number) =>
+    Array.from({ length: n }, (_, k) => {
+      const a = up + turn + (k / n) * Math.PI * 2;
+      return { x: Math.sin(a) * reach * scale, z: Math.cos(a) * reach * scale };
+    });
+  return [{ x: 0, z: 0 }, ...ring(3, BLAST_STAR_INNER, Math.PI), ...ring(6, BLAST_STAR_OUTER, 0)];
+}
+
+/** The explosion star's ten blasts around a point, with when each one goes off after the first. */
+export function blastStarTips(at: THREE.Vector3, scale = 1) {
+  return blastStarOffsets(scale).map((o, i) => {
+    const x = at.x + o.x;
+    const z = at.z + o.z;
+    return { at: new THREE.Vector3(x, heightAt(x, z), z), delay: (i === 0 ? 0 : i < 4 ? 1 : 2 + (i - 4) * 0.5) * BLAST_STAR_STAGGER * 2 };
   });
 }
 
@@ -71,17 +100,20 @@ export function starTips(at: THREE.Vector3, reach = STAR_REACH) {
 // Fire and water merged in hand (the hourglass) = blast: a tighter burst of flame and steam that hits harder.
 // The star merged in hand with fire or water = fire star / water star: the pentagram's five tips, each one a flame
 // burst or a water spout instead of an earth column.
+// The hourglass merged in hand with the star = explosion star: ten small blasts spread wide around the target.
 // Spiral = vine: curling tendrils break out of the ground and whoever they catch is rooted to the spot for a while.
-export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast' | 'fireStar' | 'waterStar' | 'vine';
-/** Radius of each element's strike against the square's: the blast and the vine hit a smaller area. */
-export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6, fireStar: 1, waterStar: 1, vine: 0.6 };
+export type Element = 'earth' | 'columns' | 'fire' | 'water' | 'blast' | 'fireStar' | 'waterStar' | 'blastStar' | 'vine';
+/** Radius of each element's strike against the square's: the blast (each of the explosion star's too) and the vine hit a smaller area. */
+export const AREA_OF: Record<Element, number> = { earth: 1, columns: 1, fire: 1, water: 1, blast: 0.6, fireStar: 1, waterStar: 1, blastStar: 0.6, vine: 0.6 };
+/** The blast, alone or as one of the explosion star's ten. */
+export const isBlast = (element: Element) => element === 'blast' || element === 'blastStar';
 /** The strikes that land as five separate hits at the tips of a star around the target. */
 export const isStar = (element: Element) => element === 'columns' || element === 'fireStar' || element === 'waterStar';
 /** Fire or water in a strike (a triangle's, or a star's merged with one), or null for earth and the blast. */
 export const fluidOf = (element: Element): 'fire' | 'water' | null =>
   element === 'fire' || element === 'fireStar' ? 'fire' : element === 'water' || element === 'waterStar' ? 'water' : null;
 /** Seconds someone caught by the vine stays rooted: no walking (they can still draw and cast). */
-export const ROOT_TIME = 2;
+export const ROOT_TIME = 2.2;
 const SNARE_GROW = 0.25; // s for the coils to climb the legs
 const SNARE_WITHER = 0.4; // s for them to shrink back into the ground once it lets go
 const CHANNEL_TIME = 0.5; // s for the drawn fire or water to fly from its source to the alchemist
@@ -128,7 +160,7 @@ const LEAF = '#8cb35e';
 const leafGeo = new THREE.OctahedronGeometry(1, 0);
 const leafMaterial = new THREE.MeshLambertMaterial({ color: LEAF, flatShading: true });
 const WARNING: Record<Element, string> = {
-  earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866', blast: '#8a2f1c', fireStar: '#c4552c', waterStar: '#2f5866', vine: '#2f4a26',
+  earth: SOIL, columns: SOIL, fire: '#c4552c', water: '#2f5866', blast: '#8a2f1c', fireStar: '#c4552c', waterStar: '#2f5866', blastStar: '#8a2f1c', vine: '#2f4a26',
 };
 
 const tmpColor = new THREE.Color();
@@ -412,7 +444,7 @@ class PillarStrike extends Effect {
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
     if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
-    else if (element === 'blast') this.buildBlast();
+    else if (isBlast(element)) this.buildBlast();
     else if (element === 'vine') this.buildVines();
     else this.buildFluid(fluidOf(element) === 'fire', isStar(element) ? STAR_FLUID_SCALE : 1);
     if (scale !== 1) {
@@ -615,7 +647,7 @@ class PillarStrike extends Effect {
         p.mesh.scale.set(base.x * w, base.y * (1 + Math.sin(k) * 0.15), base.z * w);
       }
     }
-    if (this.element === 'blast' && t >= 0) this.animateBlast(t);
+    if (isBlast(this.element) && t >= 0) this.animateBlast(t);
     if (this.element === 'vine') {
       // The tendrils sway like something alive feeling for a leg to grab.
       for (const p of this.pieces) p.mesh.rotation.z = Math.sin(this.age * 7 + (p.mesh.userData.phase as number)) * 0.18;

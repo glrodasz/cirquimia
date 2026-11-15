@@ -150,6 +150,8 @@ export class Tutorial {
   /** The lesson's note: a popover next to what it talks about. */
   private readonly pop = new Popover(this.title, this.body, this.next);
   private readonly card = this.pop.el;
+  /** Bottom right, as long as the tutorial lasts: straight to the duel. */
+  private readonly skipLink = document.createElement('button');
   private hintTimer = 0;
   /** The first frame has passed (the rival's faintness applies at once on it, then eases). */
   private started = false;
@@ -173,7 +175,35 @@ export class Tutorial {
     this.padHand.className = 'pad-hand';
     this.padHand.innerHTML = `<svg viewBox="-16 -8 40 40" aria-hidden="true">${hand(0, 0, 1, false)}</svg>`;
     this.root.append(this.dim, this.mark, this.padHand, this.demo, this.arrow, this.card);
-    document.body.append(this.root);
+    this.skipLink.type = 'button';
+    this.skipLink.id = 'tutorial-skip';
+    this.skipLink.innerHTML = `<span>${t.tutorial.skip}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
+    this.skipLink.hidden = this.done;
+    this.skipLink.addEventListener('click', () => this.skipAll());
+    document.body.append(this.root, this.skipLink);
+  }
+
+  /** Skips every lesson left: the rival wakes and the duel starts at once, everyone at full health. */
+  skipAll() {
+    if (this.done) return;
+    clearTimeout(this.hintTimer);
+    this.shown++;
+    this.host.hold(false);
+    this.host.deselect();
+    this.lesson = null;
+    this.goal = null;
+    this.unlight();
+    this.next.hidden = true;
+    this.arrow.hidden = true;
+    this.demo.innerHTML = '';
+    this.root.dataset.walk = '';
+    this.root.dataset.step = 'done';
+    this.root.classList.remove('show');
+    this.root.hidden = true;
+    this.stage = 'done';
+    save(this.stage);
+    this.skipLink.hidden = true;
+    this.host.duel();
   }
 
   /** A lesson or a note is on screen. */
@@ -246,6 +276,7 @@ export class Tutorial {
     this.started = true;
     const covered = this.host.covered();
     this.root.classList.toggle('covered', covered);
+    this.skipLink.hidden = this.done || covered;
     if (covered) return;
     if (!this.root.hidden) this.position(dt);
 

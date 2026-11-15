@@ -87,6 +87,14 @@ describe('mergedInHand', () => {
     expect(mergedInHand('triangleDown', 'pentagram')).toBe('waterStar');
   });
 
+  it('merges the hourglass and the star, in either order, into the explosion star (also via a fire or water star)', () => {
+    expect(mergedInHand('hourglass', 'pentagram')).toBe('blastStar');
+    expect(mergedInHand('pentagram', 'hourglass')).toBe('blastStar');
+    expect(mergedInHand('fireStar', 'triangleDown')).toBe('blastStar');
+    expect(mergedInHand('waterStar', 'triangle')).toBe('blastStar');
+    expect(mergedInHand('blastStar', 'pentagram')).toBe('pentagram');
+  });
+
   it('just replaces anything else in hand', () => {
     expect(mergedInHand(null, 'triangle')).toBe('triangle');
     expect(mergedInHand(null, 'pentagram')).toBe('pentagram');
@@ -94,9 +102,8 @@ describe('mergedInHand', () => {
     expect(mergedInHand('pentagram', 'pentagram')).toBe('pentagram');
     expect(mergedInHand('square', 'triangleDown')).toBe('triangleDown');
     expect(mergedInHand('hourglass', 'triangle')).toBe('triangle');
-    expect(mergedInHand('hourglass', 'pentagram')).toBe('pentagram');
-    expect(mergedInHand('fireStar', 'triangleDown')).toBe('triangleDown');
     expect(mergedInHand('waterStar', 'pentagram')).toBe('pentagram');
+    expect(mergedInHand('blastStar', 'triangle')).toBe('triangle');
     expect(mergedInHand('triangle', 'square')).toBe('square');
   });
 });
