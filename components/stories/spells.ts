@@ -28,7 +28,7 @@ const CASTS: Array<[Cast, string]> = [
   ['denied', 'Golpe parado por un muro (cruz)'],
 ];
 
-const spells: StoryFn = () => {
+const spells: StoryFn = (ctx) => {
   const v = createViewer({ title: 'Hechizos' });
   const obstacles: never[] = [];
   const book = new Spells(obstacles);
@@ -48,7 +48,7 @@ const spells: StoryFn = () => {
     rival.flash();
   };
 
-  let current: Cast = (new URLSearchParams(location.search).get('cast') as Cast) ?? 'earth';
+  let current = (ctx.args.cast ?? 'earth') as Cast;
   if (!CASTS.some(([c]) => c === current)) current = 'earth';
   const at = () => rival.root.position.clone();
   const cast = () => {
@@ -105,16 +105,7 @@ const spells: StoryFn = () => {
   const group = new THREE.Group();
   group.add(new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.6, 3.4)));
   v.frame(group, 1.5);
-  v.panel.select(
-    'Hechizo',
-    CASTS.map(([c, label]) => [c, label]),
-    current,
-    (c) => {
-      current = c as Cast;
-      since = 0;
-      cast();
-    },
-  );
+  v.panel.row(CASTS.find(([c]) => c === current)![1]);
   v.panel.button('Lanzar', () => {
     since = 0;
     cast();

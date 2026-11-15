@@ -78,15 +78,8 @@ const device: StoryFn = (ctx) => {
   panel.button('Repetir', () => location.reload());
 };
 
-const gpu: StoryFn = () => {
-  const kind = new URLSearchParams(location.search).get('gpu') === 'none' ? 'none' : 'software';
-  void showGpuNotice(kind);
-  const panel = new Panel();
-  panel.choice('Caso', [['software', 'Por software'], ['none', 'Sin WebGL']], kind, (v) => {
-    const q = new URLSearchParams(location.search);
-    q.set('gpu', v);
-    location.search = q.toString();
-  });
+const gpu: StoryFn = ({ args }) => {
+  void showGpuNotice(args.kind === 'none' ? 'none' : 'software');
 };
 
 export const stories: Record<string, StoryFn> = { popover, missing, hitme, device, gpu };

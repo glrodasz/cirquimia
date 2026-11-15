@@ -10,44 +10,22 @@ import { DIFFICULTY_LABEL, type Difficulty } from '../../src/combat';
 
 const LEVELS = Object.keys(DIFFICULTY_LABEL) as Difficulty[];
 
-/** Rivals and level as pills, re-mounted on change (they are read once, when the HUD mounts). */
-function duelControls(panel: Panel, rivals: number, level: Difficulty) {
-  panel.choice('Rivales', [['1', '1'], ['2', '2'], ['3', '3']], String(rivals), (v) => {
-    savedMatch('duel', Number(v), level);
-    reload({ rivals: v, level });
-  });
-  panel.choice('Nivel', LEVELS.map((l) => [l, DIFFICULTY_LABEL[l]] as [Difficulty, string]), level, (v) => {
-    savedMatch('duel', rivals, v);
-    reload({ rivals: String(rivals), level: v });
-  });
-}
-
-function reload(extra: Record<string, string>) {
-  const q = new URLSearchParams(location.search);
-  for (const [k, v] of Object.entries(extra)) q.set(k, v);
-  location.search = q.toString();
-}
-
-const query = () => new URLSearchParams(location.search);
-
-const duel: StoryFn = async () => {
-  const rivals = Number(query().get('rivals') ?? 2);
-  const level = (query().get('level') ?? 'normal') as Difficulty;
+// Rivals and level are Controls: the HUD reads them once, when it mounts.
+const duel: StoryFn = async ({ args }) => {
+  const rivals = Number(args.rivals ?? 2);
+  const level = (LEVELS.includes(args.level) ? args.level : 'normal') as Difficulty;
   savedMatch('duel', rivals, level);
   const match = new FakeMatch();
   const hud = mountHud(match);
   const panel = new Panel();
-  duelControls(panel, rivals, level);
   panel.button('Toast de reinicio', () => hud.controls.say('Nueva partida: 2 rivales · Normal'));
   panel.toggle('Reloj parado', false, (on) => (match.over = on));
 };
 
-const training: StoryFn = async () => {
-  savedMatch('training', 2, 'normal');
+const training: StoryFn = async ({ args }) => {
+  if (args.battle === 'horde') savedMatch('training', 2, 'normal', 'horde');
+  else savedMatch('training', 2, 'normal');
   mountHud(new FakeMatch());
-  const panel = new Panel();
-  panel.choice('Última batalla', [['duel', 'Duelo'], ['horde', 'Horda']], query().get('battle') === 'horde' ? 'horde' : 'duel', (v) => reload({ battle: v }));
-  if (query().get('battle') === 'horde') savedMatch('training', 2, 'normal', 'horde');
 };
 
 const horde: StoryFn = async () => {
@@ -69,16 +47,13 @@ const spot: StoryFn = async () => {
   mountHud(new FakeMatch());
 };
 
-const sound: StoryFn = () => {
-  if (query().get('chosen') === '1') localStorage.setItem('cirquimia.sound', '1');
+const sound: StoryFn = ({ args }) => {
+  if (args.chosen) localStorage.setItem('cirquimia.sound', '1');
   mountSoundButton();
-  const panel = new Panel();
-  panel.button('Primera visita (late)', () => reload({ chosen: '0' }));
-  panel.button('Ya elegido', () => reload({ chosen: '1' }));
 };
 
 const move: StoryFn = (ctx) => {
-  if (query().get('set') === 'arrows') localStorage.setItem('cirquimia.keyset', 'arrows');
+  if (ctx.args.keys === 'arrows') localStorage.setItem('cirquimia.keyset', 'arrows');
   const keys = mountKeysHint();
   mountPad();
   const panel = new Panel();

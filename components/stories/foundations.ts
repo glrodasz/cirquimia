@@ -32,7 +32,7 @@ function literals(css: string) {
 }
 
 const isColor = (v: string) => /^(#|rgb|hsl)/.test(v);
-const swatch = (v: string) => `<div class="sb-swatch"><i style="background:${esc(v)}"></i></div>`;
+const swatch = (v: string) => `<div class="kit-swatch"><i style="background:${esc(v)}"></i></div>`;
 
 const palette: StoryFn = () => {
   const css = gameCss();
@@ -43,7 +43,7 @@ const palette: StoryFn = () => {
     .map(([name, decls]) => {
       const first = decls[0].value;
       return (
-        `<div class="sb-tile">${isColor(first) ? swatch(first) : ''}<b>${name}</b>` +
+        `<div class="kit-tile">${isColor(first) ? swatch(first) : ''}<b>${name}</b>` +
         decls.map((d) => `<code>${esc(d.value)}</code><code style="opacity:.55">${esc(d.scope.slice(0, 80))}</code>`).join('') +
         `</div>`
       );
@@ -51,11 +51,11 @@ const palette: StoryFn = () => {
     .join('');
   document.body.innerHTML =
     `<h2>Variables CSS (${vars.size})</h2>` +
-    `<p class="sb-note">Las variables que ya existen en el estilo del juego. Las del HUD (--hud-*) cambian con el tema; las del grimorio (--g-*, --paper, --ink…) viven dentro de cada pantalla.</p>` +
-    `<div class="sb-grid">${varTiles}</div>` +
+    `<p class="kit-note">Las variables que ya existen en el estilo del juego. Las del HUD (--hud-*) cambian con el tema; las del grimorio (--g-*, --paper, --ink…) viven dentro de cada pantalla.</p>` +
+    `<div class="kit-grid">${varTiles}</div>` +
     `<h2>Colores literales (${colors.length} distintos, ${total} usos)</h2>` +
-    `<p class="sb-note">Colores escritos a mano en el CSS. Son el inventario para migrar a design tokens: cada uno debería acabar como un token de componente que apunte a un rol del sistema.</p>` +
-    `<div class="sb-grid">${colors.map(([c, n]) => `<div class="sb-tile">${swatch(c)}<code>${esc(c)}</code><span>${n} ${n === 1 ? 'uso' : 'usos'}</span></div>`).join('')}</div>`;
+    `<p class="kit-note">Colores escritos a mano en el CSS. Son el inventario para migrar a design tokens: cada uno debería acabar como un token de componente que apunte a un rol del sistema.</p>` +
+    `<div class="kit-grid">${colors.map(([c, n]) => `<div class="kit-tile">${swatch(c)}<code>${esc(c)}</code><span>${n} ${n === 1 ? 'uso' : 'usos'}</span></div>`).join('')}</div>`;
 };
 
 const type: StoryFn = () => {
@@ -69,8 +69,8 @@ const type: StoryFn = () => {
     ["ui-monospace, 'SF Mono', Menlo, monospace", '800 22px/1', 'Iniciales del ranking'],
   ];
   document.body.innerHTML =
-    `<h2>Tipografía</h2><p class="sb-note">Las familias que usa el juego, con el peso y tamaño de su uso principal.</p>` +
-    fonts.map(([family, font, use]) => `<div class="sb-type"><small>${esc(font)} · ${esc(family)}</small><div style="font:${font} ${family}">${esc(sample)} · Cirquimia 0123</div><small style="margin-top:6px">${use}</small></div>`).join('');
+    `<h2>Tipografía</h2><p class="kit-note">Las familias que usa el juego, con el peso y tamaño de su uso principal.</p>` +
+    fonts.map(([family, font, use]) => `<div class="kit-type"><small>${esc(font)} · ${esc(family)}</small><div style="font:${font} ${family}">${esc(sample)} · Cirquimia 0123</div><small style="margin-top:6px">${use}</small></div>`).join('');
 };
 
 const icon: StoryFn = () => {
@@ -114,17 +114,17 @@ const icon: StoryFn = () => {
     ['saveIcon', icons.saveIcon()],
   ];
   document.body.innerHTML =
-    `<h2>Iconos (${list.length})</h2><p class="sb-note">src/icons.ts. Se pintan con currentColor y clases (.ink, .red, .green, .plum, .faint) que el CSS de cada sitio colorea.</p>` +
-    `<div class="sb-grid">${list.map(([name, svg]) => `<div class="sb-tile"><div class="sb-icon">${svg}</div><code>${name}</code></div>`).join('')}</div>`;
-  for (const svg of document.querySelectorAll<SVGElement>('.sb-icon svg')) if (!svg.getAttribute('fill')) svg.style.fill = 'currentColor';
+    `<h2>Iconos (${list.length})</h2><p class="kit-note">src/icons.ts. Se pintan con currentColor y clases (.ink, .red, .green, .plum, .faint) que el CSS de cada sitio colorea.</p>` +
+    `<div class="kit-grid">${list.map(([name, svg]) => `<div class="kit-tile"><div class="kit-icon">${svg}</div><code>${name}</code></div>`).join('')}</div>`;
+  for (const svg of document.querySelectorAll<SVGElement>('.kit-icon svg')) if (!svg.getAttribute('fill')) svg.style.fill = 'currentColor';
 };
 
 const KINDS: ShapeKind[] = ['circle', 'square', 'triangle', 'triangleDown', 'rhombus', 'pentagram', 'spiral', 'hourglass', 'fireStar', 'waterStar', 'blastStar'];
 
 const symbols: StoryFn = () => {
   document.body.innerHTML =
-    `<h2>Símbolos (${KINDS.length})</h2><p class="sb-note">Cada símbolo como trazo de pincel dentro del enso (la mano) y con plumilla (el libro y el checklist). El trazo cambia un poco en cada render, como en el juego. Recarga para ver otra variación.</p>` +
-    `<div class="sb-grid">${KINDS.map((k) => `<div class="sb-tile"><div class="sb-symbol">${shapeIcon(k)}${shapeIcon(k, true)}</div><b>${esc(t.help.roles[k] ?? k)}</b><code>${k}</code></div>`).join('')}</div>`;
+    `<h2>Símbolos (${KINDS.length})</h2><p class="kit-note">Cada símbolo como trazo de pincel dentro del enso (la mano) y con plumilla (el libro y el checklist). El trazo cambia un poco en cada render, como en el juego. Recarga para ver otra variación.</p>` +
+    `<div class="kit-grid">${KINDS.map((k) => `<div class="kit-tile"><div class="kit-symbol">${shapeIcon(k)}${shapeIcon(k, true)}</div><b>${esc(t.help.roles[k] ?? k)}</b><code>${k}</code></div>`).join('')}</div>`;
 };
 
 export const stories: Record<string, StoryFn> = { palette, type, icons: icon, symbols };

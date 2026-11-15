@@ -2,24 +2,24 @@
 export class Panel {
   readonly el = document.createElement('div');
 
-  constructor(title = 'Controles') {
-    this.el.className = 'sb-panel';
+  constructor(title = 'Acciones') {
+    this.el.className = 'kit-panel';
     const head = document.createElement('div');
-    head.className = 'sb-head';
+    head.className = 'kit-head';
     head.innerHTML = `<span>${title}</span>`;
     const fold = document.createElement('button');
     fold.type = 'button';
     fold.textContent = '▾';
     fold.setAttribute('aria-label', 'Plegar');
     fold.addEventListener('click', () => {
-      const folded = this.el.classList.toggle('sb-folded');
+      const folded = this.el.classList.toggle('kit-folded');
       fold.textContent = folded ? '▴' : '▾';
     });
     head.append(fold);
     this.el.append(head);
     // On a phone-sized canvas the strip starts folded, so the story is seen whole first.
     if (innerWidth < 520) {
-      this.el.classList.add('sb-folded');
+      this.el.classList.add('kit-folded');
       fold.textContent = '▴';
     }
     for (const type of ['pointerdown', 'pointerup', 'pointermove', 'click']) this.el.addEventListener(type, (e) => e.stopPropagation());
@@ -28,7 +28,7 @@ export class Panel {
 
   row(label?: string) {
     const row = document.createElement('div');
-    row.className = 'sb-row';
+    row.className = 'kit-row';
     if (label) row.innerHTML = `<span>${label}</span>`;
     this.el.append(row);
     return row;
@@ -37,7 +37,7 @@ export class Panel {
   button(label: string, act: () => void, row = this.row()) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'sb-btn';
+    b.className = 'kit-btn';
     b.textContent = label;
     b.addEventListener('click', act);
     row.append(b);
@@ -81,7 +81,7 @@ export class Panel {
 
   stats() {
     const pre = document.createElement('div');
-    pre.className = 'sb-stats';
+    pre.className = 'kit-stats';
     this.el.append(pre);
     return pre;
   }

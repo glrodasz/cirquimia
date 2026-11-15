@@ -55,11 +55,11 @@ Every new spell ships complete in the same PR. Go through this list and say in t
 7. **Training**: a step in the guide loop (`STEPS` in `src/guides.ts`, the strokes in drawing order) so it gets a box on the "Círculos disponibles" checklist; new single strokes also need a guide line and the `t.guides.draw` text.
 8. **Rivals** (`src/rivalMind.ts`): a `Tuning` chance per level if rivals may cast it (Fácil never combines).
 9. **Tests**: recognition or merge (`tests/gestures.test.ts`), the reticle (`tests/aim.test.ts`), and the rival tuning (`tests/rivalMind.test.ts`) when it applies.
-10. **Catalogue** (`components/`): the effect plays in the Hechizos story (`components/stories/spells.ts`), and any new UI or 3D piece gets a story (see `docs/components.md`).
+10. **Storybook** (`components/`): a story for the effect in `components/spells.stories.ts` (the cast in `components/stories/spells.ts`), and any new UI or 3D piece gets a story (see `docs/components.md`).
 11. **Screenshots** of the effect on a phone and the book entry in the PR.
 
-## Component catalogue
+## Storybook (component catalogue)
 
-Every UI element and 3D piece has a story at `/components` (`components/`, built by `npm run build`, run with
-`npm run components`). A PR that adds or changes UI, or a 3D piece, adds or updates its story. Stories call the game's
-real code and nothing in `src/` imports `components/`, so the game's bundle never grows. See `docs/components.md`.
+Every UI element and 3D piece has a story in Storybook at `/components` (`components/`, built by `npm run build`, run
+with `npm run storybook`). A PR that adds or changes UI, or a 3D piece, adds or updates its story. Stories call the
+game's real code and nothing in `src/` imports `components/`, so the game's bundle never grows. See `docs/components.md`.

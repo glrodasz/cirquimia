@@ -14,8 +14,8 @@ function load(src: string) {
 }
 
 const card: StoryFn = async () => {
-  document.body.innerHTML = `<h2>Tarjeta para compartir</h2><p class="sb-note">Generada en un canvas por renderShareCard() con datos de ejemplo. Con prado: el frame de la partida; sin él, el fondo por defecto.</p><div class="sb-shots"></div>`;
-  const shots = document.querySelector('.sb-shots')!;
+  document.body.innerHTML = `<h2>Tarjeta para compartir</h2><p class="kit-note">Generada en un canvas por renderShareCard() con datos de ejemplo. Con prado: el frame de la partida; sin él, el fondo por defecto.</p><div class="kit-shots"></div>`;
+  const shots = document.querySelector('.kit-shots')!;
   const meadow = await load(meadowPhoto);
   const cases: Array<[string, ShareData, boolean, CanvasImageSource | null]> = [
     ['Cuadrada 1080 · con prado', DATA, false, meadow],

@@ -1,0 +1,15 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Introducción" />
+
+# Cirquimia · Componentes
+
+Cada pieza de la UI y del 3D, montada con el código real del juego (`src/`) y su hoja de estilos, así que lo que ves aquí es lo que ve quien juega.
+
+- **Barra de arriba:** tamaño de pantalla (iPhone, iPad, escritorio), idioma, táctil y tema.
+- **Controls** (abajo): las variantes de cada historia, como rivales y nivel en el HUD o la pieza del prado.
+- **Panel del lienzo:** las acciones en vivo (caminar, lanzar, golpear) y, en 3D, girar, alambre, sombras, draw calls y triángulos.
+
+Cada historia ocupa una página del juego entera, así que al cambiar de historia, de idioma o de Controls el lienzo se recarga.
+
+Nada del juego importa este catálogo: no añade peso al bundle. Cómo añadir una historia: `docs/components.md`.

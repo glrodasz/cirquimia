@@ -1,29 +1,33 @@
-# Component catalogue (`/components`)
+# Component catalogue: Storybook (`/components`)
 
-A Storybook-style catalogue of every UI element and 3D piece of the game, served at
+[Storybook](https://storybook.js.org/) with every UI element and 3D piece of the game, served at
 [`/components`](https://cirquimia.pages.dev/components/) (and on every PR preview).
 
-- **Run it locally:** `npm run components` (Vite dev server for `components/`).
-- **Build:** part of `npm run build`; it is a second Vite build (`vite.components.config.ts`) into `dist/components`.
-
-## Why not Storybook itself
-
-The UI is vanilla DOM built by `mount*()` functions and Three.js classes, with the whole stylesheet inline in
-`index.html`. A small Vite page reuses exactly that: no new dependencies (Storybook would add hundreds of packages and
-pin us to its Vite support), and every story calls the game's real code, so the catalogue cannot drift from the game.
+- **Run it locally:** `npm run storybook` (http://localhost:6006).
+- **Build:** part of `npm run build`: `storybook build` into `dist/components`, after the game.
+- **Stack:** Storybook 10 with `@storybook/html-vite` (the game is vanilla DOM + Three.js) and `@storybook/addon-docs`.
 
 ## Zero cost for the game
 
-- Nothing in `src/` imports `components/`; the game's bundle is built exactly as before.
-- The catalogue reads the game's `<style>` block from `index.html` at build time (`gameStyles()` plugin).
+- Storybook is a dev dependency only. Nothing in `src/` imports `components/` or `.storybook/`, so the game's bundle is
+  built exactly as before.
+- Storybook uses its own Vite config (`.storybook/vite.config.ts`), not the game's: it only shares the version stamp.
+- Every story's canvas gets the game's `<style>` block from `index.html` (`previewHead` in `.storybook/main.ts`).
 - `/components` is excluded from the Pages Functions (`public/_routes.json`) and from the language redirect
   (`EXEMPT_PATHS` in `src/i18n/locale.ts`).
 
 ## How it works
 
-- `components/index.html` + `shell.ts`: the sidebar, the toolbar (screen size, theme, language, touch) and an iframe.
-- `components/frame.html` + `frame.ts`: one story per page, so each gets a clean game page (fixed HUD, ids, listeners).
-  Its query is `?story=id&locale=es|en&theme=light|dark&touch=1` (not `?lang=`, which the game redirects).
+- `components/*.stories.ts`: the stories in CSF, one file per sidebar group. Each story is
+  `scene(load, id, { doc, source, args, argTypes })` (`components/kit/boot.ts`), and `load` imports the module in
+  `components/stories/` that mounts the real game code, as `src/main.ts` does.
+- **One story per page.** The game's modules own the whole page (fixed HUD, ids, listeners, the language read once from
+  the path), so when Storybook asks for another story, other Controls or another toolbar value, `boot.ts` reloads the
+  canvas on it. Docs pages show each story in its own frame (`docs.story.inline: false`).
+- **Toolbar** (`.storybook/preview.ts`): language (ES/EN), touch emulation, theme, and the phone/tablet/desktop
+  viewports. The book's own language tab switches the toolbar's language.
+- **Controls:** the variants that need a fresh mount (rivals and level, the meadow seed, the spell, the GPU case…).
+  Live actions (walk, cast, hit) stay in the small **Acciones** panel on the canvas (`components/kit/panel.ts`).
 - The canvas never touches the player's data: `localStorage`/`sessionStorage` live in memory and every `/api` call is
   answered with sample data (`components/kit/mocks.ts`).
 - `components/kit/viewer.ts`: the 3D turntable, with the game's Bruma light, shadows and tone mapping, orbit controls,
@@ -31,7 +35,9 @@ pin us to its Vite support), and every story calls the game's real code, so the 
 
 ## Adding a story
 
-1. Add an entry to `components/catalog.ts` (`id`, `group`, `title`, `module`, `doc`, `source`).
-2. Export a function with that `id` from `components/stories/<module>.ts`. It mounts the real module, as `src/main.ts`
-   does, and may add controls with `Panel` (`components/kit/panel.ts`).
-3. Check it: `npm run build`, serve `dist/` and open `/components/#story=<id>`.
+1. Export a function from `components/stories/<module>.ts` (in its `stories` record). It gets
+   `{ lang, touch, args, setArgs }` and mounts the real module.
+2. Add the story to `components/<module>.stories.ts`: `export const X: StoryObj = { name: '…', ...scene(load, 'id', { doc, source }) }`.
+   Variants that need a remount are `args` + `argTypes`; option lists are literals there (a stories file must not
+   import game code, which would read the language too early).
+3. Check it: `npm run storybook`, or `npm run build` and serve `dist/`.
