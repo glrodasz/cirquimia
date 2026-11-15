@@ -85,7 +85,7 @@ describe('share links', () => {
     expect(parseChallenge('2.dificil.k3x9q2')).toEqual({ rivals: 2, difficulty: 'dificil', seed: 'k3x9q2' });
     expect(parseChallenge('3.experto')).toEqual({ rivals: 3, difficulty: 'experto', seed: null });
     expect(parseChallenge('1.facil.<x>')).toEqual({ rivals: 1, difficulty: 'facil', seed: null });
-    for (const bad of [null, '', '0.facil', '4.facil', '2.imposible', 'x.facil']) expect(parseChallenge(bad), String(bad)).toBeNull();
+    for (const bad of [null, '', '0.facil', '5.facil', '2.imposible', 'x.facil']) expect(parseChallenge(bad), String(bad)).toBeNull();
   });
 
   it('keeps share pages out of the language redirect', () => {

@@ -5,7 +5,7 @@ up to four initials, no account. The board has two tabs: **Today** (UTC day) and
 
 ## Score
 
-`points = damage dealt × difficulty × 600 / (seconds + 30)`, with Easy ×1, Normal ×1.5, Hard ×2, Very hard ×3.
+`points = damage dealt × difficulty × 600 / (seconds + 30)`, with Easy ×1, Normal ×1.5, Hard ×2, Very hard ×3, Hardcore ×4.
 Damage is the health the alchemist's own strikes took off the rivals: rivals knocking each other down
 score nothing for the player. Seconds are play time (the game holds still while a card is open). Rules live in `src/leaderboard/score.ts`,
 shared by the game and the server.
@@ -29,7 +29,7 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
   victory as soon as it ends, with the initials saved on the device (`cirquimia.initials`); a player who never gave
   any is saved as `ANON` with `anonymous = 1`, so a player really called ANON (`anonymous = 0`) stays distinct. The server recomputes the
   score with the run's own difficulty, refuses impossible numbers (under 4 s or over 30 min, more than 40 damage
-  a second or 300 per rival, a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
+  a second or 300 per rival (900 on Hardcore, whose rivals heal a lot), a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
 - `PATCH /api/scores {runId, initials}` renames the score just saved (leaving the initials line on the victory card, or Enter; the run id is the
   proof, only within an hour of saving) and clears `anonymous`. One row written, none when the name is unchanged. The
   new initials also become the device's handle for the next matches.

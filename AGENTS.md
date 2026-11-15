@@ -56,3 +56,14 @@ Every new spell ships complete in the same PR. Go through this list and say in t
 8. **Rivals** (`src/rivalMind.ts`): a `Tuning` chance per level if rivals may cast it (Fácil never combines).
 9. **Tests**: recognition or merge (`tests/gestures.test.ts`), the reticle (`tests/aim.test.ts`), and the rival tuning (`tests/rivalMind.test.ts`) when it applies.
 10. **Screenshots** of the effect on a phone and the book entry in the PR.
+
+## Adding or changing a difficulty level (or rival behaviour)
+
+Any change to a level in `TUNING` (`src/rivalMind.ts`), a new level, the rival count, or how much rivals heal or defend must also re-check the leaderboard's anti-cheat limits in the same PR, or real wins get rejected ("This match cannot enter the leaderboard"):
+
+1. **`plausible` / `plausibleHorde`** (`src/leaderboard/score.ts`): `MIN_RIVALS`/`MAX_RIVALS`, `MAX_DAMAGE_PER_RIVAL` (and its per-level overrides such as Hardcore's), `MAX_DAMAGE_PER_SECOND`, `MIN_SECONDS`, `MAX_SECONDS`. Rivals that heal more or fight longer need a higher damage cap; a new combo with more damage per second may need a higher rate cap.
+2. **`LEVEL_FACTOR`** for a new level, and `isDifficulty` / challenge links (`src/leaderboard/challengeLink.ts`) accept it.
+3. **Tests** (`tests/leaderboard.test.ts`): a realistic win on the changed level is accepted, and the matching impossible case is still refused.
+4. **Docs**: the limits in `docs/leaderboard.md`.
+
+Say in the PR body which limits were checked or changed.

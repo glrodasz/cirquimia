@@ -26,7 +26,7 @@ const MARK_SIZE = 0.055; // half width of the small triangle on the ground under
 const MARK_AHEAD = 0.22; // how far in front of the feet (towards the camera) it lies, so the body never hides it
 const markDir = new THREE.Vector3();
 const GHOST = 0.3; // opacity of a rival the tutorial has not introduced yet
-export const MAX_RIVALS = 3;
+export const MAX_RIVALS = 4;
 // While the tutorial's rival stands still as a sparring partner, it cannot be knocked out: it holds on at this much health.
 const SPAR_FLOOR = 10;
 // In the wall lesson the rival's strike breaks on the ground this far to the alchemist's side, so the cross is not hidden under its feet.
@@ -41,11 +41,12 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = t.difficulty;
 
 // Each fighter has an ink colour: its health bar and the ink ring under its strikes, so you can tell who cast what.
 export const HERO_INK = '#3d7fd6';
-// Rivals wear red, green and plum coats so they read apart from the slate-blue alchemist.
+// Rivals wear red, green, plum and ochre coats so they read apart from the slate-blue alchemist.
 const RIVAL_LOOKS = [
   { coat: '#6b3a3a', coatDark: '#4f2a2b', ink: '#d9483b' },
   { coat: '#3f5e3c', coatDark: '#2e452c', ink: '#3fae5a' },
   { coat: '#55406b', coatDark: '#3e2f50', ink: '#9b6fd8' },
+  { coat: '#7a6230', coatDark: '#5a4822', ink: '#e0a23c' },
 ];
 // The horde are stone golems, all alike (shared model, src/character.ts), with a stone-grey ink for bars and strikes.
 const GOLEM_LOOK = { coat: '', coatDark: '', ink: '#9a917f', golem: true };
@@ -56,7 +57,7 @@ const SINK_DEPTH = 1.9;
 /** A golem rises out of the ground over this long when it is summoned, before it starts to fight. */
 const RISE_TIME = 0.7;
 
-/** Duel: 0 to 3 rivals in a free-for-all (0 is training). Horde: waves of golems against the alchemist alone. */
+/** Duel: 0 to 4 rivals in a free-for-all (0 is training). Horde: waves of golems against the alchemist alone. */
 export type GameMode = 'duel' | 'horde';
 
 const ELEMENT_COLOR: Record<Element, string> = {
@@ -1196,8 +1197,10 @@ export class Combat {
     if (this.gameMode === 'horde') this.updateHorde(dt);
     const all = [this.hero, ...this.rivals];
     const standing = all.filter((f) => !f.down);
-    // The horde only goes for the alchemist; in a duel everyone fights everyone.
-    const foesOf = (r: Rival) => (r.golem ? (this.hero.down ? [] : [this.hero]) : standing.filter((f) => f !== r));
+    // The horde and Hardcore rivals only go for the alchemist (a Hardcore strike still hurts any rival it catches);
+    // in any other duel everyone fights everyone.
+    const huntHero = (r: Rival) => r.golem || this.level === 'hardcore';
+    const foesOf = (r: Rival) => (huntHero(r) ? (this.hero.down ? [] : [this.hero]) : standing.filter((f) => f !== r));
     for (const r of this.rivals) {
       // Fallen rivals lie still; once the match is decided nobody attacks any more. A golem still rising waits.
       r.sparring = this.sparring;
