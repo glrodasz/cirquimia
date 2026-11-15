@@ -112,7 +112,8 @@ export class Guides {
   /** How many strokes of the step are already in hand (a combination has two). */
   private part = 0;
   private on = false;
-  private hidden = false;
+  /** The sheet of circles folded down to its title (the guides go on). */
+  private folded = false;
   /** The step's symbol is in hand, waiting to be cast. */
   private pending = false;
   /** Seconds left on the "well done" bubble before the next step. */
@@ -166,13 +167,18 @@ export class Guides {
     const reset = this.button('reset', t.guides.reset, '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4 3.5V8h4.5"/>', () => this.restart());
     reset.hidden = true;
     this.reset = reset;
-    const close = this.button('close', t.guides.close, '<path d="M6 6l12 12M18 6 6 18"/>', () => {
-      this.hidden = true;
-      this.root.hidden = true;
+    const fold = this.button('fold', t.guides.fold, '<path d="M6 9l6 6 6-6"/>', () => {
+      this.folded = !this.folded;
+      this.card.classList.toggle('folded', this.folded);
+      const label = this.folded ? t.guides.unfold : t.guides.fold;
+      fold.setAttribute('aria-label', label);
+      fold.title = label;
+      fold.setAttribute('aria-expanded', String(!this.folded));
     });
+    fold.setAttribute('aria-expanded', 'true');
     const top = document.createElement('div');
     top.className = 'top';
-    top.append(title, reset, close);
+    top.append(title, reset, fold);
     this.card.append(top, this.boxes);
     this.root.append(this.guide, this.arrow, this.bubble, this.card);
     document.body.append(this.root);
@@ -298,16 +304,13 @@ export class Guides {
   update(dt: number) {
     const active = this.host.training();
     if (active !== this.on) {
-      // Each time training starts the loop starts over, shown again even if it was hidden last time.
-      if (active) {
-        this.restart();
-        this.hidden = false;
-      }
+      // Each time training starts the loop starts over.
+      if (active) this.restart();
       this.on = active;
     }
-    this.host.hitMe(!this.on || this.hidden || this.free);
+    this.host.hitMe(!this.on || this.free);
     this.reset.hidden = !this.free;
-    this.root.hidden = !this.on || this.hidden || this.host.covered();
+    this.root.hidden = !this.on || this.host.covered();
     if (this.root.hidden) return;
     this.arrow.hidden = true;
     if (this.free) {

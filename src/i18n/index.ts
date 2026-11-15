@@ -290,7 +290,8 @@ const es = {
     title: 'Círculos disponibles',
     step: 'Paso',
     reset: 'Empezar de nuevo',
-    close: 'Ocultar guías',
+    fold: 'Minimizar',
+    unfold: 'Mostrar círculos',
   },
   device: {
     touch: 'También en tu móvil: cirquimia.pages.dev',
@@ -629,7 +630,8 @@ const en: Strings = {
     title: 'Available circles',
     step: 'Step',
     reset: 'Start over',
-    close: 'Hide guides',
+    fold: 'Minimise',
+    unfold: 'Show circles',
   },
   device: {
     touch: 'Also on your phone: cirquimia.pages.dev',

@@ -348,7 +348,7 @@
       #guides .to-source svg { fill: #e0a23c; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); animation: tutorial-bob .9s ease-in-out infinite alternate; }
       /* Training's sheet of circles: a page of the grimoire rising from the bottom edge (its foot runs off screen), the
          symbols centred level with the stick (or the keys); same size all the time. */
-      #guides .tip { --mid: calc(var(--edge-bottom) + 58px); --sink: 26px; position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(0px - var(--sink)); display: flex; flex-direction: column; gap: 6px; width: min(272px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px calc(var(--mid) - 46px + var(--sink)) 14px; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), 0 -3px 14px rgba(20,28,24,.3); font-family: var(--g-font); }
+      #guides .tip { --mid: calc(var(--edge-bottom) + 58px); --sink: 26px; position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(0px - var(--sink)); display: flex; flex-direction: column; gap: 6px; width: min(272px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px max(calc(var(--sink) + 12px), calc(var(--mid) - 64px + var(--sink))) 14px; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), 0 -3px 14px rgba(20,28,24,.3); font-family: var(--g-font); }
       @media (min-width: 600px) and (min-height: 800px) { #guides .tip { --mid: calc(var(--edge-bottom) + 70px); } }
       @media (pointer: fine) { #guides .tip { --mid: calc(var(--edge-bottom) + 37px); } }
       .has-pad #guides .tip { width: min(272px, calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - 134px)); }
@@ -356,19 +356,23 @@
       @media (max-width: 420px) { #guides .tip b { font-size: 15px; letter-spacing: .01em; } #guides .tip { padding-left: 11px; padding-right: 8px; } }
       #guides .tip .top { display: flex; align-items: center; gap: 2px; height: 22px; }
       #guides .tip b { flex: 1; min-width: 0; color: var(--g-red); font: 600 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      #guides .tip :is(.reset, .close) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -4px -2px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--g-ink); opacity: .65; cursor: pointer; }
+      #guides .tip :is(.reset, .fold) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -4px -2px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--g-ink); opacity: .65; cursor: pointer; }
       #guides .tip .reset[hidden] { display: none; }
-      #guides .tip :is(.reset, .close):hover { opacity: 1; background: rgba(31,26,21,.08); }
-      #guides .tip :is(.reset, .close) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      #guides .boxes { display: grid; grid-template-columns: repeat(5, 26px); gap: 5px 6px; margin: 0; padding: 3px 0 0; list-style: none; }
-      #guides .boxes li { position: relative; width: 26px; height: 26px; color: var(--g-ink); box-shadow: inset 0 0 0 1px rgba(31,26,21,.45); }
+      #guides .tip :is(.reset, .fold):hover { opacity: 1; background: rgba(31,26,21,.08); }
+      #guides .tip :is(.reset, .fold) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+      #guides .boxes { display: grid; grid-template-columns: repeat(5, minmax(0, 46px)); gap: 7px; justify-content: space-between; margin: 0; padding: 3px 0 0; list-style: none; }
+      #guides .boxes li { position: relative; aspect-ratio: 1; color: var(--g-ink); box-shadow: inset 0 0 0 1px rgba(31,26,21,.45); }
       #guides .boxes li svg { width: 100%; height: 100%; display: block; }
+      #guides .tip .fold svg { transition: transform .2s; }
+      #guides .tip.folded .fold svg { transform: rotate(180deg); }
+      #guides .tip.folded .boxes { display: none; }
+      #guides .tip.folded { padding-bottom: calc(var(--sink) + 8px); }
       #guides .boxes .glyph { fill: currentColor; opacity: .55; }
       #guides .boxes li.now { box-shadow: inset 0 0 0 2px var(--g-red); }
       #guides .boxes li.now .glyph { opacity: 1; }
       #guides .boxes li.tick { background: var(--g-green); box-shadow: none; }
       #guides .boxes li.tick .glyph { fill: var(--g-paper); opacity: .95; }
-      #guides .boxes li.tick::after { content: '✓'; position: absolute; right: -3px; bottom: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--g-ink); color: var(--g-paper); font: 800 8px/12px system-ui, sans-serif; text-align: center; }
+      #guides .boxes li.tick::after { content: '✓'; position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px; border-radius: 50%; background: var(--g-ink); color: var(--g-paper); font: 800 9px/15px system-ui, sans-serif; text-align: center; }
       #guides .boxes li[data-n]::before { content: attr(data-n); position: absolute; z-index: 1; top: -7px; right: -6px; min-width: 15px; height: 13px; padding: 0 3px; box-sizing: border-box; background: var(--g-red); color: var(--g-paper); font: 700 10px/13px var(--g-font); font-variant-numeric: lining-nums; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
       /* What to do, said in a speech bubble next to where to do it (the guide, the scarecrow, the alchemist). */
       #guides .say { position: absolute; left: 0; top: 0; max-width: min(250px, calc(100vw - 16px)); width: max-content; box-sizing: border-box; padding: 5px 11px 6px; background: var(--g-paper); color: var(--g-ink); border: 1px solid rgba(31,26,21,.75); box-shadow: 0 3px 10px rgba(20,28,24,.28); font: 500 16px/1.22 var(--g-font); text-align: center; will-change: transform; pointer-events: none; }
