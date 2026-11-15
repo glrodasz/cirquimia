@@ -17,8 +17,8 @@ export const SPAWN_GAP = 0.7;
 export const WAVE_PAUSE = 2.6;
 /** Health the alchemist gets back when a wave is cleared (never above full). */
 export const WAVE_HEAL = 30;
-/** A golem has the same health as any alchemist. */
-export const GOLEM_HP = 100;
+/** A golem is a block of stone: twice an alchemist's health. */
+export const GOLEM_HP = 200;
 /** Highest wave the ranking believes (the sizes alone make anything past it a very long night). */
 export const MAX_WAVE = 40;
 

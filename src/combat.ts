@@ -6,7 +6,7 @@ import { heightAt } from './noise';
 import { AREA_OF, PILLAR_AREA, PILLAR_WARN, ROOT_TIME, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells, type StarCage } from './spells';
 import { t } from './i18n';
 import { RivalMind, TUNING, golemTuning, type Difficulty, type Fluid, type MindView, type Plan, type Tuning } from './rivalMind';
-import { MAX_ALIVE, SPAWN_GAP, WAVE_HEAL, WAVE_PAUSE, waveSize } from './horde';
+import { GOLEM_HP, MAX_ALIVE, SPAWN_GAP, WAVE_HEAL, WAVE_PAUSE, waveSize } from './horde';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
 // the blast (fire and water merged into an hourglass) 45 over a smaller area, each tip of a fire or water star
@@ -101,6 +101,8 @@ interface Body {
 /** Health bar floating over a character's head, and the damage numbers that pop out of it. */
 class Fighter<B extends Body = Body> {
   hp = MAX_HP;
+  /** Full health: 100 for alchemists, more for the horde's golems. */
+  maxHp = MAX_HP;
   /** World units above the feet where the health bar floats. */
   protected head = HEAD_HEIGHT;
   private readonly bar = document.createElement('div');
@@ -220,7 +222,7 @@ class Fighter<B extends Body = Body> {
 
   /** Full health and back on its feet. */
   reset() {
-    this.hp = MAX_HP;
+    this.hp = this.maxHp;
     this.body.rise();
     this.bar.classList.remove('ko');
   }
@@ -249,7 +251,7 @@ class Fighter<B extends Body = Body> {
   /** Back up by `amount`, capped at full; no effect once down. */
   heal(amount: number, camera: THREE.Camera, boosted = false) {
     if (this.down) return;
-    this.hp = Math.min(MAX_HP, this.hp + amount);
+    this.hp = Math.min(this.maxHp, this.hp + amount);
     // A rune-boosted heal pops bigger and marked, so it reads apart from a plain one even near full health.
     this.popNumber(boosted ? `+${amount} ✦` : `+${amount}`, HEAL_COLOR, camera, boosted ? 1.4 : 1);
   }
@@ -269,7 +271,7 @@ class Fighter<B extends Body = Body> {
 
   /** Keeps the bar over the head; a fallen fighter's bar goes away once the body is on the ground. */
   update(camera: THREE.Camera) {
-    this.fill.style.transform = `scaleX(${this.hp / MAX_HP})`;
+    this.fill.style.transform = `scaleX(${this.hp / this.maxHp})`;
     const visible = this.screen(camera) && !this.veiled;
     this.bar.hidden = !visible;
     this.bar.classList.toggle('gone', this.down);
@@ -362,6 +364,7 @@ class Rival extends Fighter<Character> {
   ) {
     super(new Character(obstacles, { ...look, speed: tuning.speed }), look.ink);
     this.mind = new RivalMind(tuning);
+    if (golem) this.maxHp = this.hp = GOLEM_HP;
   }
 
   /** A wall could go up where it stands right now. */
@@ -483,7 +486,8 @@ class Rival extends Fighter<Character> {
         plan.kind !== 'strike' || combat.book(foe, delay, isStar(plan.element) ? STAR_STAGGER * 4 : 0, this.tuning.stagger),
     };
     const action = this.mind.tick(dt, view);
-    if (action?.kind === 'draw') this.drawSketch(sketchFor(action.plan), action.seconds);
+    // Golems strike straight from the ground: no symbol over their heads, only the warning where it will break out.
+    if (action?.kind === 'draw' && !this.golem) this.drawSketch(sketchFor(action.plan), action.seconds);
     else if (action?.kind === 'act') this.act(action.plan, foe, combat, dt);
   }
 
