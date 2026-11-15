@@ -7,6 +7,7 @@ import { t } from './i18n';
 import { hand } from './help';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
+import { Popover, type PopAnchor } from './popover';
 
 // The last lesson behind the player: 'moved' after the walk, then each lesson's own name, 'done' once the duel begins.
 const STORE = 'cirquimia.tutorial';
@@ -24,16 +25,6 @@ type Shape = 'square' | 'circle' | 'triangle' | 'triangleDown';
 type Lesson = 'move' | 'goal' | Shape | 'duel';
 type Step = 'walk' | 'read' | 'draw' | 'aim' | 'watch';
 type Stage = '' | 'moved' | Exclude<Lesson, 'move' | 'duel'> | 'done';
-/**
- * Where the card points: a spot on screen (x, y) and how far around it to keep clear (r), and which side of it the card
- * would rather sit on.
- */
-interface Anchor {
-  x: number;
-  y: number;
-  r: number;
-  side: 'above' | 'below';
-}
 /** What the walking lesson shows right now: the tap, the other way (stick or keys), or nothing once the alchemist walks. */
 type WalkShow = 'tap' | 'alt' | 'go';
 
@@ -138,11 +129,9 @@ export class Tutorial {
   /** The spotlight as drawn, easing toward where it should be. */
   private lit: { x: number; y: number; r: number } | null = null;
   /** What the card points at right now: it sits next to it, with its nub toward it. */
-  private target: () => Anchor | null = () => null;
-  /** The card's top-left corner as drawn, easing toward where it should be (null: jump there). */
-  private placed: { x: number; y: number } | null = null;
+  private target: () => PopAnchor | null = () => null;
   /** Where the demo hand draws, for the card to sit under it. */
-  private demoAt: Anchor | null = null;
+  private demoAt: PopAnchor | null = null;
 
   private readonly root = document.createElement('div');
   private readonly dim = document.createElement('div');
@@ -151,13 +140,13 @@ export class Tutorial {
   /** The walking lesson: a glowing mark on the ground with a hand tapping it, and a hand on the stick. */
   private readonly mark = document.createElement('div');
   private readonly padHand = document.createElement('div');
-  private readonly card = document.createElement('div');
   private readonly title = document.createElement('b');
   private readonly body = document.createElement('span');
-  /** The little point on the card's edge, toward what it talks about. */
-  private readonly nub = document.createElement('i');
   /** Goes on from a lesson that is only read (the goal, the duel). */
   private readonly next = document.createElement('button');
+  /** The lesson's note: a popover next to what it talks about. */
+  private readonly pop = new Popover(this.title, this.body, this.next);
+  private readonly card = this.pop.el;
   private hintTimer = 0;
   /** The first frame has passed (the rival's faintness applies at once on it, then eases). */
   private started = false;
@@ -170,16 +159,12 @@ export class Tutorial {
     this.demo.className = 'demo';
     this.arrow.className = 'arrow';
     this.arrow.innerHTML = downArrow();
-    this.card.className = 'tip';
-    this.card.setAttribute('role', 'status');
     this.next.type = 'button';
     this.next.className = 'next';
     this.next.hidden = true;
     this.next.addEventListener('click', () => {
       if (this.step === 'read') this.finish();
     });
-    this.nub.className = 'nub';
-    this.card.append(this.nub, this.title, this.body, this.next);
     this.mark.className = 'mark';
     this.mark.innerHTML = `<i></i><svg viewBox="-16 -8 40 40" aria-hidden="true">${hand(0, 0, 1, true)}</svg>`;
     this.padHand.className = 'pad-hand';
@@ -296,7 +281,7 @@ export class Tutorial {
     this.shown++;
     clearTimeout(this.hintTimer);
     this.lesson = lesson;
-    if (this.root.hidden) this.placed = null;
+    if (this.root.hidden) this.pop.snap();
     this.root.hidden = false;
     this.root.dataset.lesson = lesson;
     void this.root.offsetWidth;
@@ -546,7 +531,7 @@ export class Tutorial {
   }
 
   /** A fighter on screen, as a spot for the card: under its feet, clear of its body and health bar. */
-  private at(who: 'foe' | 'hero', clear = 30): Anchor | null {
+  private at(who: 'foe' | 'hero', clear = 30): PopAnchor | null {
     const p = who === 'foe' ? this.host.foe() : this.host.hero();
     if (!p) return null;
     const head = this.host.toScreen(p, 0.75);
@@ -554,43 +539,9 @@ export class Tutorial {
     return { x: feet.x, y: (feet.y + head.y) / 2, r: Math.max(clear, (feet.y - head.y) / 2 + 10), side: 'below' };
   }
 
-  /**
-   * Puts the card next to what it points at: on its preferred side when it fits, else the other one, inside the
-   * screen and under the HUD, with the nub toward the spot. It glides there rather than jumping.
-   */
+  /** Keeps the card next to what the lesson points at. */
   private position(dt: number) {
-    const a = this.target();
-    const w = this.card.offsetWidth;
-    const h = this.card.offsetHeight;
-    const pad = 12;
-    const gap = 12; // room for the nub
-    const top = Math.max(pad, (document.getElementById('book-btn')?.getBoundingClientRect().bottom ?? 52) + 10);
-    const bottom = innerHeight - pad;
-    let x: number;
-    let y: number;
-    let side: Anchor['side'] | 'none' = 'none';
-    if (a) {
-      const below = a.y + a.r + gap;
-      const above = a.y - a.r - gap - h;
-      const fitsBelow = below + h <= bottom;
-      const fitsAbove = above >= top;
-      side = a.side === 'below' ? (fitsBelow || !fitsAbove ? 'below' : 'above') : fitsAbove || !fitsBelow ? 'above' : 'below';
-      y = side === 'below' ? below : above;
-      x = a.x - w / 2;
-    } else {
-      // Nothing to point at: bottom centre.
-      x = (innerWidth - w) / 2;
-      y = bottom - h;
-    }
-    x = Math.min(Math.max(x, pad), innerWidth - pad - w);
-    y = Math.min(Math.max(y, top), bottom - h);
-    const k = this.placed ? 1 - Math.exp(-dt * 10) : 1;
-    const placed = (this.placed ??= { x, y });
-    placed.x += (x - placed.x) * k;
-    placed.y += (y - placed.y) * k;
-    this.card.style.transform = `translate(${placed.x.toFixed(1)}px, ${placed.y.toFixed(1)}px)`;
-    this.card.dataset.side = side;
-    if (a) this.nub.style.left = `${Math.min(Math.max(a.x - placed.x, 16), w - 16).toFixed(1)}px`;
+    this.pop.place(this.target(), dt);
   }
 
   /** Lights the rival (and its health bar), with the arrow over it when `arrow`. */
