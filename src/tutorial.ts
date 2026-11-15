@@ -380,7 +380,12 @@ export class Tutorial {
     } else if (this.goal) {
       // The tap, or walking already: the card stays by the mark it asks to reach.
       const goal = this.goal;
-      this.target = () => ({ ...this.host.toScreen(goal, 0), r: 30, side: 'above' });
+      // On the side away from the alchemist, so the card never hides who is walking there.
+      this.target = () => {
+        const at = this.host.toScreen(goal, 0);
+        const hero = this.host.toScreen(this.host.hero(), 0);
+        return { ...at, r: 30, side: hero.y < at.y ? 'below' : 'above' };
+      };
     }
     if (what === 'go') return;
     const move = t.tutorial.move;
