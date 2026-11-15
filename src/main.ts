@@ -16,7 +16,7 @@ import { mergedInHand, recognize, type Point, type ShapeKind } from './gestures'
 import { PointerRouter, type GestureEvent } from './pointer';
 import { Ink } from './ink';
 import { Spells } from './spells';
-import { Combat, HERO_INK, type Difficulty } from './combat';
+import { Combat, HERO_INK, showHitMe, type Difficulty } from './combat';
 import { Reticle } from './aim';
 import type { Kind } from './generator';
 import { GLADE } from './look';
@@ -289,6 +289,7 @@ const guides = new Guides({
   toScreen: (p, lift) => toScreen(p, lift),
   hero: () => hero.root.position,
   dummy: () => combat.dummy(),
+  hitMe: (on) => showHitMe(on),
   source: (element) => nearestSource(element),
   selected: () => held,
   drawing: () => router.isDrawing,

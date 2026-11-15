@@ -83,6 +83,8 @@ export interface GuidesHost {
   hero(): THREE.Vector3;
   /** The scarecrow standing now, if any. */
   dummy(): THREE.Vector3 | null;
+  /** Shows or hides the scarecrow's "Hit me!" (off during the guided round, which says it in its bubbles). */
+  hitMe(on: boolean): void;
   /** The nearest campfire (or lagoon), on screen or not. */
   source(element: 'fire' | 'water'): THREE.Vector3 | null;
   /** The shape in hand. */
@@ -117,6 +119,8 @@ export class Guides {
   private allSaid = false;
   /** The bubble on now is "you did them all". */
   private praiseAll = false;
+  /** After the guided round: no guide or bubbles, the player practises their own attacks; the sheet keeps counting. */
+  private free = false;
   /** How many times each symbol was used in this lap: ticked from 1, ×2 and up shown on its box. */
   private readonly counts = new Map<Drill, number>();
   private time = 0;
@@ -129,6 +133,7 @@ export class Guides {
   private readonly guide = document.createElement('div');
   private readonly arrow = document.createElement('div');
   private readonly card = document.createElement('div');
+  private readonly reset: HTMLButtonElement;
   /** The speech bubble: what to do, next to where to do it. */
   private readonly bubble = document.createElement('div');
   private readonly bubbleText = document.createElement('span');
@@ -154,17 +159,32 @@ export class Guides {
     this.boxes.className = 'boxes';
     this.boxes.setAttribute('aria-hidden', 'true');
     this.boxes.innerHTML = STEPS.map((s) => `<li data-id="${s.id}">${shapeIcon(s.result, true)}</li>`).join('');
-    const next = this.button('next', t.guides.next, '<path d="M9 5l7 7-7 7"/>', () => this.advance());
+    const reset = this.button('reset', t.guides.reset, '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4 3.5V8h4.5"/>', () => this.restart());
+    reset.hidden = true;
+    this.reset = reset;
     const close = this.button('close', t.guides.close, '<path d="M6 6l12 12M18 6 6 18"/>', () => {
       this.hidden = true;
       this.root.hidden = true;
     });
     const top = document.createElement('div');
     top.className = 'top';
-    top.append(title, next, close);
+    top.append(title, reset, close);
     this.card.append(top, this.boxes);
     this.root.append(this.guide, this.arrow, this.bubble, this.card);
     document.body.append(this.root);
+  }
+
+  /** Back to the guided round from the start, boxes cleared (the free practice's ↺). */
+  private restart() {
+    this.index = 0;
+    this.part = 0;
+    this.pending = false;
+    this.praise = 0;
+    this.holding = 0;
+    this.allSaid = false;
+    this.free = false;
+    this.counts.clear();
+    this.paint();
   }
 
   private button(cls: string, label: string, icon: string, act: () => void) {
@@ -191,7 +211,7 @@ export class Guides {
   drawn(kind: ShapeKind, held: ShapeKind | null) {
     if (!this.on) return;
     if (INSTANT.has(kind)) this.count(kind);
-    if (this.praise > 0) return;
+    if (this.praise > 0 || this.free) return;
     const step = this.step;
     if (kind === step.parts[this.part]) this.part++;
     else this.part = kind === step.parts[0] ? 1 : 0; // something else replaced the hand: start the step over
@@ -222,6 +242,10 @@ export class Guides {
     const step = STEPS.find((s) => s.result === kind);
     if (!step) return;
     this.counts.set(step.id, (this.counts.get(step.id) ?? 0) + 1);
+    if (this.free) {
+      this.paint();
+      return;
+    }
     if (this.counts.size === STEPS.length && !this.allSaid) {
       this.allSaid = this.praiseAll = true;
       this.praise = ALL_AFTER;
@@ -232,7 +256,7 @@ export class Guides {
     this.paint();
   }
 
-  /** On to the next step (from "another shape" too); once every box is ticked, simply the next one round. */
+  /** On to the next step not ticked yet, so a step left half-done comes back later in the round. */
   private advance() {
     const lap = this.counts.size === STEPS.length;
     this.pending = false;
@@ -263,7 +287,7 @@ export class Guides {
       li.classList.toggle('tick', n > 0);
       if (n > 1) li.dataset.n = `×${n}`;
       else delete li.dataset.n;
-      li.classList.toggle('now', id === this.step.id && this.praise <= 0);
+      li.classList.toggle('now', id === this.step.id && this.praise <= 0 && !this.free);
     }
   }
 
@@ -272,28 +296,34 @@ export class Guides {
     if (active !== this.on) {
       // Each time training starts the loop starts over, shown again even if it was hidden last time.
       if (active) {
-        this.index = 0;
-        this.part = 0;
-        this.pending = false;
-        this.praise = 0;
-        this.holding = 0;
-        this.allSaid = false;
-        this.counts.clear();
+        this.restart();
         this.hidden = false;
-        this.paint();
       }
       this.on = active;
     }
+    this.host.hitMe(!this.on || this.hidden || this.free);
+    this.reset.hidden = !this.free;
     this.root.hidden = !this.on || this.hidden || this.host.covered();
     if (this.root.hidden) return;
     this.arrow.hidden = true;
+    if (this.free) {
+      this.say('', null, dt);
+      this.place(null);
+      return;
+    }
     const hero = this.host.toScreen(this.host.hero(), 1.9);
 
     if (this.praise > 0) {
       this.praise -= dt;
       this.say(this.praiseAll ? t.guides.allDone : t.guides.good, hero, dt);
       this.place(null);
-      if (this.praise <= 0) this.advance();
+      if (this.praise <= 0) {
+        if (this.praiseAll) {
+          // The guided round is done: from here on the player practises freely, the boxes keep counting.
+          this.free = true;
+          this.paint();
+        } else this.advance();
+      }
       return;
     }
     const held = this.host.selected();
@@ -347,7 +377,7 @@ export class Guides {
     const r = label?.getBoundingClientRect();
     if (r && r.width) return { x: r.left + r.width / 2, y: r.top - 2 };
     const d = this.host.dummy();
-    return d ? this.host.toScreen(d, 1.2) : null;
+    return d ? this.host.toScreen(d, 1.25) : null;
   }
 
   /** A clear spot beside the alchemist, off the HUD at the top and the stick and this line at the bottom. */

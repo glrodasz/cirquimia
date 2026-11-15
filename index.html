@@ -348,7 +348,7 @@
       #guides .to-source svg { fill: #e0a23c; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); animation: tutorial-bob .9s ease-in-out infinite alternate; }
       /* Training's sheet of circles: a page of the grimoire rising from the bottom edge (its foot runs off screen), the
          symbols centred level with the stick (or the keys); same size all the time. */
-      #guides .tip { --mid: calc(var(--edge-bottom) + 58px); --sink: 26px; position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(0px - var(--sink)); display: flex; flex-direction: column; gap: 6px; width: min(272px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px calc(var(--mid) - 29px + var(--sink)) 14px; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), 0 -3px 14px rgba(20,28,24,.3); font-family: var(--g-font); }
+      #guides .tip { --mid: calc(var(--edge-bottom) + 58px); --sink: 26px; position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(0px - var(--sink)); display: flex; flex-direction: column; gap: 6px; width: min(272px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px calc(var(--mid) - 46px + var(--sink)) 14px; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), 0 -3px 14px rgba(20,28,24,.3); font-family: var(--g-font); }
       @media (min-width: 600px) and (min-height: 800px) { #guides .tip { --mid: calc(var(--edge-bottom) + 70px); } }
       @media (pointer: fine) { #guides .tip { --mid: calc(var(--edge-bottom) + 37px); } }
       .has-pad #guides .tip { width: min(272px, calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - 134px)); }
@@ -356,11 +356,12 @@
       @media (max-width: 420px) { #guides .tip b { font-size: 15px; letter-spacing: .01em; } #guides .tip { padding-left: 11px; padding-right: 8px; } }
       #guides .tip .top { display: flex; align-items: center; gap: 2px; height: 22px; }
       #guides .tip b { flex: 1; min-width: 0; color: var(--g-red); font: 600 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      #guides .tip :is(.next, .close) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -4px -2px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--g-ink); opacity: .65; cursor: pointer; }
-      #guides .tip :is(.next, .close):hover { opacity: 1; background: rgba(31,26,21,.08); }
-      #guides .tip :is(.next, .close) svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      #guides .boxes { display: flex; flex-wrap: wrap; gap: 2px; margin: 0; padding: 3px 0 0; list-style: none; }
-      #guides .boxes li { position: relative; width: 19px; height: 19px; color: var(--g-ink); box-shadow: inset 0 0 0 1px rgba(31,26,21,.45); }
+      #guides .tip :is(.reset, .close) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -4px -2px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--g-ink); opacity: .65; cursor: pointer; }
+      #guides .tip .reset[hidden] { display: none; }
+      #guides .tip :is(.reset, .close):hover { opacity: 1; background: rgba(31,26,21,.08); }
+      #guides .tip :is(.reset, .close) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+      #guides .boxes { display: grid; grid-template-columns: repeat(5, 26px); gap: 5px 6px; margin: 0; padding: 3px 0 0; list-style: none; }
+      #guides .boxes li { position: relative; width: 26px; height: 26px; color: var(--g-ink); box-shadow: inset 0 0 0 1px rgba(31,26,21,.45); }
       #guides .boxes li svg { width: 100%; height: 100%; display: block; }
       #guides .boxes .glyph { fill: currentColor; opacity: .55; }
       #guides .boxes li.now { box-shadow: inset 0 0 0 2px var(--g-red); }
