@@ -482,14 +482,15 @@ export class Tutorial {
     this.body.textContent = body;
     this.body.hidden = !body;
     this.card.classList.remove('wrong');
-    this.card.animate([{ transform: 'translateY(6px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'ease-out' });
+    // \`translate\`, not \`transform\`: transform holds where the card sits next to its target.
+    this.card.animate([{ translate: '0 6px', opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 260, easing: 'ease-out' });
   }
 
   private hint(text: string) {
     this.body.textContent = text;
     this.body.hidden = false;
     this.card.classList.add('wrong');
-    this.card.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 300 });
+    this.card.animate([0, -6, 6, -4, 4, 0].map((x) => ({ translate: `${x}px 0` })), { duration: 300 });
   }
 
   /**
