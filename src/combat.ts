@@ -101,7 +101,7 @@ interface Body {
 }
 
 /** Health bar floating over a character's head, and the damage numbers that pop out of it. */
-class Fighter<B extends Body = Body> {
+export class Fighter<B extends Body = Body> {
   hp = MAX_HP;
   /** Full health: 100 for alchemists, more for the horde's golems. */
   maxHp = MAX_HP;

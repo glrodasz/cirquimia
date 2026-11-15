@@ -43,7 +43,7 @@ function localizedPages(): Plugin {
  * The game version comes from the latest release tag that semantic-release created (v0.3.1 -> "0.3.1").
  * Builds after that tag carry the distance and commit too ("0.3.1-4-gabc1234"); GAME_VERSION overrides it.
  */
-function gameVersion() {
+export function gameVersion() {
   if (process.env.GAME_VERSION) return process.env.GAME_VERSION;
   const git = (cmd: string) => execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
   try {

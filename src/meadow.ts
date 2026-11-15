@@ -225,6 +225,92 @@ function crowdsArena(layout: Layout, x: number, z: number): boolean {
   return forest ? out > -0.9 : out < 0.7;
 }
 
+/**
+ * The trees of a meadow, a mix of pines (stacked cones) and round broadleaf crowns: one instanced mesh per part,
+ * room for `count` trees. Also used on its own by the component catalogue (components/), to show a single tree.
+ */
+export class Trees {
+  // Every tree part can fade (src/treeFade.ts) when someone walks behind it.
+  private readonly trunk: THREE.InstancedMesh;
+  private readonly pineLow: THREE.InstancedMesh;
+  private readonly pineHigh: THREE.InstancedMesh;
+  private readonly round: THREE.InstancedMesh;
+  // Glade crowns: a cluster of smooth puffs, darker underneath, instead of one faceted ball.
+  // They carry a painted leaf-clump texture.
+  private readonly puffs: THREE.InstancedMesh | null;
+  private readonly puffRand: () => number;
+  private puffCount = 0;
+  private pines = 0;
+  private rounds = 0;
+
+  constructor(count: number, seedNum: number) {
+    this.trunk = withFade(instanced(new THREE.CylinderGeometry(0.12, 0.18, 1, 5), lambert({ color: GLADE ? '#6b5038' : '#5c4f48' }), count, { cast: true }));
+    this.pineLow = withFade(instanced(new THREE.ConeGeometry(0.9, 1.5, 6), lambert(), count, { cast: true }));
+    this.pineHigh = withFade(instanced(new THREE.ConeGeometry(0.65, 1.2, 6), lambert(), count, { cast: true }));
+    this.round = withFade(instanced(new THREE.IcosahedronGeometry(0.85, 0), lambert(), count, { cast: true }));
+    const puffMat = stylize(soft({ vertexColors: true }), { paint: { scale: 3.4, amount: 0.6 } });
+    this.puffs = GLADE
+      ? withFade(instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.5, 1.2), puffMat, count * PUFFS, { cast: true, receive: true }))
+      : null;
+    this.puffRand = mulberry32(seedNum ^ 0x9a1d);
+  }
+
+  /** Places tree number `i` at (x, z), drawn from `rand`, and returns its size (its trunk blocks 0.45 × size). */
+  add(x: number, z: number, i: number, rand: () => number, pine?: boolean): number {
+    const { puffs, puffRand } = this;
+    const y = heightAt(x, z);
+    const s = 0.8 + rand() * 0.6;
+    // Glade is mostly broadleaf; the draw stays the same so a seed keeps its layout in both looks.
+    const drawnPine = rand() < (GLADE ? 0.15 : 0.5);
+    const isPine = pine ?? drawnPine;
+    const trunkH = isPine ? 0.7 : 1.1;
+    dummy.position.set(x, y + (trunkH * s) / 2, z);
+    dummy.rotation.set(0, rand() * Math.PI, 0);
+    dummy.scale.set(s, trunkH * s, s);
+    setInstance(this.trunk, i);
+    dummy.scale.setScalar(s);
+    if (isPine) {
+      const green = color.set(GLADE ? '#476b3c' : '#3f5a57').offsetHSL((rand() - 0.5) * 0.03, 0, (rand() - 0.5) * 0.06).getHex();
+      dummy.position.set(x, y + (trunkH + 0.6) * s, z);
+      setInstance(this.pineLow, this.pines, green);
+      dummy.position.set(x, y + (trunkH + 1.35) * s, z);
+      setInstance(this.pineHigh, this.pines, green);
+      this.pines++;
+    } else if (puffs) {
+      const hue = (rand() - 0.5) * 0.05;
+      const lum = (rand() - 0.5) * 0.08;
+      const cy = y + (trunkH + 0.6) * s;
+      for (let k = 0; k < PUFFS; k++) {
+        // One big central puff, the rest around and above it.
+        const a = (k / PUFFS) * Math.PI * 2 + puffRand() * 0.8;
+        const d = k === 0 ? 0 : (0.45 + puffRand() * 0.25) * s;
+        const ps = (k === 0 ? 1.1 : 0.62 + puffRand() * 0.3) * s;
+        // Every other side puff sits higher, so the crown reads as a lumpy dome rather than a ring.
+        const lift = k === 0 ? 0.05 : (k % 2 ? 0.3 : -0.1) + (puffRand() - 0.5) * 0.25;
+        dummy.position.set(x + Math.cos(a) * d, cy + lift * s, z + Math.sin(a) * d);
+        dummy.rotation.set(puffRand() * 3, puffRand() * 3, 0);
+        dummy.scale.set(ps, ps * 0.85, ps);
+        setInstance(puffs, this.puffCount++, color.set('#6e9a42').offsetHSL(hue + (puffRand() - 0.5) * 0.03, 0, lum + (puffRand() - 0.5) * 0.1).getHex());
+      }
+    } else {
+      dummy.position.set(x, y + (trunkH + 0.55) * s, z);
+      dummy.scale.set(s * 1.05, s * 0.95, s * 1.05);
+      setInstance(this.round, this.rounds++, color.set('#6f8c73').offsetHSL((rand() - 0.5) * 0.05, 0, (rand() - 0.5) * 0.08).getHex());
+    }
+    return s;
+  }
+
+  /** Trims every part to the trees placed and returns its meshes. */
+  finish(): THREE.InstancedMesh[] {
+    this.pineLow.count = this.pineHigh.count = this.pines;
+    this.round.count = this.rounds;
+    if (this.puffs) this.puffs.count = this.puffCount;
+    return [this.trunk, this.pineLow, this.pineHigh, this.round, ...(this.puffs ? [this.puffs] : [])];
+  }
+}
+
+const PUFFS = 7;
+
 /** Trees and big rocks: the scatter that blocks the walk, so it is built before checking walkability. */
 export function buildSolids(layout: Layout, params: GenParams, paint: GroundPaint, obstacles: Obstacle[]): THREE.Group {
   const group = new THREE.Group();
@@ -242,70 +328,9 @@ export function buildSolids(layout: Layout, params: GenParams, paint: GroundPain
   );
   const wood = forestEdge(layout, paint);
   treeSpots.push(...wood.filter(([x, z]) => treeSpots.every(([tx, tz]) => (tx - x) ** 2 + (tz - z) ** 2 > 0.8)));
-  // Every tree part can fade (src/treeFade.ts) when someone walks behind it.
-  const trunk = withFade(instanced(new THREE.CylinderGeometry(0.12, 0.18, 1, 5), lambert({ color: GLADE ? '#6b5038' : '#5c4f48' }), treeSpots.length, { cast: true }));
-  const pineLow = withFade(instanced(new THREE.ConeGeometry(0.9, 1.5, 6), lambert(), treeSpots.length, { cast: true }));
-  const pineHigh = withFade(instanced(new THREE.ConeGeometry(0.65, 1.2, 6), lambert(), treeSpots.length, { cast: true }));
-  const round = withFade(instanced(new THREE.IcosahedronGeometry(0.85, 0), lambert(), treeSpots.length, { cast: true }));
-  // Glade crowns: a cluster of smooth puffs, darker underneath, instead of one faceted ball.
-  // They carry a painted leaf-clump texture.
-  const PUFFS = 7;
-  const puffMat = stylize(soft({ vertexColors: true }), { paint: { scale: 3.4, amount: 0.6 } });
-  const puffs = GLADE
-    ? withFade(instanced(shadeByHeight(new THREE.IcosahedronGeometry(0.5, 1), -0.5, 0.5, 0.5, 1.2), puffMat, treeSpots.length * PUFFS, { cast: true, receive: true }))
-    : null;
-  const puffRand = mulberry32(layout.seedNum ^ 0x9a1d);
-  let puffCount = 0;
-  let pines = 0;
-  let rounds = 0;
-  treeSpots.forEach(([x, z], i) => {
-    const y = heightAt(x, z);
-    const s = 0.8 + rand() * 0.6;
-    // Glade is mostly broadleaf; the draw stays the same so a seed keeps its layout in both looks.
-    const isPine = rand() < (GLADE ? 0.15 : 0.5);
-    const trunkH = isPine ? 0.7 : 1.1;
-    dummy.position.set(x, y + (trunkH * s) / 2, z);
-    dummy.rotation.set(0, rand() * Math.PI, 0);
-    dummy.scale.set(s, trunkH * s, s);
-    setInstance(trunk, i);
-    dummy.scale.setScalar(s);
-    if (isPine) {
-      const green = color.set(GLADE ? '#476b3c' : '#3f5a57').offsetHSL((rand() - 0.5) * 0.03, 0, (rand() - 0.5) * 0.06).getHex();
-      dummy.position.set(x, y + (trunkH + 0.6) * s, z);
-      setInstance(pineLow, pines, green);
-      dummy.position.set(x, y + (trunkH + 1.35) * s, z);
-      setInstance(pineHigh, pines, green);
-      pines++;
-    } else if (puffs) {
-      const hue = (rand() - 0.5) * 0.05;
-      const lum = (rand() - 0.5) * 0.08;
-      const cy = y + (trunkH + 0.6) * s;
-      for (let k = 0; k < PUFFS; k++) {
-        // One big central puff, the rest around and above it.
-        const a = (k / PUFFS) * Math.PI * 2 + puffRand() * 0.8;
-        const d = k === 0 ? 0 : (0.45 + puffRand() * 0.25) * s;
-        const ps = (k === 0 ? 1.1 : 0.62 + puffRand() * 0.3) * s;
-        // Every other side puff sits higher, so the crown reads as a lumpy dome rather than a ring.
-        const lift = k === 0 ? 0.05 : (k % 2 ? 0.3 : -0.1) + (puffRand() - 0.5) * 0.25;
-        dummy.position.set(x + Math.cos(a) * d, cy + lift * s, z + Math.sin(a) * d);
-        dummy.rotation.set(puffRand() * 3, puffRand() * 3, 0);
-        dummy.scale.set(ps, ps * 0.85, ps);
-        setInstance(puffs, puffCount++, color.set('#6e9a42').offsetHSL(hue + (puffRand() - 0.5) * 0.03, 0, lum + (puffRand() - 0.5) * 0.1).getHex());
-      }
-    } else {
-      dummy.position.set(x, y + (trunkH + 0.55) * s, z);
-      dummy.scale.set(s * 1.05, s * 0.95, s * 1.05);
-      setInstance(round, rounds++, color.set('#6f8c73').offsetHSL((rand() - 0.5) * 0.05, 0, (rand() - 0.5) * 0.08).getHex());
-    }
-    obstacles.push({ x, z, r: 0.45 * s });
-  });
-  pineLow.count = pineHigh.count = pines;
-  round.count = rounds;
-  group.add(trunk, pineLow, pineHigh, round);
-  if (puffs) {
-    puffs.count = puffCount;
-    group.add(puffs);
-  }
+  const trees = new Trees(treeSpots.length, layout.seedNum);
+  treeSpots.forEach(([x, z], i) => obstacles.push({ x, z, r: 0.45 * trees.add(x, z, i, rand) }));
+  group.add(...trees.finish());
 
   // Loose rocks.
   const rockSpots = scatter(rand, Math.round(40 * params.rocas), 1.5, (x, z) => clearOfSpawn(x, z) && !onFeature(layout, paint, x, z, 0.3) && clearOfObstacles(x, z, 0.8));

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Cirquimia · Componentes</title>
+    <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./shell.css" />
+  </head>
+  <body>
+    <header class="top">
+      <button type="button" id="menu" aria-label="Historias" aria-expanded="false">☰</button>
+      <a class="brand" href="./">Cirquimia <span>componentes</span></a>
+      <div class="tools" role="toolbar" aria-label="Vista">
+        <label>Pantalla
+          <select id="vp">
+            <option value="fill">Ajustar</option>
+            <option value="390x844">iPhone 15 · 390×844</option>
+            <option value="375x667">iPhone SE · 375×667</option>
+            <option value="820x1180">iPad · 820×1180</option>
+            <option value="1180x820">iPad horizontal</option>
+            <option value="1440x900">Escritorio · 1440×900</option>
+          </select>
+        </label>
+        <label>Tema
+          <select id="theme">
+            <option value="">Sistema</option>
+            <option value="light">Claro</option>
+            <option value="dark">Oscuro</option>
+          </select>
+        </label>
+        <label>Idioma
+          <select id="lang">
+            <option value="es">ES</option>
+            <option value="en">EN</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="touch" /> Táctil</label>
+        <button type="button" id="reload" title="Volver a montar">↻</button>
+        <a id="open" target="_blank" rel="noopener" title="Abrir sola">↗</a>
+      </div>
+    </header>
+    <nav id="nav" aria-label="Historias"></nav>
+    <main>
+      <section class="info">
+        <h1 id="title"></h1>
+        <p id="doc"></p>
+        <p class="src">Código: <code id="source"></code></p>
+      </section>
+      <div class="stage" id="stage">
+        <div class="device" id="device"><iframe id="frame" title="Historia"></iframe></div>
+      </div>
+    </main>
+    <script type="module" src="./shell.ts"></script>
+  </body>
+</html>
