@@ -8,9 +8,9 @@ import { t } from './i18n';
 import { RivalMind, TUNING, type Difficulty, type Fluid, type MindView, type Plan, type Tuning } from './rivalMind';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
-// the blast (fire and water merged into an hourglass) 45 over a smaller area, each of the explosion star's ten blasts 10, each tip of a fire or water star
+// the blast (fire and water merged into an hourglass) 45 over a smaller area, each of the explosion star's ten blasts 25, each tip of a fire or water star
 // (the star merged with fire or water) 20, the vine (spiral) 5: its point is rooting the target for ROOT_TIME.
-export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45, fireStar: 20, waterStar: 20, blastStar: 10, vine: 5 };
+export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45, fireStar: 20, waterStar: 20, blastStar: 25, vine: 5 };
 // Rhombus: heals the caster; 30% more when cast from inside a rune circle.
 export const HEAL = 25;
 const RUNE_HEAL_BOOST = 1.3;

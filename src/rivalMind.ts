@@ -20,7 +20,7 @@ export interface Tuning {
   elemental: number;
   /** Chance, planning fire or water, of fetching the other one too to merge them into the hourglass (blast, 45). */
   blast: number;
-  /** Chance, planning the hourglass, of drawing the star over it too: the explosion star (10 blasts of 10, spread wide). */
+  /** Chance, planning the hourglass, of drawing the star over it too: the explosion star (10 blasts of 25, spread wide). */
   blastStar: number;
   /** Chance, planning fire or water, of drawing the star over it to merge them into a fire or water star (5×20). */
   star: number;
