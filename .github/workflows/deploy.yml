@@ -41,8 +41,10 @@ jobs:
 
       # Versioning (0.x until we call it 1.0): fix -> patch, feat -> minor, see AGENTS.md and .releaserc.json.
       # Runs before the build so production ships the new version. No commit is pushed back to main.
+      # Also on a manual run from main (Actions > Deploy > Run workflow), the way to recover when
+      # GitHub drops the push event of a merge: it then tags and deploys what was missed.
       - name: Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
