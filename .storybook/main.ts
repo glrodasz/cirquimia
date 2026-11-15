@@ -25,6 +25,9 @@ const config: StorybookConfig = {
     options: { builder: { viteConfigPath: resolve(import.meta.dirname, 'vite.config.ts') } },
   },
   core: { disableTelemetry: true, disableWhatsNewNotifications: true },
+  // The game paints its own background and has its own light/dark theme (the "Tema" toolbar item), so Storybook's
+  // backgrounds switcher would be a second, confusing light/dark control that the game ignores.
+  features: { backgrounds: false },
   previewHead: (head) => `${head}${gameStyles()}`,
 };
 

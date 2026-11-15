@@ -73,6 +73,7 @@ async function start(load: () => Promise<StoryModule>, id: string, opts: SceneOp
   isolateStorage();
   mockApi();
   emulatePointer(touch);
+  document.documentElement.classList.add('kit-story');
   if (opts.page) document.documentElement.classList.add('kit-doc');
   if (opts.backdrop) {
     const bg = document.createElement('div');
