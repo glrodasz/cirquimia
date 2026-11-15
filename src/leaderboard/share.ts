@@ -422,6 +422,49 @@ export async function shareDiscord(card: Promise<Blob>, d: ShareData, link: Shar
   }
 }
 
+/**
+ * Copies the post (text + the card's link) for anywhere else. Called straight from the tap: when the link is not
+ * ready yet, Safari still copies if the text goes in as a promised ClipboardItem; other browsers wait and write it.
+ */
+export async function copyShareText(d: ShareData, link: ShareLink): Promise<boolean> {
+  const ready = link.peek();
+  const text = ready ? Promise.resolve(shareText(d, ready)) : link.get().then((url) => shareText(d, url));
+  const clip = navigator.clipboard;
+  if (!ready && clip?.write && typeof ClipboardItem !== 'undefined') {
+    try {
+      await clip.write([new ClipboardItem({ 'text/plain': text.then((v) => new Blob([v], { type: 'text/plain' })) })]);
+      return true;
+    } catch {
+      // Falls through to plain text.
+    }
+  }
+  const value = await text;
+  try {
+    await clip.writeText(value);
+    return true;
+  } catch {
+    return copyByHand(value);
+  }
+}
+
+/** Older browsers and http pages: a hidden field and execCommand('copy'). */
+function copyByHand(value: string) {
+  const field = document.createElement('textarea');
+  field.value = value;
+  field.setAttribute('readonly', '');
+  field.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.append(field);
+  field.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  field.remove();
+  return ok;
+}
+
 export async function saveImage(card: Promise<Blob>, d: ShareData) {
   download(await card, `cirquimia-${d.score}.png`);
 }
