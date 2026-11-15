@@ -28,12 +28,50 @@ export interface PlayArea {
    * triangles' guides over them are never under it.
    */
   clearCorner?: boolean;
+  /**
+   * Training: where the alchemist starts and where the scarecrow stands, as screen-aligned depth (0 = the centre).
+   * The alchemist starts nearer the camera and the scarecrow further up, so it stands clear above them and their
+   * guides. Both spots are kept clear like the centre.
+   */
+  spawnV?: number;
+  dummyV?: number;
+}
+
+/**
+ * Training's start (a share of the way from the centre to the near edge) and the scarecrow's spot (a share of the
+ * way to the far edge), so a shallow screen (a tablet upright) moves them less than a tall phone.
+ */
+const TRAINING_SPAWN_SHARE = 0.33;
+const TRAINING_DUMMY_SHARE = 0.28;
+
+/** The play area as training uses it: sources out of the sheet's corner, the alchemist low and the scarecrow high. */
+export function trainingArea(area: PlayArea): PlayArea {
+  return { ...area, clearCorner: true, spawnV: area.vMin * TRAINING_SPAWN_SHARE, dummyV: area.vMax * TRAINING_DUMMY_SHARE };
+}
+
+/** Where the alchemist starts on this play area, in world x/z. */
+export function spawnOf(area: PlayArea): [number, number] {
+  return area.spawnV ? toWorld(0, area.spawnV) : [0, 0];
+}
+
+/** Where the scarecrow stands on this play area, in world x/z. */
+export function dummyOf(area: PlayArea): [number, number] {
+  return area.dummyV ? toWorld(0, area.dummyV) : [0, 0];
 }
 
 /** Share of the walkable depth (from the near edge) and of the width (from the right) that `clearCorner` keeps free of sources. */
 const CORNER_DEPTH = 0.3;
 const CORNER_WIDTH = 0.65;
 const SOURCE_KINDS: Kind[] = ['estanque', 'fogata'];
+/**
+ * Training spreads the campfire and the lagoon out: of a few free spots, each takes the one that best keeps off the
+ * spawn (where the scarecrow stands) and away from the other source, at a clearly different distance from the spawn
+ * (one near, one far). Each term counts up to its cap in world units, so a roomy screen does not chase the edges.
+ */
+const SPREAD_SPOTS = 40;
+const SPREAD_OFF_SPAWN = 2;
+const SPREAD_APART = 2.5;
+const SPREAD_REACH_DIFF = 1.6;
 
 /**
  * What a 9:16 to 9:21 phone shows around the spawn (the narrow near edge is about 4.4 units wide): the default
@@ -292,6 +330,8 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
 
   const features: Feature[] = [];
   const skipped: string[] = [];
+  const spawn = spawnOf(area);
+  const dummy = dummyOf(area);
   let animated = 0;
   for (const w of wanted) {
     const spec = KINDS[w.kind];
@@ -307,7 +347,11 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
     }
     let placed: Feature | null = null;
     const tries = must(w.kind) ? 400 : 80;
-    for (let attempt = 0; attempt < tries && !placed; attempt++) {
+    const spread = !!area.clearCorner && SOURCE_KINDS.includes(w.kind);
+    const other = spread ? features.find((f) => SOURCE_KINDS.includes(f.kind)) : undefined;
+    let spots = 0;
+    let best = -Infinity;
+    for (let attempt = 0; attempt < tries && (spread ? spots < SPREAD_SPOTS : !placed); attempt++) {
       let v = THREE.MathUtils.lerp(area.vMin + insetV, area.vMax - insetV, rand());
       // The near edge is the narrowest: a round piece must clear the side at its own nearest depth.
       const room = area.halfWidthAt(whole ? v - insetV : v) - insetU;
@@ -329,13 +373,27 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
         if (inDepth && inWidth) continue;
       }
       const spawnGap = spec.solid ? r * 0.8 + SPAWN_CLEAR : r * 0.5 + SPAWN_CLEAR;
-      if (x * x + z * z < spawnGap * spawnGap) continue;
+      // Training clears its start and scarecrow spots instead of the centre.
+      const clear = area.spawnV ? [spawn, dummy] : [[0, 0]];
+      if (clear.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < spawnGap * spawnGap)) continue;
       if (spec.solid && trail && distToPath(x, z, trail) < r * 0.35) continue; // the narrow screen leaves little room beside the trail
       const crowded = features.some((f) => {
         const gap = f.solid && spec.solid ? 0.4 : 0;
         return (f.x - x) ** 2 + (f.z - z) ** 2 < ((f.r + r) * 0.8 + gap) ** 2; // footprints include a soft margin
       });
       if (crowded) continue;
+      if (spread) {
+        spots++;
+        // Off both the scarecrow and the alchemist's start; near or far is measured from the start.
+        const reach = Math.hypot(x - spawn[0], z - spawn[1]);
+        let score = 2 * Math.min(Math.min(reach, Math.hypot(x - dummy[0], z - dummy[1])) - r, SPREAD_OFF_SPAWN) + rand() * 0.6; // a little luck, so meadows differ
+        if (other) {
+          score += Math.min(Math.hypot(other.x - x, other.z - z) - other.r - r, SPREAD_APART);
+          score += 2 * Math.min(Math.abs(Math.hypot(other.x - spawn[0], other.z - spawn[1]) - reach), SPREAD_REACH_DIFF);
+        }
+        if (score <= best) continue;
+        best = score;
+      }
       placed = {
         kind: w.kind,
         material: spec.material,
@@ -358,6 +416,12 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
       animated++;
     }
     features.push(placed);
+  }
+  // A screen too shallow to fit training's sources around its two spots brings them in towards the middle, and
+  // in the end keeps everyone there.
+  if (area.spawnV && area.dummyV && required.some((k) => !features.some((f) => f.kind === k))) {
+    const closer = Math.abs(area.spawnV) > 0.6 ? { spawnV: area.spawnV * 0.7, dummyV: area.dummyV * 0.7 } : { spawnV: undefined, dummyV: undefined };
+    return generateLayout(seed, params, required, { ...area, ...closer });
   }
   return { seed, seedNum, features, skipped, trail, area };
 }

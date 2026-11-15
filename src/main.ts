@@ -18,7 +18,7 @@ import { Ink } from './ink';
 import { Spells } from './spells';
 import { Combat, HERO_INK, showHitMe, type Difficulty } from './combat';
 import { Reticle } from './aim';
-import type { Kind } from './generator';
+import { dummyOf, spawnOf, type Kind } from './generator';
 import { GLADE } from './look';
 import { Bloom } from './glade';
 import { t } from './i18n';
@@ -158,8 +158,9 @@ const tutorial = new Tutorial({
   },
 });
 combat.spar(!tutorial.done);
-// The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson.
-world.noRunes = () => !tutorial.done;
+// The tutorial's meadows have no rune circles: a wall drawn in one would be refused mid-lesson. Training's have none
+// either, so the meadow stays quiet around the guides.
+world.noRunes = () => !tutorial.done || world.requiredBy() === 'training';
 
 /** A clear spot a short walk from the alchemist, on screen and away from props and water, for the walking lesson. */
 function walkGoal(): THREE.Vector3 | null {
@@ -199,8 +200,11 @@ const dev = mountDevTools(
   () => {
     hold(null);
     spells.clear();
-    hero.root.position.set(0, heightAt(0, 0), 0);
+    // Training starts nearer the camera, below the scarecrow; every other match in the middle.
+    const [sx, sz] = spawnOf(world.playArea);
+    hero.root.position.set(sx, heightAt(sx, sz), sz);
     hero.setTarget(hero.root.position);
+    combat.dummyHome = dummyOf(world.playArea);
     combat.respawn();
     tutorial.reset();
   },
@@ -314,6 +318,10 @@ const guides = new Guides({
   covered: () => help.open || dev.open || board.open || matchHud.picking || combat.over || tutorial.showing,
   toScreen: (p, lift) => toScreen(p, lift),
   hero: () => hero.root.position,
+  home: () => {
+    const [x, z] = spawnOf(world.playArea);
+    return new THREE.Vector3(x, heightAt(x, z), z);
+  },
   dummy: () => combat.dummy(),
   hitMe: (on) => showHitMe(on),
   source: (element) => nearestSource(element),
@@ -909,7 +917,9 @@ renderer.setAnimationLoop((time) => {
   renderer.setRenderTarget(sceneTarget);
   renderer.render(scene, camera);
   bloom?.render(renderer, sceneTarget.texture);
-  if (tiltShift) {
+  // Training shows the whole meadow sharp, so every source and the scarecrow read clearly.
+  const blur = tiltShift && !combat.training;
+  if (blur) {
     projected.copy(hero.root.position).project(camera);
     focusY += ((projected.y + 1) / 2 - focusY) * Math.min(1, dt * 4);
     hBlur.uniforms.focus.value = vBlur.uniforms.focus.value = focusY;
@@ -918,8 +928,8 @@ renderer.setAnimationLoop((time) => {
     hQuad.render(renderer);
   }
   // With the miniature off the vertical pass still runs at strength 0: a plain copy that tone maps.
-  vBlur.uniforms.strength.value = tiltShift ? BLUR_STRENGTH : 0;
-  vBlur.uniforms.tDiffuse.value = tiltShift ? blurTarget.texture : sceneTarget.texture;
+  vBlur.uniforms.strength.value = blur ? BLUR_STRENGTH : 0;
+  vBlur.uniforms.tDiffuse.value = blur ? blurTarget.texture : sceneTarget.texture;
   renderer.setRenderTarget(null);
   vQuad.render(renderer);
   if (snapWanted) {
