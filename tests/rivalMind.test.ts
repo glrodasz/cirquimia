@@ -97,9 +97,9 @@ describe('a rival commits to the symbol it draws', () => {
         let held = false;
         for (const { action, charged } of log) {
           if (action.kind === 'draw' && held) {
-            // The only symbols drawn over one in hand merge with it: the other triangle, or the star.
+            // The only symbols drawn over one in hand merge with it: the other triangle, or the star (over the hourglass too).
             const p = action.plan;
-            const merges = p.kind === 'charge' || (p.kind === 'strike' && isStar(p.element) && p.element !== 'columns');
+            const merges = p.kind === 'charge' || (p.kind === 'strike' && ((isStar(p.element) && p.element !== 'columns') || p.element === 'blastStar'));
             expect(merges, `${level} #${seed} drew ${JSON.stringify(p)} over a held symbol`).toBe(true);
           }
           if (action.kind === 'act') held = charged !== null;
@@ -180,7 +180,7 @@ describe('levels differ in skill', () => {
       for (const { plan } of acts(log)) {
         if (plan.kind === 'strike') {
           strikes++;
-          if (plan.element === 'blast' || plan.element === 'fireStar' || plan.element === 'waterStar') combos++;
+          if (plan.element === 'blast' || plan.element === 'fireStar' || plan.element === 'waterStar' || plan.element === 'blastStar') combos++;
         }
         if (plan.kind === 'wall') walls++;
       }
@@ -193,6 +193,18 @@ describe('levels differ in skill', () => {
   it('Fácil never combines symbols; each level up combines more', () => {
     expect(all[0].comboShare).toBe(0);
     for (let i = 1; i < all.length; i++) expect(all[i].comboShare).toBeGreaterThan(all[i - 1].comboShare);
+  });
+
+  it('only Difícil and Muy difícil draw the star over the hourglass into the explosion star', () => {
+    const casts = (level: Difficulty) => {
+      let n = 0;
+      for (let seed = 0; seed < SEEDS; seed++) n += acts(play(level, seed, 60).log).filter(({ plan }) => plan.kind === 'strike' && plan.element === 'blastStar').length;
+      return n;
+    };
+    expect(casts('facil')).toBe(0);
+    expect(casts('normal')).toBe(0);
+    expect(casts('dificil')).toBeGreaterThan(0);
+    expect(casts('experto')).toBeGreaterThan(0);
   });
 
   it('each level up defends with more walls', () => {

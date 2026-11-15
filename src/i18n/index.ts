@@ -225,8 +225,8 @@ const es = {
     symbolsButton: 'Símbolos',
     language: 'Idioma',
     shapesTitle: 'Símbolos disponibles',
-    roles: { circle: 'Muro de defensa', square: 'Ataque de tierra', triangle: 'Ataque de fuego', triangleDown: 'Ataque de agua', rhombus: 'Curación', pentagram: 'Ataque múltiple de tierra', spiral: 'Enredadera que atrapa', hourglass: 'Explosión', fireStar: 'Estrella de fuego', waterStar: 'Estrella de agua' },
-    names: { circle: 'Muro', square: 'Tierra', triangle: 'Fuego', triangleDown: 'Agua', rhombus: 'Cura', pentagram: 'Estrella', hourglass: 'Explosión', fireStar: 'Estrella de fuego', waterStar: 'Estrella de agua', spiral: 'Enredadera' },
+    roles: { circle: 'Muro de defensa', square: 'Ataque de tierra', triangle: 'Ataque de fuego', triangleDown: 'Ataque de agua', rhombus: 'Curación', pentagram: 'Ataque múltiple de tierra', spiral: 'Enredadera que atrapa', hourglass: 'Explosión', fireStar: 'Estrella de fuego', waterStar: 'Estrella de agua', blastStar: 'Estrella explosiva' },
+    names: { circle: 'Muro', square: 'Tierra', triangle: 'Fuego', triangleDown: 'Agua', rhombus: 'Cura', pentagram: 'Estrella', hourglass: 'Explosión', fireStar: 'Estrella de fuego', waterStar: 'Estrella de agua', blastStar: 'Estrella explosiva', spiral: 'Enredadera' },
     needs: 'Necesita',
     runesNote: 'Dibujar desde una runa potencia los ataques y las curaciones',
     comboTitle: 'Combinaciones',
@@ -278,6 +278,7 @@ const es = {
       button: '¡A pelear!',
     },
     duelGo: '¡Suerte!',
+    skip: 'Saltar tutorial',
     wrong: {
       square: 'Eso no fue un cuadrado. Sigue la guía e inténtalo otra vez.',
       circle: 'Eso no fue un círculo. Sigue la guía e inténtalo otra vez.',
@@ -293,6 +294,7 @@ const es = {
     triangleDown: Lesson;
     duel: ReadLesson;
     duelGo: string;
+    skip: string;
     wrong: Record<'square' | 'circle' | 'triangle' | 'triangleDown', string>;
   },
   sound: { mute: 'Silenciar sonido', unmute: 'Activar sonido' },
@@ -603,8 +605,8 @@ const en: Strings = {
     symbolsButton: 'Symbols',
     language: 'Language',
     shapesTitle: 'Available symbols',
-    roles: { circle: 'Defensive wall', square: 'Earth attack', triangle: 'Fire attack', triangleDown: 'Water attack', rhombus: 'Healing', pentagram: 'Multiple earth attack', spiral: 'Snaring vine', hourglass: 'Blast', fireStar: 'Fire star', waterStar: 'Water star' },
-    names: { circle: 'Wall', square: 'Earth', triangle: 'Fire', triangleDown: 'Water', rhombus: 'Heal', pentagram: 'Star', hourglass: 'Blast', fireStar: 'Fire star', waterStar: 'Water star', spiral: 'Vine' },
+    roles: { circle: 'Defensive wall', square: 'Earth attack', triangle: 'Fire attack', triangleDown: 'Water attack', rhombus: 'Healing', pentagram: 'Multiple earth attack', spiral: 'Snaring vine', hourglass: 'Blast', fireStar: 'Fire star', waterStar: 'Water star', blastStar: 'Explosion star' },
+    names: { circle: 'Wall', square: 'Earth', triangle: 'Fire', triangleDown: 'Water', rhombus: 'Heal', pentagram: 'Star', hourglass: 'Blast', fireStar: 'Fire star', waterStar: 'Water star', blastStar: 'Explosion star', spiral: 'Vine' },
     needs: 'Needs',
     runesNote: 'Drawing from a rune powers up attacks and healing',
     comboTitle: 'Combinations',
@@ -656,6 +658,7 @@ const en: Strings = {
       button: 'Fight!',
     },
     duelGo: 'Good luck!',
+    skip: 'Skip tutorial',
     wrong: {
       square: "That wasn't a square. Follow the guide and try again.",
       circle: "That wasn't a circle. Follow the guide and try again.",

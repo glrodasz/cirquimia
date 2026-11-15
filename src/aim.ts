@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import type { ShapeKind } from './gestures';
 import { heightAt } from './noise';
-import { AREA_OF, PILLAR_AREA, RUNE_BOOST, STAR_REACH, starOffsets } from './spells';
+import { AREA_OF, PILLAR_AREA, RUNE_BOOST, STAR_REACH, blastStarOffsets, starOffsets } from './spells';
 
 /** One circle of the reticle: its centre's offset from the aimed point on the ground, and its radius. */
 export type AimMark = { x: number; z: number; r: number };
 
 /**
  * The ground a held strike would cover if cast at the aimed point, mark by mark, matching what Combat.strikeFrom
- * casts: square, fire and water hit one area (the hourglass's blast a smaller one); the pentagram (plain, fire or water) five areas at the star's tips. Cast from inside a rune
+ * casts: square, fire and water hit one area (the hourglass's blast a smaller one); the pentagram (plain, fire or water) five areas at the star's tips; the explosion star ten small ones spread wide. Cast from inside a rune
  * circle (`boosted`) every area and the star's spread are RUNE_BOOST bigger. Shapes that need no target (circle,
  * rhombus) have no reticle.
  */
@@ -17,12 +17,13 @@ export function aimMarks(kind: ShapeKind, boosted: boolean): AimMark[] {
   const r = PILLAR_AREA * scale;
   if (kind === 'square' || kind === 'triangle' || kind === 'triangleDown') return [{ x: 0, z: 0, r }];
   if (kind === 'hourglass') return [{ x: 0, z: 0, r: r * AREA_OF.blast }];
+  if (kind === 'blastStar') return blastStarOffsets(scale).map((o) => ({ ...o, r: r * AREA_OF.blastStar }));
   if (kind === 'spiral') return [{ x: 0, z: 0, r: r * AREA_OF.vine }];
   if (kind === 'pentagram' || kind === 'fireStar' || kind === 'waterStar') return starOffsets(STAR_REACH * scale).map((o) => ({ ...o, r }));
   return [];
 }
 
-const MAX_MARKS = 5;
+const MAX_MARKS = 10; // the explosion star's blasts
 const FILL = 0.14;
 const EDGE = 0.55;
 const LIFT = 0.025; // above the ground, under the alchemist's feet

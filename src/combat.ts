@@ -3,15 +3,15 @@ import { BODY_RADIUS, Character } from './character';
 import { HitMeLabel, Scarecrow } from './dummy';
 import type { Obstacle } from './meadow';
 import { heightAt } from './noise';
-import { AREA_OF, PILLAR_AREA, PILLAR_WARN, ROOT_TIME, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, isStar, starTips, type Element, type Spells, type StarCage } from './spells';
+import { AREA_OF, BLAST_STAR_STAGGER, PILLAR_AREA, PILLAR_WARN, ROOT_TIME, RUNE_BOOST, STAR_REACH, STAR_STAGGER, WALL_UP, blastStarTips, isStar, starTips, type Element, type Spells, type StarCage } from './spells';
 import { t } from './i18n';
 import { RivalMind, TUNING, golemTuning, type Difficulty, type Fluid, type MindView, type Plan, type Tuning } from './rivalMind';
 import { GOLEM_HP, MAX_ALIVE, SPAWN_GAP, WAVE_HEAL, WAVE_PAUSE, waveSize } from './horde';
 
 // Damage per strike: square (earth pillars) 20, each of the pentagram's five columns 10, fire and water triangles 35,
-// the blast (fire and water merged into an hourglass) 45 over a smaller area, each tip of a fire or water star
+// the blast (fire and water merged into an hourglass) 45 over a smaller area, each of the explosion star's ten blasts 25, each tip of a fire or water star
 // (the star merged with fire or water) 20, the vine (spiral) 5: its point is rooting the target for ROOT_TIME.
-export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45, fireStar: 20, waterStar: 20, vine: 5 };
+export const DAMAGE: Record<Element, number> = { earth: 20, columns: 10, fire: 35, water: 35, blast: 45, fireStar: 20, waterStar: 20, blastStar: 25, vine: 5 };
 // Rhombus: heals the caster; 30% more when cast from inside a rune circle.
 export const HEAL = 25;
 const RUNE_HEAL_BOOST = 1.3;
@@ -60,7 +60,7 @@ const RISE_TIME = 0.7;
 export type GameMode = 'duel' | 'horde';
 
 const ELEMENT_COLOR: Record<Element, string> = {
-  earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c', fireStar: '#ffb35c', waterStar: '#9fd6e3', vine: '#8cc46a',
+  earth: '#e9e2cf', columns: '#e9e2cf', fire: '#ffb35c', water: '#9fd6e3', blast: '#ff8a5c', fireStar: '#ffb35c', waterStar: '#9fd6e3', blastStar: '#ff8a5c', vine: '#8cc46a',
 };
 
 const projected = new THREE.Vector3();
@@ -71,7 +71,7 @@ const HERO_SKETCH = 0.35;
 // One raised against a strike already on its way is drawn in a hurry and only echoed over its head, like the player's.
 const WALL_SKETCH = 0.35;
 // The shapes drawn over a fighter's head when it stores a symbol, in a 40×40 box; every path starts where a hand would.
-export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass' | 'fireStar' | 'waterStar' | 'spiral';
+export type Sketch = 'circle' | 'square' | 'pentagram' | 'triangle' | 'triangleDown' | 'rhombus' | 'hourglass' | 'fireStar' | 'waterStar' | 'blastStar' | 'spiral';
 const SKETCH_PATH: Record<Sketch, string> = {
   circle: 'M20 5 A15 15 0 1 1 19.9 5',
   square: 'M9 9 H31 V31 H9 Z',
@@ -84,6 +84,8 @@ const SKETCH_PATH: Record<Sketch, string> = {
   // The star drawn inside fire's triangle, or inside water's upside-down one.
   fireStar: 'M20 2 L38 35 H2 Z M20 15 L25.3 31.3 L11.4 21.2 H28.6 L14.7 31.3 Z',
   waterStar: 'M20 38 L2 5 H38 Z M20 7 L25.3 23.3 L11.4 13.2 H28.6 L14.7 23.3 Z',
+  // The star drawn over the hourglass.
+  blastStar: 'M7 5 H33 L7 35 H33 Z M20 11 L25.3 27.3 L11.4 17.2 H28.6 L14.7 27.3 Z',
 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -325,6 +327,7 @@ const SKETCH_FOR: Record<Element | 'heal', Sketch> = {
   blast: 'hourglass',
   fireStar: 'fireStar',
   waterStar: 'waterStar',
+  blastStar: 'blastStar',
   vine: 'spiral',
   heal: 'rhombus',
 };
@@ -483,7 +486,7 @@ class Rival extends Fighter<Character> {
       canWall: this.canWall(combat),
       hasSource: (e: Fluid) => combat.findSource(e, pos) !== null,
       book: (plan: Plan, delay: number) =>
-        plan.kind !== 'strike' || combat.book(foe, delay, isStar(plan.element) ? STAR_STAGGER * 4 : 0, this.tuning.stagger),
+        plan.kind !== 'strike' || combat.book(foe, delay, isStar(plan.element) ? STAR_STAGGER * 4 : plan.element === 'blastStar' ? BLAST_STAR_STAGGER * 9 : 0, this.tuning.stagger),
     };
     const action = this.mind.tick(dt, view);
     if (action?.kind === 'draw') this.drawSketch(sketchFor(action.plan), action.seconds);
@@ -872,6 +875,11 @@ export class Combat {
         if (this.strikeOne(caster, tip.at, element, (warn ?? PILLAR_WARN) + tip.delay, scale, false, cage)) cage.tips++;
       }
       if (cage.tips) this.cages.push({ ...cage, inside: new Map(), born: this.clock });
+      return;
+    }
+    if (element === 'blastStar') {
+      // The explosion star: ten small blasts spread wide around the target, from the middle outward (wider from the runes).
+      for (const tip of blastStarTips(at, scale)) this.strikeOne(caster, tip.at, element, (warn ?? PILLAR_WARN) + tip.delay, scale, sure);
       return;
     }
     this.strikeOne(caster, at, element, warn, scale, sure);

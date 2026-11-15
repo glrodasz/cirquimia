@@ -616,6 +616,7 @@ export function strike(element: Element, at: Where) {
       splash(1);
       break;
     case 'blast':
+    case 'blastStar':
       ground(1);
       flare(0.8);
       // Water on fire: a long hiss of steam.

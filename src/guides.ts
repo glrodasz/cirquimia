@@ -9,8 +9,8 @@ import { Popover } from './popover';
 
 type Fluid = 'fire' | 'water';
 /** A step of the loop, named after what ends up in hand. */
-type Drill = 'circle' | 'square' | 'triangle' | 'triangleDown' | 'rhombus' | 'pentagram' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar';
-/** One step of the loop: the strokes to draw in order (two for a combination, merged in hand) and what ends up in hand. */
+type Drill = 'circle' | 'square' | 'triangle' | 'triangleDown' | 'rhombus' | 'pentagram' | 'spiral' | 'hourglass' | 'fireStar' | 'waterStar' | 'blastStar';
+/** One step of the loop: the strokes to draw in order (two or three for a combination, merged in hand) and what ends up in hand. */
 interface Step {
   id: Drill;
   parts: GuideShape[];
@@ -28,6 +28,7 @@ const STEPS: Step[] = [
   { id: 'hourglass', parts: ['triangle', 'triangleDown'], result: 'hourglass' },
   { id: 'fireStar', parts: ['pentagram', 'triangle'], result: 'fireStar' },
   { id: 'waterStar', parts: ['pentagram', 'triangleDown'], result: 'waterStar' },
+  { id: 'blastStar', parts: ['triangle', 'triangleDown', 'pentagram'], result: 'blastStar' },
 ];
 /** Shapes that go off as soon as they are drawn; the rest wait in hand for a tap. */
 const INSTANT = new Set<ShapeKind>(['circle', 'rhombus']);
