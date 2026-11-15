@@ -6,7 +6,7 @@
 import type { Difficulty } from '../combat';
 import { LANG } from '../i18n';
 import { API_BASE } from '../platform';
-import { cleanInitials, validInitials } from './score';
+import { cleanInitials, validInitials, type BoardMode } from './score';
 import type { Category } from './device';
 
 const API = API_BASE;
@@ -23,6 +23,9 @@ export interface Entry {
   difficulty: Difficulty;
   category: Category;
   at: number;
+  mode: BoardMode;
+  /** Horde: the wave reached (0 in a duel). */
+  wave: number;
 }
 
 export interface Submitted {
@@ -36,6 +39,8 @@ export interface Submitted {
   rivals: number;
   difficulty: Difficulty;
   category: Category;
+  mode: BoardMode;
+  wave: number;
   rank: Record<Period, number>;
   total: Record<Period, number>;
   /** The score's share link, whose preview is its card. */
@@ -65,8 +70,8 @@ export class Runs {
   private timer = 0;
   private match = 0;
 
-  /** A match started; `ranked` says whether its victory may enter the ranking. */
-  start(rivals: number, difficulty: Difficulty, seed: string, ranked: boolean) {
+  /** A match started; `ranked` says whether its result may enter the ranking. */
+  start(mode: BoardMode, rivals: number, difficulty: Difficulty, seed: string, ranked: boolean) {
     const match = ++this.match;
     clearTimeout(this.timer);
     if (!ranked) {
@@ -77,7 +82,8 @@ export class Runs {
     this.pending = new Promise((r) => (resolve = r));
     // Changing rivals and difficulty restarts the match more than once in a row: wait for it to settle.
     this.timer = window.setTimeout(async () => {
-      const res = await call<{ id: string }>('/runs', { method: 'POST', body: JSON.stringify({ rivals, difficulty, seed }) });
+      const body = mode === 'horde' ? { mode, seed } : { rivals, difficulty, seed };
+      const res = await call<{ id: string }>('/runs', { method: 'POST', body: JSON.stringify(body) });
       resolve(match === this.match && !failed(res) ? res.id : null);
     }, 300);
   }
@@ -108,13 +114,14 @@ async function hints() {
   };
 }
 
-/** Saves a won match; without initials (`''`) it is saved as anonymous. */
-export async function submitScore(runId: string, initials: string, durationMs: number, damage: number) {
+/** Saves a won match (or a horde's wave reached, `wave`); without initials (`''`) it is saved as anonymous. */
+export async function submitScore(runId: string, initials: string, durationMs: number, damage: number, wave?: number) {
   const body = {
     runId,
     initials: initials || undefined,
     durationMs,
     damage,
+    wave,
     hints: await hints(),
     screen: `${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 100) / 100}`,
     locale: LANG,
@@ -130,10 +137,10 @@ export function renameScore(runId: string, initials: string) {
 }
 
 /** The top of a board; `mine` (the player's own score ids) adds their best place below it when they are not on it. */
-export function fetchBoard(period: Period, mine: Iterable<number> = []) {
+export function fetchBoard(period: Period, mine: Iterable<number> = [], mode: BoardMode = 'duel') {
   const ids = [...mine].sort((a, b) => a - b).join(',');
   return call<{ period: Period; day: string; entries: Entry[]; me?: { rank: number; entry: Entry } | null }>(
-    `/scores?period=${period}${ids ? `&mine=${ids}` : ''}`,
+    `/scores?period=${period}${mode === 'duel' ? '' : `&mode=${mode}`}${ids ? `&mine=${ids}` : ''}`,
   );
 }
 

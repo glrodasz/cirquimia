@@ -2,7 +2,8 @@ import type { Pt } from './ammo';
 import { DIFFICULTY_LABEL, MAX_RIVALS, type Difficulty, type Outcome } from './combat';
 import { ending } from './audio';
 import { t } from './i18n';
-import { levelIcon, rivalsIcon } from './icons';
+import { hordeIcon, levelIcon, newGameIcon, rivalsIcon } from './icons';
+import { formatTime } from './leaderboard/score';
 import { challenge } from './challenge';
 
 const STORE = 'cirquimia.match';
@@ -10,7 +11,7 @@ const OLD_STORE = 'cirquimia.dev'; // where the gear panel kept these before the
 const LEVELS = Object.keys(DIFFICULTY_LABEL) as Difficulty[];
 const STEP = 0.7;
 /** A first-time player gets one easy rival to learn against; returning players keep their own choice. */
-const FIRST_MATCH: Saved = { rivals: 1, difficulty: 'facil' };
+const FIRST_MATCH: Saved = { mode: 'duel', rivals: 1, difficulty: 'facil' };
 /**
  * The rivals and difficulty pills are pointed out once, at the start of the match after the first victory
  * (on the end card they covered the score): 'next' after that victory, '1' once shown.
@@ -34,34 +35,43 @@ function setSpot(value: 'next' | '1') {
   }
 }
 
+/** Training (the scarecrow), a duel against 1–3 rivals, or the horde's waves. */
+export type Mode = 'training' | 'duel' | 'horde';
+
 /** What the HUD needs from the game: the current match and a way to restart it. */
 export interface MatchControls {
+  readonly mode: Mode;
+  /** Rivals in a duel (1–3); training and the horde keep it for the next duel. */
   readonly rivals: number;
   readonly difficulty: Difficulty;
-  setRivals(count: number): void;
-  setDifficulty(level: Difficulty): void;
+  /** Sets the mode (and, for a duel, its rivals and level) without restarting. */
+  set(mode: Mode, rivals?: number, difficulty?: Difficulty): void;
   /** Starts a fresh match, on a new meadow, with the current settings. */
   restart(): void;
 }
 
 interface Saved {
+  mode?: Mode;
   rivals?: number;
   difficulty?: Difficulty;
 }
 
-/** How many rivals the saved match has, before the HUD mounts (the first meadow depends on it). */
-export function savedRivals(): number {
-  return load().rivals ?? FIRST_MATCH.rivals!;
+/** The saved mode, before the HUD mounts (the first meadow depends on it). */
+export function savedMode(): Mode {
+  return load().mode ?? 'duel';
 }
 
 function load(): Saved {
   // A challenge link plays the challenger's match, and it becomes the player's own choice from then on.
-  if (challenge) return { rivals: challenge.rivals, difficulty: challenge.difficulty };
+  if (challenge) return { mode: 'duel', rivals: challenge.rivals, difficulty: challenge.difficulty };
   try {
     const own = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Saved | null;
-    if (own) return own;
-    const old = JSON.parse(localStorage.getItem(OLD_STORE) ?? '{}') as Saved;
-    return { rivals: old.rivals ?? FIRST_MATCH.rivals, difficulty: old.difficulty ?? FIRST_MATCH.difficulty };
+    const old = own ?? (JSON.parse(localStorage.getItem(OLD_STORE) ?? '{}') as Saved);
+    // Before the modes, training was a duel with 0 rivals.
+    const mode = old.mode ?? (old.rivals === 0 ? 'training' : 'duel');
+    const rivals = old.rivals && old.rivals >= 1 && old.rivals <= MAX_RIVALS ? old.rivals : FIRST_MATCH.rivals;
+    const difficulty = old.difficulty && LEVELS.includes(old.difficulty) ? old.difficulty : FIRST_MATCH.difficulty;
+    return { mode, rivals, difficulty };
   } catch {
     return FIRST_MATCH;
   }
@@ -96,12 +106,6 @@ export function segment(a: Pt, b: Pt): Pt[] {
 }
 
 
-
-
-/**
- * Player-facing match controls, bottom left (the gear on the right is for developers):
- * how many rivals to spar with and how hard they play. Each tap cycles the value and restarts the match.
- */
 /**
  * The first real match (after the tutorial's own one) is remembered once it ends: lost, its end card suggests training.
  * Absent = not played yet; blocked storage reads as played, so the suggestion never repeats.
@@ -119,46 +123,46 @@ export function firstRealMatchEnded(): boolean {
   }
 }
 
+
+/**
+ * Player-facing match controls, top left (the gear on the right is for developers): Training, always one tap away,
+ * and New game, which opens the picker: a Duel against the computer (rivals and difficulty) or the Horde.
+ */
 export function mountMatchControls(match: MatchControls) {
   const saved = load();
-  if (saved.difficulty && LEVELS.includes(saved.difficulty)) match.setDifficulty(saved.difficulty);
-  if (saved.rivals !== undefined) match.setRivals(saved.rivals);
+  match.set(saved.mode ?? 'duel', saved.rivals, saved.difficulty);
 
   const box = document.createElement('div');
   box.id = 'match';
   box.setAttribute('role', 'toolbar');
   box.setAttribute('aria-label', t.match.toolbar);
 
-  const button = () => {
+  const stopPointer = (el: HTMLElement) => {
+    el.addEventListener('pointerdown', (e) => e.stopPropagation());
+    el.addEventListener('pointerup', (e) => e.stopPropagation());
+  };
+  const button = (cls: string, icon: string, cap: string, aria: string) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'match-btn';
-    b.innerHTML = '<span class="disc"></span><span class="cap"></span>';
-    b.addEventListener('pointerdown', (e) => e.stopPropagation());
-    b.addEventListener('pointerup', (e) => e.stopPropagation());
+    b.className = `match-btn ${cls}`;
+    b.innerHTML = `<span class="disc">${icon}</span><span class="cap">${cap}</span>`;
+    b.setAttribute('aria-label', aria);
+    stopPointer(b);
     box.append(b);
     return b;
   };
-  const rivalsBtn = button();
-  rivalsBtn.classList.add('rivals');
-  const levelBtn = button();
-  levelBtn.classList.add('level');
+  const trainBtn = button('training', rivalsIcon(0), t.match.train, t.match.trainAria);
+  const newBtn = button('newgame', newGameIcon(), t.match.newGame, t.match.newGameAria);
+  newBtn.setAttribute('aria-haspopup', 'dialog');
 
-  // Training has a clear way back: one rival on Fácil, the gentlest real match (the pills still change it from there).
+  // Training has a clear way back: one rival on Fácil, the gentlest real match (New game picks anything else).
   const battleBtn = document.createElement('button');
   battleBtn.type = 'button';
   battleBtn.id = 'battle-btn';
   battleBtn.innerHTML = `${rivalsIcon(1)}<span class="cap">${t.match.toBattle}</span>`;
   battleBtn.hidden = true;
-  battleBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-  battleBtn.addEventListener('pointerup', (e) => e.stopPropagation());
-  battleBtn.addEventListener('click', () => {
-    closeEnd();
-    match.setRivals(1);
-    match.setDifficulty('facil');
-    match.restart();
-    restarted(rivalsBtn);
-  });
+  stopPointer(battleBtn);
+  battleBtn.addEventListener('click', () => start('duel', 1, 'facil', battleBtn));
 
   const toast = document.createElement('div');
   toast.id = 'match-toast';
@@ -166,60 +170,63 @@ export function mountMatchControls(match: MatchControls) {
   document.body.append(box, battleBtn, toast);
 
   const render = () => {
-    const n = match.rivals;
-    const level = match.difficulty;
-    rivalsBtn.querySelector('.disc')!.innerHTML = rivalsIcon(n);
-    rivalsBtn.querySelector('.cap')!.innerHTML = t.match.rivalsCap(n);
-    rivalsBtn.setAttribute('aria-label', t.match.rivalsAria(n));
-    levelBtn.querySelector('.disc')!.innerHTML = levelIcon(LEVELS.indexOf(level) + 1);
-    levelBtn.querySelector('.cap')!.textContent = DIFFICULTY_LABEL[level];
-    levelBtn.setAttribute('aria-label', t.match.levelAria(DIFFICULTY_LABEL[level]));
-    // Training has no difficulty: the scarecrow never strikes back.
-    levelBtn.hidden = n === 0;
-    battleBtn.hidden = n !== 0;
-    save({ rivals: n, difficulty: level });
+    const training = match.mode === 'training';
+    trainBtn.classList.toggle('on', training);
+    trainBtn.setAttribute('aria-pressed', String(training));
+    battleBtn.hidden = !training;
+    save({ mode: match.mode, rivals: match.rivals, difficulty: match.difficulty });
     fit();
   };
 
-  // Phones always show the pills as icons only (rivals' figures, level bars), whatever the values, so they never change width
-  // when toggled. Wider screens (iPad, desktop) keep the words, giving up the ↻ hint first, then the words, only if the
-  // pills would run under the buttons on the right.
+  // Phones always show the two buttons as icons only. Wider screens keep the words, unless the row would run under
+  // the buttons on the right.
   const phone = matchMedia('(max-width: 699.98px)');
   const fit = () => {
-    box.classList.remove('snug', 'icons');
+    box.classList.remove('icons');
     if (phone.matches) {
       box.classList.add('icons');
       return;
     }
-    const right = () => {
-      const lefts = ['sound-btn', 'rank-btn', 'book-btn', 'dev-gear']
-        .map((id) => document.getElementById(id)?.getBoundingClientRect().left ?? Infinity)
-        .filter((x) => x > 0);
-      return Math.min(innerWidth, ...lefts) - 8;
-    };
-    for (const step of ['snug', 'icons']) {
-      if (box.getBoundingClientRect().right <= right()) return;
-      box.classList.add(step);
-    }
+    const lefts = ['sound-btn', 'rank-btn', 'book-btn', 'dev-gear']
+      .map((id) => document.getElementById(id)?.getBoundingClientRect().left ?? Infinity)
+      .filter((x) => x > 0);
+    if (box.getBoundingClientRect().right > Math.min(innerWidth, ...lefts) - 8) box.classList.add('icons');
   };
   addEventListener('resize', fit);
-  // The buttons on the right mount after the pills.
+  // The buttons on the right mount after these.
   requestAnimationFrame(fit);
   void document.fonts?.ready.then(fit);
 
   let toastTimer = 0;
-  const restarted = (b: HTMLElement) => {
-    render();
-    b.animate([{ transform: 'scale(.86)' }, { transform: 'scale(1.08)' }, { transform: 'scale(1)' }], { duration: 320, easing: 'ease-out' });
-    toast.textContent = t.match.restarted(match.rivals, DIFFICULTY_LABEL[match.difficulty]);
+  const say = (text: string, ms = 1600) => {
+    toast.textContent = text;
     toast.classList.remove('show');
     void toast.offsetWidth; // restart the fade when tapping quickly
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1600);
+    toastTimer = window.setTimeout(() => toast.classList.remove('show'), ms);
+  };
+  const summary = () =>
+    match.mode === 'training'
+      ? t.match.restarted(0, '')
+      : match.mode === 'horde'
+        ? t.match.hordeStarted
+        : t.match.restarted(match.rivals, DIFFICULTY_LABEL[match.difficulty]);
+  const restarted = (b: HTMLElement) => {
+    render();
+    b.animate([{ transform: 'scale(.86)' }, { transform: 'scale(1.08)' }, { transform: 'scale(1)' }], { duration: 320, easing: 'ease-out' });
+    say(summary());
+  };
+  /** Sets the mode, starts a fresh match on a new meadow and closes whatever card was open. */
+  const start = (mode: Mode, rivals: number | undefined, level: Difficulty | undefined, from: HTMLElement) => {
+    closeEnd();
+    closePicker(false);
+    match.set(mode, rivals, level);
+    match.restart();
+    restarted(from === pickerCard ? newBtn : from);
   };
 
-  // The first victory lifts the pills over the end card's scrim, with a note that they change the next match.
+  // The rivals and difficulty pointer once, at the start of the match after the first victory: now at New game.
   const spotTip = document.createElement('div');
   spotTip.id = 'match-spot';
   spotTip.setAttribute('role', 'note');
@@ -246,18 +253,88 @@ export function mountMatchControls(match: MatchControls) {
     unspot();
   };
 
-  rivalsBtn.addEventListener('click', () => {
+  // ---- New game: a grimoire sheet with the two ways to play side by side (stacked on phones). ----
+  const picker = document.createElement('div');
+  picker.id = 'newgame';
+  picker.hidden = true;
+  picker.setAttribute('role', 'dialog');
+  picker.setAttribute('aria-modal', 'true');
+  picker.setAttribute('aria-labelledby', 'newgame-title');
+  const p = t.match.picker;
+  const choice = (name: string, value: string, inner: string, label: string) =>
+    `<button type="button" class="opt" data-${name}="${value}" aria-label="${label}" aria-pressed="false">${inner}</button>`;
+  picker.innerHTML =
+    `<div class="card" tabindex="-1">` +
+    `<button type="button" class="x" aria-label="${p.close}">×</button>` +
+    `<h2 id="newgame-title">${p.title}</h2>` +
+    `<div class="modes">` +
+    `<section class="mode duel" aria-labelledby="newgame-duel"><div class="head"><span class="disc">${rivalsIcon(2)}</span><h3 id="newgame-duel">${p.duel}</h3></div>` +
+    `<p>${p.duelBody}</p>` +
+    `<div class="field"><span class="label">${p.rivals}</span><div class="opts" role="group" aria-label="${p.rivals}">` +
+    [1, 2, 3].map((n) => choice('rivals', String(n), `${rivalsIcon(n)}<span>${n}</span>`, t.rank.rivals(n))).join('') +
+    `</div></div>` +
+    `<div class="field"><span class="label">${p.level}</span><div class="opts levels" role="group" aria-label="${p.level}">` +
+    LEVELS.map((l, i) => choice('level', l, `${levelIcon(i + 1)}<span>${DIFFICULTY_LABEL[l]}</span>`, DIFFICULTY_LABEL[l])).join('') +
+    `</div></div>` +
+    `<button type="button" class="play" data-play="duel">${p.play}</button></section>` +
+    `<section class="mode horde" aria-labelledby="newgame-horde"><div class="head"><span class="disc">${hordeIcon()}</span><h3 id="newgame-horde">${p.horde}</h3></div>` +
+    `<p>${p.hordeBody}</p>` +
+    `<p class="waves">${p.waves}</p>` +
+    `<button type="button" class="play" data-play="horde">${p.play}</button></section>` +
+    `</div></div>`;
+  for (const type of ['pointerdown', 'pointerup', 'pointermove']) picker.addEventListener(type, (e) => e.stopPropagation());
+  document.body.append(picker);
+  const pickerCard = picker.querySelector<HTMLElement>('.card')!;
+  let pickRivals = match.rivals;
+  let pickLevel = match.difficulty;
+  const renderPicker = () => {
+    for (const b of picker.querySelectorAll<HTMLButtonElement>('[data-rivals]')) b.setAttribute('aria-pressed', String(Number(b.dataset.rivals) === pickRivals));
+    for (const b of picker.querySelectorAll<HTMLButtonElement>('[data-level]')) b.setAttribute('aria-pressed', String(b.dataset.level === pickLevel));
+    picker.querySelector('.duel')!.classList.toggle('current', match.mode === 'duel');
+    picker.querySelector('.horde')!.classList.toggle('current', match.mode === 'horde');
+  };
+  let pickerOpen = false;
+  const openPicker = () => {
     closeEnd();
-    match.setRivals((match.rivals + 1) % (MAX_RIVALS + 1));
-    match.restart();
-    restarted(rivalsBtn);
-  });
-  levelBtn.addEventListener('click', () => {
-    closeEnd();
-    match.setDifficulty(LEVELS[(LEVELS.indexOf(match.difficulty) + 1) % LEVELS.length]);
-    match.restart();
-    restarted(levelBtn);
-  });
+    pickRivals = match.rivals;
+    pickLevel = match.difficulty;
+    renderPicker();
+    picker.hidden = false;
+    pickerOpen = true;
+    void picker.offsetWidth;
+    picker.classList.add('show');
+    newBtn.setAttribute('aria-expanded', 'true');
+    pickerCard.focus({ preventScroll: true });
+  };
+  function closePicker(refocus = true) {
+    if (!pickerOpen) return;
+    pickerOpen = false;
+    picker.classList.remove('show');
+    picker.hidden = true;
+    newBtn.setAttribute('aria-expanded', 'false');
+    if (refocus) newBtn.focus({ preventScroll: true });
+  }
+  picker.querySelector('.x')!.addEventListener('click', () => closePicker());
+  picker.addEventListener('click', (e) => e.target === picker && closePicker());
+  picker.addEventListener('keydown', (e) => e.key === 'Escape' && closePicker());
+  for (const b of picker.querySelectorAll<HTMLButtonElement>('[data-rivals]')) {
+    b.addEventListener('click', () => {
+      pickRivals = Number(b.dataset.rivals);
+      renderPicker();
+    });
+  }
+  for (const b of picker.querySelectorAll<HTMLButtonElement>('[data-level]')) {
+    b.addEventListener('click', () => {
+      pickLevel = b.dataset.level as Difficulty;
+      renderPicker();
+    });
+  }
+  for (const b of picker.querySelectorAll<HTMLButtonElement>('[data-play]')) {
+    b.addEventListener('click', () => start(b.dataset.play as Mode, pickRivals, pickLevel, pickerCard));
+  }
+
+  trainBtn.addEventListener('click', () => start('training', undefined, undefined, trainBtn));
+  newBtn.addEventListener('click', () => (pickerOpen ? closePicker() : openPicker()));
 
   render();
 
@@ -286,11 +363,7 @@ export function mountMatchControls(match: MatchControls) {
   });
   // A challenge link set this match up: say so once, where a restart would.
   if (challenge) {
-    toast.textContent = t.match.challenge(match.rivals, DIFFICULTY_LABEL[match.difficulty]);
-    window.setTimeout(() => {
-      toast.classList.add('show');
-      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3200);
-    }, 900);
+    window.setTimeout(() => say(t.match.challenge(match.rivals, DIFFICULTY_LABEL[match.difficulty]), 3200), 900);
   }
   // Won and left before playing again: the next visit's first match shows it.
   if (spotState() === 'next') window.setTimeout(spotNext, 1200);
@@ -298,8 +371,22 @@ export function mountMatchControls(match: MatchControls) {
   return {
     /** The victory card's score, button row and share section, filled by the ranking for a match that counts. */
     endSlots: { score: scored, actions: ends, share: shared },
-    /** `suggestTraining`: a lost first real match also offers training (no rivals), beside playing again. */
-    showEnd(outcome: Outcome, suggestTraining = false) {
+    /** The New game card is open (the game holds still meanwhile). */
+    get picking() {
+      return pickerOpen;
+    },
+    /** A short note in the toast spot (the horde's waves). */
+    say,
+    /** A line in the end card's score block (a horde that never cleared a wave cannot be ranked). */
+    note(text: string) {
+      scored.hidden = false;
+      scored.innerHTML = `<p class="note">${text}</p>`;
+    },
+    /**
+     * `suggestTraining`: a lost first real match also offers training (no rivals), beside playing again.
+     * `horde`: the wave reached and how long it took, for the horde's own card.
+     */
+    showEnd(outcome: Outcome, suggestTraining = false, horde?: { wave: number; durationMs: number }) {
       for (const slot of [scored, shared]) {
         slot.hidden = true;
         slot.innerHTML = '';
@@ -309,24 +396,19 @@ export function mountMatchControls(match: MatchControls) {
       const level = DIFFICULTY_LABEL[match.difficulty];
       const won = outcome === 'victory';
       ending(won);
-      end.className = won ? 'victory' : 'defeat';
-      end.querySelector('h2')!.textContent = won ? t.match.victory : t.match.defeat;
-      end.querySelector('p')!.textContent = won
-        ? t.match.won(n, level)
-        : t.match.lost(level);
-      end.setAttribute('aria-label', won ? t.match.victoryAria : t.match.defeat);
+      end.className = horde ? 'defeat horde' : won ? 'victory' : 'defeat';
+      end.querySelector('h2')!.textContent = horde ? t.match.hordeOver : won ? t.match.victory : t.match.defeat;
+      const line = end.querySelector('p')!;
+      if (horde) line.innerHTML = t.match.hordeReached(horde.wave, formatTime(horde.durationMs));
+      else line.textContent = won ? t.match.won(n, level) : t.match.lost(level);
+      end.setAttribute('aria-label', horde ? t.match.hordeOver : won ? t.match.victoryAria : t.match.defeat);
       tip.hidden = won || !suggestTraining;
       if (!tip.hidden) {
         const train = document.createElement('button');
         train.type = 'button';
         train.className = 'match-btn view train';
         train.innerHTML = `${rivalsIcon(0)}<span class="cap">${t.match.train}</span>`;
-        train.addEventListener('click', () => {
-          closeEnd();
-          match.setRivals(0);
-          match.restart();
-          restarted(rivalsBtn);
-        });
+        train.addEventListener('click', () => start('training', undefined, undefined, trainBtn));
         ends.prepend(train);
       }
       end.hidden = false;

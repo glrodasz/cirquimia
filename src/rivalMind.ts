@@ -65,6 +65,42 @@ export const TUNING: Record<Difficulty, Tuning> = {
   experto: { speed: 1.6, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.46, reaction: 0.1, elemental: 0.7, blast: 0.75, blastStar: 0.35, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.85, fortress: 0.45, wallCooldown: 3, counter: true, evade: 1, restless: true, punishAfter: 0.6, punishGap: 0.3 },
 };
 
+/**
+ * How a golem of wave `n` plays. Earth only: no fire or water, no stars, no walls, no healing. Slow and heavy: it walks
+ * well under the alchemist's pace and draws its square over its head like anyone. Later waves aim a little better and rest a little less, but every golem keeps the player's limits (never faster than the alchemist walks)
+ * and leaves time to step out of its strike. Their strikes at the alchemist are staggered, so a crowd never lands
+ * all at once.
+ */
+export function golemTuning(n: number): Tuning {
+  const k = Math.min(1, Math.max(0, (n - 1) / 9)); // 0 on wave 1, 1 from wave 10 on
+  const lerp = (a: number, b: number) => a + (b - a) * k;
+  return {
+    ...TUNING.facil,
+    speed: lerp(0.7, 1.0),
+    cooldown: [lerp(4.6, 3.2), lerp(6.2, 4.4)],
+    warn: lerp(0.9, 0.7),
+    aimError: lerp(0.35, 0.15),
+    lead: lerp(0, 0.5),
+    dodge: lerp(0.1, 0.4),
+    reaction: lerp(0.25, 0.16),
+    elemental: 0,
+    blast: 0,
+    star: 0,
+    heal: 0,
+    columns: 0,
+    draw: lerp(1, 0.75),
+    stagger: 0.7,
+    guard: 0,
+    fortress: 0,
+    wallCooldown: 99,
+    counter: false,
+    evade: 0,
+    restless: false,
+    punishAfter: lerp(3, 1.6),
+    punishGap: lerp(1.5, 0.8),
+  };
+}
+
 // A rival keeps its freshly drawn symbol this long before casting it, so everyone can read what is coming.
 export const RIVAL_HOLD = 0.5;
 // Seconds between two steps of one combination (fetching fire, then water, then casting the hourglass).

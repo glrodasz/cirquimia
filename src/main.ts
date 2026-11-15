@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { World } from './world';
 import { DEV, mountDevTools, savedQuality } from './devtools';
-import { firstRealMatchEnded, mountMatchControls, savedRivals } from './match';
-import { mountMatchTimer } from './matchTimer';
+import { firstRealMatchEnded, mountMatchControls, savedMode, type Mode } from './match';
+import { mountMatchTimer, mountWaveBanner } from './matchTimer';
 import { mountVersionBadge } from './version';
 import { mountHudFade } from './hudFade';
 import { mountHelp } from './help';
@@ -117,6 +117,8 @@ const onRunes = (p: THREE.Vector3) =>
   );
 const combat = new Combat(hero, world.obstacles, spells, camera, onScreen, findSource, onRunes);
 scene.add(combat.root);
+// Dev mode only: ?wave=N starts the horde on wave N, to try big waves without playing up to them (never ranked).
+if (DEV) combat.firstWave = Math.max(1, Math.min(40, Number(new URLSearchParams(location.search).get('wave')) || 1));
 
 /** The one symbol in hand, cast by the next tap. There is no store: a new drawing replaces it. */
 let held: ShapeKind | null = null;
@@ -188,7 +190,7 @@ function walkGoal(): THREE.Vector3 | null {
 // The first meadow is built before the HUD restores the match, so it reads the saved setting.
 let hudReady = false;
 world.requiredBy = () =>
-  (hudReady ? combat.rivalCount : savedRivals()) === 0 ? 'training' : !tutorial.done ? 'onboarding' : null;
+  (hudReady ? combat.training : savedMode() === 'training') ? 'training' : !tutorial.done ? 'onboarding' : null;
 world.required = () => (world.requiredBy() ? ['fogata', 'estanque'] : []);
 
 // A new meadow puts the alchemist back at the spawn point, which every layout keeps clear.
@@ -215,21 +217,25 @@ const dev = mountDevTools(
 );
 if (DEV) mountVersionBadge();
 
-// Rivals and difficulty live in the HUD, bottom left; any change restarts the match, and every new match is a new meadow.
+// Training and New game (Duel or Horde) live in the HUD, top left; every new match is a new meadow.
+// The duel's rivals are remembered while training or in the horde, for the next duel.
+let duelRivals = 1;
 const matchHud = mountMatchControls({
+  get mode(): Mode {
+    return combat.mode === 'horde' ? 'horde' : combat.training ? 'training' : 'duel';
+  },
   get rivals() {
-    return combat.rivalCount;
+    return duelRivals;
   },
   get difficulty() {
     return combat.difficulty;
   },
-  setRivals: (n: number) => {
+  set: (mode: Mode, rivals?: number, level?: Difficulty) => {
+    // The tutorial's own match is always the one-rival duel it was written for.
+    if (!tutorial.done) mode = 'duel';
+    if (rivals) duelRivals = rivals;
     spells.clear();
-    combat.setRivals(n);
-  },
-  setDifficulty: (d: Difficulty) => {
-    spells.clear();
-    combat.setDifficulty(d);
+    combat.configure(mode === 'horde' ? 'horde' : 'duel', mode === 'training' ? 0 : duelRivals, level ?? combat.difficulty);
   },
   restart: () => dev.newMeadow(),
 });
@@ -242,10 +248,13 @@ const matchTimer = mountMatchTimer({
     return combat.elapsedMs;
   },
   get timed() {
-    return combat.rivalCount > 0 && tutorial.done && !tutorialMatch;
+    return !combat.training && tutorial.done && !tutorialMatch;
   },
   get over() {
     return combat.over;
+  },
+  get wave() {
+    return combat.mode === 'horde' ? combat.hordeWave : null;
   },
 });
 // Global ranking: a won match against rivals counts, once the tutorial is behind and outside dev mode.
@@ -254,7 +263,7 @@ const runs = new Runs();
 // The HUD steps back while the player is busy in the meadow (src/hudFade.ts).
 const hudFade = mountHudFade({
   get playing() {
-    return tutorial.done && !combat.over && !help.open && !dev.open && !board.open;
+    return tutorial.done && !combat.over && !help.open && !dev.open && !board.open && !matchHud.picking;
   },
 });
 // Decided when the match starts: the tutorial finishes during its own match, and that match never counts.
@@ -262,13 +271,27 @@ let rankedMatch = false;
 combat.onStart = () => {
   hudFade.reset();
   tutorialMatch = !tutorial.done;
-  rankedMatch = combat.rivalCount > 0 && tutorial.done && !DEV;
-  runs.start(combat.rivalCount, combat.difficulty, world.layout.seed, rankedMatch);
+  rankedMatch = !combat.training && tutorial.done && !DEV;
+  runs.start(combat.mode, combat.rivalCount, combat.difficulty, world.layout.seed, rankedMatch);
+};
+// Horde: each wave is announced in the middle of the screen during the calm before it.
+const waveBanner = mountWaveBanner();
+combat.onWave = (n) => {
+  if (n > 1) matchHud.say(t.match.waveCleared, 1400);
+  waveBanner.show(n);
 };
 combat.onEnd = (outcome) => {
+  if (combat.mode === 'horde') {
+    // The horde only ends one way; what counts is the wave reached and how long it took.
+    const result = combat.hordeResult;
+    matchHud.showEnd(outcome, false, result);
+    if (rankedMatch && result.wave >= 2) board.fillHordeEnd(matchHud.endSlots, runs, { ...result, damage: combat.heroDamage });
+    else if (rankedMatch) matchHud.note(t.rank.hordeFirst);
+    return;
+  }
   const match = { rivals: combat.rivalCount, difficulty: combat.difficulty, durationMs: combat.elapsedMs, damage: combat.heroDamage };
   // The first real match, lost: training is offered beside playing again.
-  const firstReal = combat.rivalCount > 0 && !tutorialMatch && tutorial.done && firstRealMatchEnded();
+  const firstReal = !combat.training && !tutorialMatch && tutorial.done && firstRealMatchEnded();
   matchHud.showEnd(outcome, outcome !== 'victory' && firstReal);
   // Score, initials and sharing only where the score can be saved.
   if (outcome === 'victory' && rankedMatch) board.fillEnd(matchHud.endSlots, runs, match, snapshotMeadow());
@@ -287,8 +310,8 @@ function nearestSource(element: 'fire' | 'water'): THREE.Vector3 | null {
 }
 // Training also lays one symbol at a time on the meadow to trace, so the shapes become second nature (src/guides.ts).
 const guides = new Guides({
-  training: () => combat.rivalCount === 0,
-  covered: () => help.open || dev.open || board.open || combat.over || tutorial.showing,
+  training: () => combat.training,
+  covered: () => help.open || dev.open || board.open || matchHud.picking || combat.over || tutorial.showing,
   toScreen: (p, lift) => toScreen(p, lift),
   hero: () => hero.root.position,
   dummy: () => combat.dummy(),
@@ -869,7 +892,7 @@ renderer.setAnimationLoop((time) => {
   world.fadeTrees(dt, combat.positions());
   tutorial.update(dt);
   combat.fade(dt);
-  if (!help.open && !dev.open && !board.open && !tutorial.paused) {
+  if (!help.open && !dev.open && !board.open && !matchHud.picking && !tutorial.paused) {
     steerHero();
     hero.update(dt);
     marker.update(dt);

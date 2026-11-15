@@ -3,6 +3,13 @@
  * Only won matches against rivals count: training (no rivals) and the tutorial never reach the ranking.
  */
 import type { Difficulty } from '../combat';
+import { GOLEM_HP, MAX_WAVE, golemsThrough } from '../horde';
+export { hordeScore, waveOf } from '../horde';
+
+/** Each mode has its own boards: the duel's points, and the horde's wave reached and time. */
+export type BoardMode = 'duel' | 'horde';
+export const BOARD_MODES: BoardMode[] = ['duel', 'horde'];
+export const isBoardMode = (v: unknown): v is BoardMode => v === 'duel' || v === 'horde';
 
 /** How much each difficulty multiplies the score. */
 export const LEVEL_FACTOR: Record<Difficulty, number> = { facil: 1, normal: 1.5, dificil: 2, experto: 3 };
@@ -46,6 +53,25 @@ export function plausible(rivals: unknown, difficulty: unknown, durationMs: unkn
   if (!Number.isInteger(damage) || (damage as number) < 1 || (damage as number) > (rivals as number) * MAX_DAMAGE_PER_RIVAL) return false;
   const seconds = durationMs / 1000;
   return seconds >= MIN_SECONDS && seconds <= MAX_SECONDS && (damage as number) <= seconds * MAX_DAMAGE_PER_SECOND;
+}
+
+/** A horde night can run long; the run itself expires after three hours. */
+export const MAX_HORDE_SECONDS = 2.5 * 60 * 60;
+
+/**
+ * Whether a horde run could really have happened: wave `wave` reached (every wave before it cleared, so from 2 on)
+ * after `durationMs` of play, with `damage` dealt by the alchemist. Golems never heal and never hurt each other,
+ * so the damage is at least every cleared golem's health, and at most that plus the wave in play.
+ */
+export function plausibleHorde(wave: unknown, durationMs: unknown, damage: unknown): boolean {
+  if (!Number.isInteger(wave) || (wave as number) < 2 || (wave as number) > MAX_WAVE) return false;
+  if (typeof durationMs !== 'number' || !Number.isFinite(durationMs)) return false;
+  if (!Number.isInteger(damage)) return false;
+  const cleared = golemsThrough((wave as number) - 1) * GOLEM_HP;
+  const most = golemsThrough(wave as number) * GOLEM_HP;
+  const seconds = durationMs / 1000;
+  if (seconds < MIN_SECONDS || seconds > MAX_HORDE_SECONDS) return false;
+  return (damage as number) >= cleared - 2 && (damage as number) <= most + 2 && cleared <= seconds * MAX_DAMAGE_PER_SECOND;
 }
 
 /** Letters (Ñ included) and digits, up to four, like an arcade cabinet. */
