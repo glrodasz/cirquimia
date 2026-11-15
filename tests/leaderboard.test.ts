@@ -16,6 +16,10 @@ describe('score', () => {
   it('refuses impossible matches', () => {
     expect(plausible(0, 'facil', 60_000, 100)).toBe(false); // training
     expect(plausible(5, 'facil', 60_000, 100)).toBe(false);
+    // Hardcore rivals heal a lot: a 1:33 one-on-one with 375 damage is real (Very hard caps at 300 a rival).
+    expect(plausible(1, 'hardcore', 93_000, 375)).toBe(true);
+    expect(plausible(1, 'experto', 93_000, 375)).toBe(false);
+    expect(plausible(1, 'hardcore', 93_000, 901)).toBe(false);
     expect(plausible(3, 'facil', 60_000, 100)).toBe(true);
     expect(plausible(1, 'imposible', 60_000, 100)).toBe(false);
     expect(plausible(1, 'normal', 60_000, 0)).toBe(false); // the rivals did it all

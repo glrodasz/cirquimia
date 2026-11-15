@@ -32,6 +32,8 @@ export const MIN_SECONDS = 4;
 export const MAX_DAMAGE_PER_SECOND = 40;
 /** A rival has 100 health but can heal, so the alchemist may take off more than that; never this much. */
 export const MAX_DAMAGE_PER_RIVAL = 300;
+/** Hardcore rivals heal early and nearly always, so a long fight against one can take off far more. */
+export const MAX_DAMAGE_PER_HARDCORE_RIVAL = 900;
 /** A match longer than this is not a run worth ranking (and keeps durations sane). */
 export const MAX_SECONDS = 30 * 60;
 
@@ -50,7 +52,8 @@ export function plausible(rivals: unknown, difficulty: unknown, durationMs: unkn
   if (!Number.isInteger(rivals) || (rivals as number) < MIN_RIVALS || (rivals as number) > MAX_RIVALS) return false;
   if (!isDifficulty(difficulty)) return false;
   if (typeof durationMs !== 'number' || !Number.isFinite(durationMs)) return false;
-  if (!Number.isInteger(damage) || (damage as number) < 1 || (damage as number) > (rivals as number) * MAX_DAMAGE_PER_RIVAL) return false;
+  const perRival = difficulty === 'hardcore' ? MAX_DAMAGE_PER_HARDCORE_RIVAL : MAX_DAMAGE_PER_RIVAL;
+  if (!Number.isInteger(damage) || (damage as number) < 1 || (damage as number) > (rivals as number) * perRival) return false;
   const seconds = durationMs / 1000;
   return seconds >= MIN_SECONDS && seconds <= MAX_SECONDS && (damage as number) <= seconds * MAX_DAMAGE_PER_SECOND;
 }
