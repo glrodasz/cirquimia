@@ -21,6 +21,10 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
+const MARK_SIZE = 0.055; // half width of the small triangle on the ground under the alchemist ("this one is you")
+const MARK_AHEAD = 0.22; // how far in front of the feet (towards the camera) it lies, so the body never hides it
+const markDir = new THREE.Vector3();
+const GHOST = 0.3; // opacity of a rival the tutorial has not introduced yet
 export const MAX_RIVALS = 3;
 // While the tutorial's rival stands still as a sparring partner, it cannot be knocked out: it holds on at this much health.
 const SPAR_FLOOR = 10;
@@ -91,6 +95,11 @@ class Fighter<B extends Body = Body> {
   /** The symbol it just stored, traced over its head in its ink so others can tell what it holds. */
   private readonly sketch = document.createElementNS(SVG_NS, 'svg');
   private readonly sketchPath = document.createElementNS(SVG_NS, 'path');
+  /** The soft halo behind the alchemist that says "this one is you" while it stands still (the hero only). */
+  private mark: THREE.Mesh | null = null;
+  /** How faint the body is drawn (1 = solid), and where it is easing to. */
+  private ghostLevel = 1;
+  private ghostTo = 1;
   /** Position on the previous frame, to tell where it is heading. */
   readonly prev = new THREE.Vector3();
 
@@ -141,6 +150,37 @@ class Fighter<B extends Body = Body> {
 
   get position() {
     return this.body.root.position;
+  }
+
+  /** Adds a soft halo in its ink behind this fighter, shown while it stands still: the player's own alchemist. */
+  markAsYou() {
+    // Drawn without depth test right before the alchemist, which then covers it: a halo around the figure, never
+    // washing over the coat, and never cut by the ground.
+    // A flat triangle lying on the ground just in front of the feet, its tip pointing at the alchemist.
+    const shape = new THREE.Shape([new THREE.Vector2(0, MARK_SIZE * 1.1), new THREE.Vector2(-MARK_SIZE, -MARK_SIZE * 0.6), new THREE.Vector2(MARK_SIZE, -MARK_SIZE * 0.6)]);
+    const geometry = new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2);
+    this.mark = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: this.ink, transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    this.mark.renderOrder = 2;
+    this.body.root.parent!.add(this.mark); // in the scene, not the turning body: placed and aimed each frame
+  }
+
+  /** Fades the body (and its bar) to see-through, or back to solid. */
+  /** Eases the faintness toward where it is going; runs even while the tutorial holds the match still. */
+  fade(dt: number) {
+    if (this.ghostLevel === this.ghostTo) return;
+    const step = Math.min(0.1, dt) * 2.5; // ~0.3 s to go solid
+    this.ghostLevel = this.ghostTo > this.ghostLevel ? Math.min(this.ghostTo, this.ghostLevel + step) : Math.max(this.ghostTo, this.ghostLevel - step);
+    if (this.body instanceof Character) this.body.ghost(this.ghostLevel);
+    this.bar.style.opacity = this.ghostLevel < 1 ? this.ghostLevel.toFixed(2) : '';
+  }
+
+  faint(on: boolean, instant = false) {
+    this.ghostTo = on ? GHOST : 1;
+    if (instant && this.ghostLevel !== this.ghostTo) {
+      this.ghostLevel = this.ghostTo;
+      if (this.body instanceof Character) this.body.ghost(this.ghostLevel);
+      this.bar.style.opacity = this.ghostLevel < 1 ? String(this.ghostLevel) : '';
+    }
   }
 
   protected disposeAura() {
@@ -225,6 +265,20 @@ class Fighter<B extends Body = Body> {
     this.sketch.classList.toggle('off', !visible);
   }
 
+  /** Keeps the "you" triangle on the ground in front of the alchemist, pointing at it; hidden once it falls. */
+  updateMark(camera: THREE.Camera) {
+    const mark = this.mark;
+    if (!mark) return;
+    mark.visible = !this.down;
+    if (!mark.visible) return;
+    camera.getWorldDirection(markDir);
+    markDir.y = 0;
+    markDir.normalize(); // away from the camera, along the ground
+    mark.position.set(this.position.x - markDir.x * MARK_AHEAD, 0, this.position.z - markDir.z * MARK_AHEAD);
+    mark.position.y = heightAt(mark.position.x, mark.position.z) + 0.015;
+    mark.rotation.y = Math.atan2(-markDir.x, -markDir.z); // the tip (local -z after lying flat) towards the alchemist
+  }
+
   /** Projects the head to screen pixels into `projected`; false when it is behind the camera. */
   protected screen(camera: THREE.Camera, head = this.head) {
     projected.copy(this.position);
@@ -236,6 +290,11 @@ class Fighter<B extends Body = Body> {
   }
 
   dispose() {
+    if (this.mark) {
+      this.mark.removeFromParent();
+      this.mark.geometry.dispose();
+      (this.mark.material as THREE.Material).dispose();
+    }
     this.bar.remove();
     this.sketch.remove();
   }
@@ -563,6 +622,8 @@ export class Combat {
   private held = false;
   /** Set for the whole tutorial: the rivals stand still as sparring partners and cannot fall, until the duel starts. */
   private sparring = false;
+  /** Rivals are drawn see-through (the tutorial has not introduced them yet). */
+  private rivalsFaint = false;
   /** Seconds since the match started, and when the last rival strike booked against the alchemist starts and stops landing. */
   private clock = 0;
   /** Stars whose columns are up or about to be: crossing their ring strikes once more. */
@@ -584,6 +645,7 @@ export class Combat {
     readonly onRunes: (p: THREE.Vector3) => boolean,
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
+    this.hero.markAsYou();
     spells.onStrike = (x, z, element, caster, area, cage) => this.strike(x, z, element, caster, area, cage);
   }
 
@@ -618,6 +680,19 @@ export class Combat {
   /** Damage the alchemist dealt to rivals this match; rivals hurting each other does not count. */
   get heroDamage() {
     return Math.round(this.dealt);
+  }
+
+  /** Draws every rival see-through (the tutorial before it introduces the rival), or solid again. */
+  faintRivals(on: boolean, instant = false) {
+    if (on === this.rivalsFaint) return;
+    this.rivalsFaint = on;
+    for (const r of this.rivals) r.faint(on, instant);
+  }
+
+  /** Eases faint rivals in or out (called every frame, paused or not). */
+  fade(dt: number) {
+    for (const r of this.rivals) r.fade(dt);
+    this.hero.updateMark(this.camera); // here, not in update(): it shows while a lesson holds the match still too
   }
 
   setRivals(count: number) {
@@ -808,6 +883,7 @@ export class Combat {
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
       rival.body.bounds = this.onScreen;
+      rival.faint(this.rivalsFaint, true);
       // Evenly spread around the alchemist (opposite sides for two, a triangle for three), so everyone starts apart.
       const base = Math.random() * Math.PI * 2;
       for (let tries = 0; tries < 12; tries++) {

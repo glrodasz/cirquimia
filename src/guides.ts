@@ -5,6 +5,7 @@ import type { ShapeKind } from './gestures';
 import { t, type GuideShape } from './i18n';
 import { downArrow } from './icons';
 import { hasKeyboard } from './keys';
+import { Popover } from './popover';
 
 type Fluid = 'fire' | 'water';
 /** A step of the loop, named after what ends up in hand. */
@@ -140,10 +141,10 @@ export class Guides {
   private readonly card = document.createElement('div');
   private readonly reset: HTMLButtonElement;
   /** The speech bubble: what to do, next to where to do it. */
-  private readonly bubble = document.createElement('div');
   private readonly bubbleText = document.createElement('span');
+  private readonly pop = new Popover(this.bubbleText);
+  private readonly bubble = this.pop.el;
   private bubbleKey = '';
-  private bubbleAt: { x: number; y: number; under: number } | null = null;
   /** One little symbol per step, ticked once done: the loop's checklist. */
   private readonly boxes = document.createElement('ol');
 
@@ -154,11 +155,7 @@ export class Guides {
     this.arrow.className = 'to-source';
     this.arrow.innerHTML = downArrow();
     this.card.className = 'tip';
-    this.bubble.className = 'say';
-    this.bubble.setAttribute('role', 'status');
-    const nub = document.createElement('i');
-    nub.className = 'nub';
-    this.bubble.append(this.bubbleText, nub);
+    this.bubble.classList.add('say');
     const title = document.createElement('b');
     title.textContent = t.guides.title;
     this.boxes.className = 'boxes';
@@ -484,7 +481,7 @@ export class Guides {
   private say(text: string, at: { x: number; y: number } | null, dt: number, label = '', under = at?.y ?? 0) {
     if (!at || !text) {
       this.bubble.hidden = true;
-      this.bubbleAt = null;
+      this.pop.snap();
       return;
     }
     this.bubble.hidden = false;
@@ -498,22 +495,8 @@ export class Guides {
         this.bubbleText.append(em, ' ');
       }
       this.bubbleText.append(text);
-      this.bubbleAt = null; // a new line pops in place
+      this.pop.snap(); // a new line pops in place
     }
-    const k = this.bubbleAt ? 1 - Math.exp(-dt * 10) : 1;
-    const b = (this.bubbleAt ??= { x: at.x, y: at.y, under });
-    b.x += (at.x - b.x) * k;
-    b.y += (at.y - b.y) * k;
-    b.under += (under - b.under) * k;
-    const w = this.bubble.offsetWidth;
-    const h = this.bubble.offsetHeight;
-    const gap = 12;
-    const top = 70; // under the HUD row
-    const below = b.y - gap - h < top;
-    const y = below ? b.under + gap : b.y - gap - h;
-    const x = Math.min(innerWidth - 8 - w, Math.max(8, b.x - w / 2));
-    this.bubble.dataset.side = below ? 'below' : 'above';
-    this.bubble.style.setProperty('--nub', `${Math.min(w - 14, Math.max(14, b.x - x)).toFixed(1)}px`);
-    this.bubble.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    this.pop.place({ x: at.x, y: at.y, r: 0, side: 'above', below: under }, dt);
   }
 }

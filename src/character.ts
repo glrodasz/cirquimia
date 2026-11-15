@@ -45,6 +45,41 @@ function mat(hex: string, emissive = '#000000', side: THREE.Side = THREE.FrontSi
   return m;
 }
 
+/**
+ * A soft dark spot on the ground under every character, on every quality tier (the sun's shadows are off on the low
+ * one, and tiny from above anyway): it sets the figures on the meadow instead of floating over it.
+ */
+const BLOB_SIZE = 0.42;
+let blobMaterial: THREE.MeshBasicMaterial | null = null;
+const blobGeometry = new THREE.PlaneGeometry(BLOB_SIZE, BLOB_SIZE).rotateX(-Math.PI / 2);
+function blob() {
+  if (!blobMaterial && typeof document === 'undefined') blobMaterial = new THREE.MeshBasicMaterial({ visible: false }); // tests (no DOM)
+  if (!blobMaterial) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(10,18,14,.8)');
+    grad.addColorStop(0.5, 'rgba(10,18,14,.55)');
+    grad.addColorStop(1, 'rgba(10,18,14,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    blobMaterial = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  }
+  const mesh = new THREE.Mesh(blobGeometry, blobMaterial);
+  mesh.position.y = 0.012;
+  mesh.renderOrder = 1;
+  return mesh;
+}
+
+/** See-through copies of the shared materials, for a character shown as a ghost (one opacity for all of them). */
+const ghosts = new Map<THREE.Material, THREE.MeshLambertMaterial>();
+function ghostOf(m: THREE.MeshLambertMaterial) {
+  let g = ghosts.get(m);
+  if (!g) ghosts.set(m, (g = Object.assign(m.clone(), { transparent: true, depthWrite: false })));
+  return g;
+}
+
 function part(geo: THREE.BufferGeometry, hex: string, emissive?: string, side?: THREE.Side) {
   const mesh = new THREE.Mesh(geo, mat(hex, emissive, side));
   mesh.castShadow = true;
@@ -150,6 +185,8 @@ export class Character {
    */
   bounds: ((p: THREE.Vector3) => boolean) | null = null;
   private readonly probe = new THREE.Vector3();
+  /** The soft spot on the ground under the feet. */
+  private readonly shadow: THREE.Mesh;
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -217,11 +254,31 @@ export class Character {
     this.model.traverse((o) => {
       if (o instanceof THREE.Mesh) o.userData.material = o.material;
     });
+    // On the root, not the model: it stays flat on the ground when the body falls, and never flashes white.
+    this.shadow = blob();
+    this.root.add(this.shadow);
   }
 
   /** True while walking somewhere. */
   get moving() {
     return this.path.length > 1 || Math.hypot(this.target.x - this.root.position.x, this.target.z - this.root.position.z) > ARRIVE_RADIUS;
+  }
+
+  /**
+   * Draws the character see-through at `opacity` (1 = solid again). The tutorial keeps the rival faint until it is
+   * introduced, so the first thing the player tells apart is which one is them.
+   */
+  ghost(opacity: number) {
+    const solid = opacity >= 0.999;
+    this.model.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const base = (o.userData.base ??= o.userData.material) as THREE.MeshLambertMaterial;
+      o.userData.material = solid ? base : ghostOf(base);
+      o.castShadow = solid;
+      if (this.flashTimer <= 0) o.material = o.userData.material;
+    });
+    this.shadow.material = solid ? blobMaterial! : ghostOf(blobMaterial as unknown as THREE.MeshLambertMaterial);
+    for (const g of ghosts.values()) g.opacity = opacity; // shared: every faint rival fades together
   }
 
   /** Flashes white for a moment: the visual side of taking a hit. */

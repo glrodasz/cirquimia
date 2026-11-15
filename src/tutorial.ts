@@ -1,4 +1,4 @@
-import { downArrow } from './icons';
+import { downChevrons } from './icons';
 import type * as THREE from 'three';
 import { brushPath, type Pt } from './ammo';
 import { arc, segment } from './match';
@@ -7,6 +7,7 @@ import { t } from './i18n';
 import { hand } from './help';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
+import { Popover, type PopAnchor } from './popover';
 
 // The last lesson behind the player: 'moved' after the walk, then each lesson's own name, 'done' once the duel begins.
 const STORE = 'cirquimia.tutorial';
@@ -62,6 +63,8 @@ export interface TutorialHost {
   walkGoal(): THREE.Vector3 | null;
   /** The campfire (or lagoon) to draw over, when one is on screen. */
   source(element: 'fire' | 'water'): THREE.Vector3 | null;
+  /** Draws the rivals see-through, or solid: faint until the tutorial introduces the rival. */
+  faintRivals(on: boolean, instant: boolean): void;
   /** The duel card was accepted: everyone back to full health, and the rival starts fighting. */
   duel(): void;
 }
@@ -108,6 +111,9 @@ const isShape = (l: Lesson | null): l is Shape => l === 'square' || l === 'circl
  * strike, charge fire over a campfire and water over a lagoon and cast them, and then a card asks whether to start the
  * duel. Only then does the rival move and fight, with everyone back at full health.
  */
+/** px from the rival's head to the top of the arrow over it (gap + arrow + bounce). */
+const ARROW_TOP = 18 + 34 + 4;
+
 export class Tutorial {
   private stage = load();
   private lesson: Lesson | null = null;
@@ -125,6 +131,10 @@ export class Tutorial {
   private alt: HTMLElement | null = null;
   /** The spotlight as drawn, easing toward where it should be. */
   private lit: { x: number; y: number; r: number } | null = null;
+  /** What the card points at right now: it sits next to it, with its nub toward it. */
+  private target: () => PopAnchor | null = () => null;
+  /** Where the demo hand draws, for the card to sit under it. */
+  private demoAt: PopAnchor | null = null;
 
   private readonly root = document.createElement('div');
   private readonly dim = document.createElement('div');
@@ -133,12 +143,16 @@ export class Tutorial {
   /** The walking lesson: a glowing mark on the ground with a hand tapping it, and a hand on the stick. */
   private readonly mark = document.createElement('div');
   private readonly padHand = document.createElement('div');
-  private readonly card = document.createElement('div');
   private readonly title = document.createElement('b');
   private readonly body = document.createElement('span');
   /** Goes on from a lesson that is only read (the goal, the duel). */
   private readonly next = document.createElement('button');
+  /** The lesson's note: a popover next to what it talks about. */
+  private readonly pop = new Popover(this.title, this.body, this.next);
+  private readonly card = this.pop.el;
   private hintTimer = 0;
+  /** The first frame has passed (the rival's faintness applies at once on it, then eases). */
+  private started = false;
   private shown = 0;
 
   constructor(private readonly host: TutorialHost) {
@@ -147,16 +161,13 @@ export class Tutorial {
     this.dim.className = 'dim';
     this.demo.className = 'demo';
     this.arrow.className = 'arrow';
-    this.arrow.innerHTML = downArrow();
-    this.card.className = 'tip';
-    this.card.setAttribute('role', 'status');
+    this.arrow.innerHTML = downChevrons();
     this.next.type = 'button';
     this.next.className = 'next';
     this.next.hidden = true;
     this.next.addEventListener('click', () => {
       if (this.step === 'read') this.finish();
     });
-    this.card.append(this.title, this.body, this.next);
     this.mark.className = 'mark';
     this.mark.innerHTML = `<i></i><svg viewBox="-16 -8 40 40" aria-hidden="true">${hand(0, 0, 1, true)}</svg>`;
     this.padHand.className = 'pad-hand';
@@ -230,9 +241,13 @@ export class Tutorial {
   }
 
   update(dt: number) {
+    // The rival stays faint until the "this is your rival" card, so the first figure the player tells apart is their own.
+    this.host.faintRivals(!this.done && (this.stage === '' || (this.stage === 'moved' && this.lesson !== 'goal')), !this.started);
+    this.started = true;
     const covered = this.host.covered();
     this.root.classList.toggle('covered', covered);
     if (covered) return;
+    if (!this.root.hidden) this.position(dt);
 
     if (!this.lesson) {
       if (this.done || (this.wait -= dt) > 0) return;
@@ -251,7 +266,7 @@ export class Tutorial {
     }
     this.timer += dt;
 
-    if (this.step === 'read') this.pointAtFoe(this.lesson === 'goal');
+    if (this.step === 'read') this.pointAtFoe(false); // the card itself points at the rival
     else if (this.step === 'draw') this.animateDemo(dt);
     else if (this.step === 'aim') {
       if (this.host.selected() !== this.lesson) this.go('draw'); // dropped, or drawn away from its source: draw it again
@@ -269,6 +284,7 @@ export class Tutorial {
     this.shown++;
     clearTimeout(this.hintTimer);
     this.lesson = lesson;
+    if (this.root.hidden) this.pop.snap();
     this.root.hidden = false;
     this.root.dataset.lesson = lesson;
     void this.root.offsetWidth;
@@ -343,6 +359,22 @@ export class Tutorial {
     this.walkShow = what;
     this.root.dataset.walk = what;
     this.alt?.classList.toggle('lit', what === 'alt');
+    if (what === 'alt' && this.alt) {
+      const alt = this.alt;
+      this.target = () => {
+        const r = alt.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: Math.max(r.width, r.height) / 2 + 6, side: 'above' };
+      };
+    } else if (this.goal) {
+      // The tap, or walking already: the card stays by the mark it asks to reach.
+      const goal = this.goal;
+      // On the side away from the alchemist, so the card never hides who is walking there.
+      this.target = () => {
+        const at = this.host.toScreen(goal, 0);
+        const hero = this.host.toScreen(this.host.hero(), 0);
+        return { ...at, r: 30, side: hero.y < at.y ? 'below' : 'above' };
+      };
+    }
     if (what === 'go') return;
     const move = t.tutorial.move;
     const touch = !hasKeyboard();
@@ -376,6 +408,7 @@ export class Tutorial {
       return;
     }
     if (step === 'read') {
+      this.target = () => this.at('foe');
       const text = t.tutorial[this.lesson as 'goal' | 'duel'];
       this.demo.innerHTML = '';
       this.say(text.title, text.body);
@@ -383,6 +416,11 @@ export class Tutorial {
       return;
     }
     const text = TEXT[this.lesson as Shape];
+    // Drawing: under the demo hand. Aiming: by the rival to tap. Watching: by whoever the cast is about (the wall
+    // rises around the alchemist; the strikes land on the rival).
+    this.demoAt = null;
+    this.target =
+      step === 'draw' ? () => this.demoAt : step === 'aim' || this.lesson !== 'circle' ? () => this.at('foe') : () => this.at('hero', 44);
     if (step === 'watch') this.say(text.watch, '');
     else this.say(...text[step as 'draw' | 'aim']);
     if (step !== 'draw') this.demo.innerHTML = '';
@@ -415,6 +453,9 @@ export class Tutorial {
     this.root.dataset.step = 'done';
     this.wait = AFTER[lesson];
     if (lesson === 'duel') this.host.duel();
+    // The closing line stays by the rival after a strike, by the alchemist otherwise.
+    const byFoe = lesson === 'square' || lesson === 'triangle' || lesson === 'triangleDown';
+    this.target = byFoe ? () => this.at('foe') : () => this.at('hero', lesson === 'circle' ? 44 : 30);
     const line = lesson === 'move' ? t.tutorial.move.done : lesson === 'duel' ? t.tutorial.duelGo : lesson === 'goal' ? '' : TEXT[lesson].done;
     if (line) {
       this.say(line, '');
@@ -441,14 +482,15 @@ export class Tutorial {
     this.body.textContent = body;
     this.body.hidden = !body;
     this.card.classList.remove('wrong');
-    this.card.animate([{ transform: 'translateY(6px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'ease-out' });
+    // \`translate\`, not \`transform\`: transform holds where the card sits next to its target.
+    this.card.animate([{ translate: '0 6px', opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 260, easing: 'ease-out' });
   }
 
   private hint(text: string) {
     this.body.textContent = text;
     this.body.hidden = false;
     this.card.classList.add('wrong');
-    this.card.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 300 });
+    this.card.animate([0, -6, 6, -4, 4, 0].map((x) => ({ translate: `${x}px 0` })), { duration: 300 });
   }
 
   /**
@@ -472,6 +514,7 @@ export class Tutorial {
       this.demo.style.top = `${(p.y - 6).toFixed(1)}px`;
       spot = { x: p.x, y: p.y, r: 76 };
     }
+    this.demoAt = { x: spot.x, y: element ? spot.y - 6 : spot.y, r: element ? 50 : 72, side: 'below' };
     this.demoTime = (this.demoTime + dt) % (DEMO_DRAW + DEMO_HOLD);
     const line = demoLine(kind);
     const t = Math.min(1, this.demoTime / DEMO_DRAW);
@@ -488,6 +531,31 @@ export class Tutorial {
       (t < 1 ? `<circle class="finger" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="3.2"/>` : '') +
       '</g></svg>';
     this.glide(spot, dt);
+  }
+
+  /** A fighter on screen, as a spot for the card: under its feet, clear of its body and health bar. */
+  private at(who: 'foe' | 'hero', clear = 30): PopAnchor | null {
+    const p = who === 'foe' ? this.host.foe() : this.host.hero();
+    if (!p) return null;
+    const head = this.host.toScreen(p, 0.75);
+    const feet = this.host.toScreen(p, 0);
+    const a: PopAnchor = { x: feet.x, y: (feet.y + head.y) / 2, r: Math.max(clear, (feet.y - head.y) / 2 + 10), side: 'below' };
+    // Above the rival, rest on top of its arrow (tip at head - 18, 34px tall, bounces a few px) rather than over it.
+    if (who === 'foe' && !this.arrow.hidden) a.above = Math.min(a.y - a.r, head.y - ARROW_TOP);
+    return a;
+  }
+
+  /** Keeps the card next to what the lesson points at. */
+  private position(dt: number) {
+    const a = this.target();
+    if (a) {
+      // Never over the alchemist itself, when the other side of the spot leaves it clear.
+      const hero = this.host.hero();
+      const head = this.host.toScreen(hero, 0.75);
+      const feet = this.host.toScreen(hero, 0);
+      a.avoid = { x: feet.x, y: (feet.y + head.y) / 2, r: Math.max(18, (feet.y - head.y) / 2 + 8) };
+    }
+    this.pop.place(a, dt);
   }
 
   /** Lights the rival (and its health bar), with the arrow over it when `arrow`. */
