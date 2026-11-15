@@ -24,6 +24,8 @@ const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
 const GLOW_SIZE = 0.66; // world units tall, the soft halo behind the alchemist (a thin rim around the figure)
 const GLOW_HEIGHT = 0.28; // its centre above the feet (mid-body)
 const GLOW_STILL = 0.35; // s standing still before the halo shows
+const GLOW_EVERY = 3.2; // s between soft pulses while it stays still
+const GLOW_PULSE = 1.3; // s one pulse takes to swell and fade
 /** A soft oval of light in `ink`: bright at the centre, fading to nothing at the edge. */
 function glowTexture(ink: string) {
   const c = document.createElement('canvas');
@@ -298,8 +300,10 @@ class Fighter<B extends Body = Body> {
     this.glowLevel = THREE.MathUtils.clamp(this.glowLevel + (want ? dt * 2.5 : -dt * 6), 0, 1);
     glow.visible = this.glowLevel > 0;
     if (!glow.visible) return;
-    const pulse = 0.85 + Math.sin(now / 1000 * 2.4) * 0.15;
-    glow.material.opacity = this.glowLevel * 0.75 * pulse;
+    // One soft breath every few seconds, dark in between: noticeable without staying on all the time.
+    const phase = (this.stillFor - GLOW_STILL) % GLOW_EVERY;
+    const pulse = phase < GLOW_PULSE ? Math.sin((Math.PI * phase) / GLOW_PULSE) ** 2 : 0;
+    glow.material.opacity = this.glowLevel * 0.8 * pulse;
     glow.position.copy(this.position);
     glow.position.y += GLOW_HEIGHT;
   }
