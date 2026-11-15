@@ -21,8 +21,8 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
-const MARK_SIZE = 0.05; // half width of the small triangle on the ground under the alchemist ("this one is you")
-const MARK_AHEAD = 0.13; // how far in front of the feet (towards the camera) it lies, so the body never hides it
+const MARK_SIZE = 0.055; // half width of the small triangle on the ground under the alchemist ("this one is you")
+const MARK_AHEAD = 0.22; // how far in front of the feet (towards the camera) it lies, so the body never hides it
 const markDir = new THREE.Vector3();
 const GHOST = 0.3; // opacity of a rival the tutorial has not introduced yet
 export const MAX_RIVALS = 3;

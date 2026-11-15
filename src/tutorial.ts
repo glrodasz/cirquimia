@@ -1,4 +1,4 @@
-import { downArrow } from './icons';
+import { downChevrons } from './icons';
 import type * as THREE from 'three';
 import { brushPath, type Pt } from './ammo';
 import { arc, segment } from './match';
@@ -158,7 +158,7 @@ export class Tutorial {
     this.dim.className = 'dim';
     this.demo.className = 'demo';
     this.arrow.className = 'arrow';
-    this.arrow.innerHTML = downArrow();
+    this.arrow.innerHTML = downChevrons();
     this.next.type = 'button';
     this.next.className = 'next';
     this.next.hidden = true;
@@ -541,7 +541,15 @@ export class Tutorial {
 
   /** Keeps the card next to what the lesson points at. */
   private position(dt: number) {
-    this.pop.place(this.target(), dt);
+    const a = this.target();
+    if (a) {
+      // Never over the alchemist itself, when the other side of the spot leaves it clear.
+      const hero = this.host.hero();
+      const head = this.host.toScreen(hero, 0.75);
+      const feet = this.host.toScreen(hero, 0);
+      a.avoid = { x: feet.x, y: (feet.y + head.y) / 2, r: Math.max(18, (feet.y - head.y) / 2 + 8) };
+    }
+    this.pop.place(a, dt);
   }
 
   /** Lights the rival (and its health bar), with the arrow over it when `arrow`. */

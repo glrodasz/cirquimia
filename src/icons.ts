@@ -83,6 +83,10 @@ export const crossIcon = () => solid('M5.6 3.5 12 9.9 18.4 3.5 20.5 5.6 14.1 12 
 /** A rune circle: a ring around a four-pointed spark. */
 export const runeIcon = () => solid('M12 2.8A9.2 9.2 0 1 1 12 21.2A9.2 9.2 0 1 1 12 2.8ZM12 5A7 7 0 1 0 12 19A7 7 0 1 0 12 5ZM12 7.6 13.2 10.8 16.4 12 13.2 13.2 12 16.4 10.8 13.2 7.6 12 10.8 10.8Z');
 /** A blunt arrow pointing down, for "here" markers on the meadow and the HUD. */
+/** Two stacked chevrons pointing down (the tutorial's "this one" over the rival); they bounce in turn (CSS). */
+export const downChevrons = () =>
+  '<svg viewBox="0 0 24 24" aria-hidden="true" class="chevrons"><path d="M5 3.5 12 9.5 19 3.5"/><path d="M5 11.5 12 17.5 19 11.5"/></svg>';
+
 export const downArrow = () => solid('M9.6 2H14.4V12.6H19.6L12 22 4.4 12.6H9.6Z', 'ink');
 /** The transmutation seal on the graphics-card notice: a ring around a triangle with a circle cut in it. */
 export const sealIcon = () =>
