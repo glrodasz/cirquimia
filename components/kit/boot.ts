@@ -1,6 +1,6 @@
 import type { ArgTypes, StoryContext as SbContext, StoryObj } from '@storybook/html-vite';
 import { addons } from 'storybook/preview-api';
-import { UPDATE_GLOBALS, UPDATE_STORY_ARGS } from 'storybook/internal/core-events';
+import { DOCS_RENDERED, UPDATE_GLOBALS, UPDATE_STORY_ARGS } from 'storybook/internal/core-events';
 import meadowPhoto from '../../src/assets/share/meadow.jpg';
 import { isolateStorage, mockApi } from './mocks';
 import type { StoryArgs, StoryContext, StoryFn } from './story';
@@ -27,6 +27,12 @@ export interface SceneOptions<A extends StoryArgs> {
 }
 
 let mounted: string | null = null;
+
+// Storybook shows a Docs page in the same canvas it used for the last story. The game's modules from that story are
+// still on the page (fixed HUD, a page that does not scroll), so the Docs page gets a fresh canvas instead.
+addons.getChannel().on(DOCS_RENDERED, () => {
+  if (mounted) location.reload();
+});
 
 /** Storybook's own URL for this story with these Controls and toolbar, so a reload opens exactly it. */
 function urlFor(ctx: SbContext, args: StoryArgs) {
@@ -73,6 +79,7 @@ async function start(load: () => Promise<StoryModule>, id: string, opts: SceneOp
   isolateStorage();
   mockApi();
   emulatePointer(touch);
+  (document.getElementById('game-styles') as HTMLStyleElement | null)?.removeAttribute('media'); // off on Docs pages
   document.documentElement.classList.add('kit-story');
   if (opts.page) document.documentElement.classList.add('kit-doc');
   if (opts.backdrop) {

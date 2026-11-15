@@ -3,6 +3,13 @@ import '@fontsource-variable/eb-garamond/wght-italic.css';
 import '../components/kit/kit.css';
 import type { Preview } from '@storybook/html-vite';
 
+// Docs pages are Storybook's own pages: the game's stylesheet (a fixed page that never scrolls) stays off there.
+// Each story on a Docs page is a frame of its own, with the game's styles.
+if (new URLSearchParams(location.search).get('viewMode') === 'docs') {
+  const game = document.getElementById('game-styles') as HTMLStyleElement | null;
+  if (game) game.media = 'not all';
+}
+
 /** Phone and tablet sizes the game is tested on, in portrait and landscape. */
 const viewports = {
   iphone13: { name: 'iPhone 13 · 390×844', styles: { width: '390px', height: '844px' }, type: 'mobile' },
