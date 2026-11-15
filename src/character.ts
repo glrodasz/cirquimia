@@ -248,6 +248,20 @@ export class Character {
     for (const g of ghosts.values()) g.opacity = opacity; // shared: every faint rival fades together
   }
 
+  /**
+   * Gives this character its own copies of the materials, drawn in the see-through pass after `order`: a glow drawn
+   * just before it (without depth test) then sits behind the whole figure, and nobody else's look changes.
+   */
+  ownMaterials(order: number) {
+    this.model.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const m = (o.userData.material as THREE.Material).clone();
+      m.transparent = true; // fully opaque still; only moves it to the pass that honours render order
+      o.userData.material = o.material = m;
+      o.renderOrder = order;
+    });
+  }
+
   /** Flashes white for a moment: the visual side of taking a hit. */
   flash() {
     this.flashTimer = FLASH_TIME;
