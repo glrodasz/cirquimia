@@ -37,9 +37,17 @@ export interface PlayArea {
   dummyV?: number;
 }
 
-/** Training's start, towards the camera from the centre, and the scarecrow's spot, away from it. */
-export const TRAINING_SPAWN_V = -1.5;
-export const TRAINING_DUMMY_V = 1.8;
+/**
+ * Training's start (a share of the way from the centre to the near edge) and the scarecrow's spot (a share of the
+ * way to the far edge), so a shallow screen (a tablet upright) moves them less than a tall phone.
+ */
+const TRAINING_SPAWN_SHARE = 0.33;
+const TRAINING_DUMMY_SHARE = 0.28;
+
+/** The play area as training uses it: sources out of the sheet's corner, the alchemist low and the scarecrow high. */
+export function trainingArea(area: PlayArea): PlayArea {
+  return { ...area, clearCorner: true, spawnV: area.vMin * TRAINING_SPAWN_SHARE, dummyV: area.vMax * TRAINING_DUMMY_SHARE };
+}
 
 /** Where the alchemist starts on this play area, in world x/z. */
 export function spawnOf(area: PlayArea): [number, number] {
@@ -365,8 +373,9 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
         if (inDepth && inWidth) continue;
       }
       const spawnGap = spec.solid ? r * 0.8 + SPAWN_CLEAR : r * 0.5 + SPAWN_CLEAR;
-      if (x * x + z * z < spawnGap * spawnGap) continue;
-      if ([spawn, dummy].some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < spawnGap * spawnGap)) continue;
+      // Training clears its start and scarecrow spots instead of the centre.
+      const clear = area.spawnV ? [spawn, dummy] : [[0, 0]];
+      if (clear.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < spawnGap * spawnGap)) continue;
       if (spec.solid && trail && distToPath(x, z, trail) < r * 0.35) continue; // the narrow screen leaves little room beside the trail
       const crowded = features.some((f) => {
         const gap = f.solid && spec.solid ? 0.4 : 0;
@@ -407,6 +416,12 @@ export function generateLayout(seed: string, params: GenParams, required: Kind[]
       animated++;
     }
     features.push(placed);
+  }
+  // A screen too shallow to fit training's sources around its two spots brings them in towards the middle, and
+  // in the end keeps everyone there.
+  if (area.spawnV && area.dummyV && required.some((k) => !features.some((f) => f.kind === k))) {
+    const closer = Math.abs(area.spawnV) > 0.6 ? { spawnV: area.spawnV * 0.7, dummyV: area.dummyV * 0.7 } : { spawnV: undefined, dummyV: undefined };
+    return generateLayout(seed, params, required, { ...area, ...closer });
   }
   return { seed, seedNum, features, skipped, trail, area };
 }

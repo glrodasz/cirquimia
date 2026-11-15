@@ -388,7 +388,8 @@ export class Guides {
     const size = boxSize();
     const at = this.centred(dt, size);
     this.place(at, size, null, dt);
-    this.say(t.guides.draw[shape], { x: at.x, y: at.y - size / 2 + 8 }, dt, label, at.y + size / 2 - 8);
+    // Over the guide's left shoulder rather than its middle: the scarecrow stands straight above it.
+    this.say(t.guides.draw[shape], { x: at.x - size * 0.42, y: at.y - size / 2 + 8 }, dt, label, at.y + size / 2 - 8);
   }
 
   /** Over the scarecrow's "Hit me!" label (or its head when the label is not up). */

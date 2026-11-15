@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PARAMS, generateLayout, PORTRAIT_AREA, dummyOf, spawnOf, TRAINING_DUMMY_V, TRAINING_SPAWN_V } from '../src/generator';
+import { DEFAULT_PARAMS, generateLayout, PORTRAIT_AREA, dummyOf, spawnOf, trainingArea } from '../src/generator';
 
 describe('training meadows', () => {
   it('always place a campfire and a lagoon when they are required', () => {
@@ -18,7 +18,7 @@ describe('training meadows', () => {
 
 describe('training sources', () => {
   it('spread out: off the scarecrow and the start, apart, one nearer and one farther', () => {
-    const area = { ...PORTRAIT_AREA, clearCorner: true, spawnV: TRAINING_SPAWN_V, dummyV: TRAINING_DUMMY_V };
+    const area = trainingArea(PORTRAIT_AREA);
     const [sx, sz] = spawnOf(area);
     const [dx, dz] = dummyOf(area);
     let spread = 0;
