@@ -21,6 +21,7 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
+const GHOST = 0.3; // opacity of a rival the tutorial has not introduced yet
 export const MAX_RIVALS = 3;
 // While the tutorial's rival stands still as a sparring partner, it cannot be knocked out: it holds on at this much health.
 const SPAR_FLOOR = 10;
@@ -91,6 +92,13 @@ class Fighter<B extends Body = Body> {
   /** The symbol it just stored, traced over its head in its ink so others can tell what it holds. */
   private readonly sketch = document.createElementNS(SVG_NS, 'svg');
   private readonly sketchPath = document.createElementNS(SVG_NS, 'path');
+  /** Until when (ms) a symbol is traced over the head; the hero's "you" diamond steps aside meanwhile. */
+  private sketchUntil = 0;
+  /** The small diamond over the alchemist that says "this one is you" (the hero only). */
+  private you: HTMLElement | null = null;
+  /** How faint the body is drawn (1 = solid), and where it is easing to. */
+  private ghostLevel = 1;
+  private ghostTo = 1;
   /** Position on the previous frame, to tell where it is heading. */
   readonly prev = new THREE.Vector3();
 
@@ -128,6 +136,7 @@ class Fighter<B extends Body = Body> {
     this.sketch.classList.toggle('held', keep);
     this.sketchPath.setAttribute('d', SKETCH_PATH[shape]);
     this.sketch.style.setProperty('--draw', `${seconds}s`);
+    this.sketchUntil = keep ? Infinity : performance.now() + (seconds + 1.4) * 1000;
     this.sketch.style.display = '';
     this.sketch.classList.remove('drawing');
     void this.sketch.getBoundingClientRect(); // restart the trace
@@ -135,12 +144,40 @@ class Fighter<B extends Body = Body> {
   }
 
   hideSketch() {
+    this.sketchUntil = 0;
     this.sketch.style.display = 'none';
     this.sketch.classList.remove('drawing');
   }
 
   get position() {
     return this.body.root.position;
+  }
+
+  /** Adds the small diamond that floats over this fighter: the player's own alchemist. */
+  markAsYou() {
+    this.you = document.createElement('div');
+    this.you.className = 'you';
+    this.you.style.color = this.ink;
+    document.body.append(this.you);
+  }
+
+  /** Fades the body (and its bar) to see-through, or back to solid. */
+  /** Eases the faintness toward where it is going; runs even while the tutorial holds the match still. */
+  fade(dt: number) {
+    if (this.ghostLevel === this.ghostTo) return;
+    const step = Math.min(0.1, dt) * 2.5; // ~0.3 s to go solid
+    this.ghostLevel = this.ghostTo > this.ghostLevel ? Math.min(this.ghostTo, this.ghostLevel + step) : Math.max(this.ghostTo, this.ghostLevel - step);
+    if (this.body instanceof Character) this.body.ghost(this.ghostLevel);
+    this.bar.style.opacity = this.ghostLevel < 1 ? this.ghostLevel.toFixed(2) : '';
+  }
+
+  faint(on: boolean, instant = false) {
+    this.ghostTo = on ? GHOST : 1;
+    if (instant && this.ghostLevel !== this.ghostTo) {
+      this.ghostLevel = this.ghostTo;
+      if (this.body instanceof Character) this.body.ghost(this.ghostLevel);
+      this.bar.style.opacity = this.ghostLevel < 1 ? String(this.ghostLevel) : '';
+    }
   }
 
   protected disposeAura() {
@@ -218,6 +255,11 @@ class Fighter<B extends Body = Body> {
     const visible = this.screen(camera);
     this.bar.hidden = !visible;
     this.bar.classList.toggle('gone', this.down);
+    const now = performance.now();
+    if (this.you) {
+      this.you.hidden = !visible || this.down || now < this.sketchUntil;
+      if (visible) this.you.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
+    }
     if (visible) {
       this.bar.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
       this.sketch.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
@@ -236,6 +278,7 @@ class Fighter<B extends Body = Body> {
   }
 
   dispose() {
+    this.you?.remove();
     this.bar.remove();
     this.sketch.remove();
   }
@@ -558,6 +601,8 @@ export class Combat {
   private held = false;
   /** Set for the whole tutorial: the rivals stand still as sparring partners and cannot fall, until the duel starts. */
   private sparring = false;
+  /** Rivals are drawn see-through (the tutorial has not introduced them yet). */
+  private rivalsFaint = false;
   /** Seconds since the match started, and when the last rival strike booked against the alchemist starts and stops landing. */
   private clock = 0;
   /** Stars whose columns are up or about to be: crossing their ring strikes once more. */
@@ -579,6 +624,7 @@ export class Combat {
     readonly onRunes: (p: THREE.Vector3) => boolean,
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
+    this.hero.markAsYou();
     spells.onStrike = (x, z, element, caster, area, cage) => this.strike(x, z, element, caster, area, cage);
   }
 
@@ -613,6 +659,18 @@ export class Combat {
   /** Damage the alchemist dealt to rivals this match; rivals hurting each other does not count. */
   get heroDamage() {
     return Math.round(this.dealt);
+  }
+
+  /** Draws every rival see-through (the tutorial before it introduces the rival), or solid again. */
+  faintRivals(on: boolean, instant = false) {
+    if (on === this.rivalsFaint) return;
+    this.rivalsFaint = on;
+    for (const r of this.rivals) r.faint(on, instant);
+  }
+
+  /** Eases faint rivals in or out (called every frame, paused or not). */
+  fade(dt: number) {
+    for (const r of this.rivals) r.fade(dt);
   }
 
   setRivals(count: number) {
@@ -803,6 +861,7 @@ export class Combat {
     for (let i = 0; i < this.count; i++) {
       const rival = new Rival(this.obstacles, RIVAL_LOOKS[i % RIVAL_LOOKS.length], TUNING[this.level]);
       rival.body.bounds = this.onScreen;
+      rival.faint(this.rivalsFaint, true);
       // Evenly spread around the alchemist (opposite sides for two, a triangle for three), so everyone starts apart.
       const base = Math.random() * Math.PI * 2;
       for (let tries = 0; tries < 12; tries++) {

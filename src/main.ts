@@ -147,6 +147,7 @@ const tutorial = new Tutorial({
   hero: () => hero.root.position,
   walkGoal: () => walkGoal(),
   source: (element) => findSource(element, hero.root.position),
+  faintRivals: (on, instant) => combat.faintRivals(on, instant),
   duel: () => {
     combat.refresh();
     combat.spar(false);
@@ -861,6 +862,7 @@ renderer.setAnimationLoop((time) => {
   if (!dev.open) world.update(dt);
   world.fadeTrees(dt, combat.positions());
   tutorial.update(dt);
+  combat.fade(dt);
   if (!help.open && !dev.open && !board.open && !tutorial.paused) {
     steerHero();
     hero.update(dt);

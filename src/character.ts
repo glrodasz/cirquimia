@@ -45,6 +45,14 @@ function mat(hex: string, emissive = '#000000', side: THREE.Side = THREE.FrontSi
   return m;
 }
 
+/** See-through copies of the shared materials, for a character shown as a ghost (one opacity for all of them). */
+const ghosts = new Map<THREE.Material, THREE.MeshLambertMaterial>();
+function ghostOf(m: THREE.MeshLambertMaterial) {
+  let g = ghosts.get(m);
+  if (!g) ghosts.set(m, (g = Object.assign(m.clone(), { transparent: true, depthWrite: false })));
+  return g;
+}
+
 function part(geo: THREE.BufferGeometry, hex: string, emissive?: string, side?: THREE.Side) {
   const mesh = new THREE.Mesh(geo, mat(hex, emissive, side));
   mesh.castShadow = true;
@@ -222,6 +230,22 @@ export class Character {
   /** True while walking somewhere. */
   get moving() {
     return this.path.length > 1 || Math.hypot(this.target.x - this.root.position.x, this.target.z - this.root.position.z) > ARRIVE_RADIUS;
+  }
+
+  /**
+   * Draws the character see-through at `opacity` (1 = solid again). The tutorial keeps the rival faint until it is
+   * introduced, so the first thing the player tells apart is which one is them.
+   */
+  ghost(opacity: number) {
+    const solid = opacity >= 0.999;
+    this.model.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const base = (o.userData.base ??= o.userData.material) as THREE.MeshLambertMaterial;
+      o.userData.material = solid ? base : ghostOf(base);
+      o.castShadow = solid;
+      if (this.flashTimer <= 0) o.material = o.userData.material;
+    });
+    for (const g of ghosts.values()) g.opacity = opacity; // shared: every faint rival fades together
   }
 
   /** Flashes white for a moment: the visual side of taking a hit. */

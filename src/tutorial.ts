@@ -72,6 +72,8 @@ export interface TutorialHost {
   walkGoal(): THREE.Vector3 | null;
   /** The campfire (or lagoon) to draw over, when one is on screen. */
   source(element: 'fire' | 'water'): THREE.Vector3 | null;
+  /** Draws the rivals see-through, or solid: faint until the tutorial introduces the rival. */
+  faintRivals(on: boolean, instant: boolean): void;
   /** The duel card was accepted: everyone back to full health, and the rival starts fighting. */
   duel(): void;
 }
@@ -157,6 +159,8 @@ export class Tutorial {
   /** Goes on from a lesson that is only read (the goal, the duel). */
   private readonly next = document.createElement('button');
   private hintTimer = 0;
+  /** The first frame has passed (the rival's faintness applies at once on it, then eases). */
+  private started = false;
   private shown = 0;
 
   constructor(private readonly host: TutorialHost) {
@@ -249,6 +253,9 @@ export class Tutorial {
   }
 
   update(dt: number) {
+    // The rival stays faint until the "this is your rival" card, so the first figure the player tells apart is their own.
+    this.host.faintRivals(!this.done && (this.stage === '' || (this.stage === 'moved' && this.lesson !== 'goal')), !this.started);
+    this.started = true;
     const covered = this.host.covered();
     this.root.classList.toggle('covered', covered);
     if (covered) return;
