@@ -209,7 +209,13 @@ export function mountMatchControls(match: MatchControls) {
   void document.fonts?.ready.then(fit);
 
   let toastTimer = 0;
+  const hideToast = () => {
+    clearTimeout(toastTimer);
+    toast.classList.remove('show');
+  };
   const say = (text: string, ms = 1600) => {
+    // The New game pointer already talks about the match; one note at a time.
+    if (spotting) return;
     toast.textContent = text;
     toast.classList.remove('show');
     void toast.offsetWidth; // restart the fade when tapping quickly
@@ -245,8 +251,10 @@ export function mountMatchControls(match: MatchControls) {
   spotTip.innerHTML = `<b>${t.match.spotTitle}</b><span>${t.match.spotBody}</span>`;
   document.body.append(spotTip);
   let spotTimer = 0;
+  let spotting = false;
   const unspot = () => {
     clearTimeout(spotTimer);
+    spotting = false;
     box.classList.remove('spot');
     spotTip.hidden = true;
   };
@@ -254,6 +262,8 @@ export function mountMatchControls(match: MatchControls) {
   const spotNext = () => {
     if (spotState() !== 'next') return;
     setSpot('1');
+    hideToast();
+    spotting = true;
     box.classList.add('spot');
     spotTip.hidden = false;
     spotTimer = window.setTimeout(unspot, SPOT_MS);
@@ -369,8 +379,8 @@ export function mountMatchControls(match: MatchControls) {
   again.addEventListener('click', () => {
     closeEnd();
     match.restart();
-    restarted(again);
     spotNext();
+    restarted(again);
   });
   // A challenge link set this match up: say so once, where a restart would.
   if (challenge) {
