@@ -176,6 +176,9 @@ const es = {
     share: 'Compartir',
     more: 'Más',
     saveImage: 'Guardar imagen',
+    copyLink: 'Copiar mensaje y enlace',
+    copied: 'Copiado',
+    copyFailed: 'No se pudo copiar.',
     dare: (score: string, points: string) => `¿Quién supera tus ${score} ${points}?`,
     postOnX: 'Publicar en', // + X
     post: 'Publicar', // beside the X logo
@@ -558,6 +561,9 @@ const en: Strings = {
     share: 'Share',
     more: 'More',
     saveImage: 'Save image',
+    copyLink: 'Copy message and link',
+    copied: 'Copied',
+    copyFailed: 'Could not copy.',
     dare: (score, points) => `Who can beat your ${score} ${points}?`,
     postOnX: 'Post on',
     post: 'Post',

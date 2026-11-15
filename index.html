@@ -843,6 +843,10 @@
       #match-end .scored .nets .save-img { flex: 0 0 34px; padding: 0; }
       #match-end .nets .brand-mark { width: 14px; height: 14px; }
       #match-end .nets .save-img .brand-mark { width: 19px; height: 19px; }
+      #match-end .nets .copy-link { position: relative; overflow: visible; }
+      #match-end .nets .copy-link .brand-mark { width: 21px; height: 21px; }
+      #match-end .copy-link .tip { position: absolute; bottom: calc(100% + 6px); left: 50%; padding: 4px 8px; background: var(--g-ink); color: var(--g-paper); font: 600 12px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0; white-space: nowrap; pointer-events: none; opacity: 0; transform: translate(-50%, 4px); transition: opacity .15s, transform .15s; }
+      #match-end .copy-link.done .tip { opacity: 1; transform: translate(-50%, 0); }
       #match-end .scored .nets .brand:active { transform: scale(.97); }
       @media (hover: hover) { #match-end .scored .nets .brand:hover { filter: brightness(1.15); } }
       @media (max-width: 359px) { #match-end .scored .nets .brand .cap { display: none; } }
