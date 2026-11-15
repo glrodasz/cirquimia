@@ -52,6 +52,7 @@ export class Ink {
     document.body.append(this.canvas);
     this.resize();
     addEventListener('resize', () => this.resize());
+    visualViewport?.addEventListener('resize', () => this.resize());
   }
 
   get active() {
@@ -59,6 +60,7 @@ export class Ink {
   }
 
   begin(points: Point[]) {
+    this.refit();
     this.tip = { ...points[0] };
     this.points = [{ ...points[0] }];
     this.width = WIDTH_MAX * 0.8;
@@ -97,16 +99,30 @@ export class Ink {
     this.drawing = false;
   }
 
+  /**
+   * Sized from the canvas's real size on screen, not innerWidth/innerHeight: iOS can fire 'resize' with a shrunken
+   * viewport (tab overview, share sheet) and never fire the one that restores it, which left the buffer small and
+   * stretched, so the ink landed far from the finger. Checked again at every stroke and frame.
+   */
   private resize() {
     this.dpr = Math.min(devicePixelRatio, 2);
-    this.canvas.width = innerWidth * this.dpr;
-    this.canvas.height = innerHeight * this.dpr;
+    this.canvas.width = Math.round((this.canvas.clientWidth || innerWidth) * this.dpr);
+    this.canvas.height = Math.round((this.canvas.clientHeight || innerHeight) * this.dpr);
     this.dirty = true;
+  }
+
+  /** Refits the buffer when the canvas's size on screen (or the pixel ratio) drifted from it. */
+  private refit() {
+    const dpr = Math.min(devicePixelRatio, 2);
+    const w = Math.round((this.canvas.clientWidth || innerWidth) * dpr);
+    const h = Math.round((this.canvas.clientHeight || innerHeight) * dpr);
+    if (dpr !== this.dpr || w !== this.canvas.width || h !== this.canvas.height) this.resize();
   }
 
   /** Redraws only while something is on screen, so the overlay costs nothing when idle. */
   update(dt: number) {
     if (!this.active) return;
+    this.refit();
     const { ctx } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

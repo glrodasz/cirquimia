@@ -21,11 +21,8 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
-const GLOW_SIZE = 0.66; // world units tall, the soft halo behind the alchemist (a thin rim around the figure)
+const GLOW_SIZE = 0.6; // world units tall, the halo behind the alchemist: just past the figure, so it reads as an edge
 const GLOW_HEIGHT = 0.28; // its centre above the feet (mid-body)
-const GLOW_STILL = 0.35; // s standing still before the halo shows
-const GLOW_EVERY = 3.2; // s between soft pulses while it stays still
-const GLOW_PULSE = 1.3; // s one pulse takes to swell and fade
 /** A soft oval of light in `ink`: bright at the centre, fading to nothing at the edge. */
 function glowTexture(ink: string) {
   const c = document.createElement('canvas');
@@ -33,9 +30,9 @@ function glowTexture(ink: string) {
   const g = c.getContext('2d')!;
   const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
   grad.addColorStop(0, ink);
-  grad.addColorStop(0.5, ink + 'cc');
-  grad.addColorStop(0.8, ink + '33');
-  grad.addColorStop(1, ink + '00');
+  grad.addColorStop(0.55, ink + 'ee');
+  grad.addColorStop(0.72, ink + '44');
+  grad.addColorStop(0.85, ink + '00');
   g.fillStyle = grad;
   g.fillRect(0, 0, 64, 64);
   const tex = new THREE.CanvasTexture(c);
@@ -116,7 +113,6 @@ class Fighter<B extends Body = Body> {
   /** The soft halo behind the alchemist that says "this one is you" while it stands still (the hero only). */
   private glow: THREE.Sprite | null = null;
   private glowLevel = 0;
-  private stillFor = 0;
   private glowAt = 0;
   /** How faint the body is drawn (1 = solid), and where it is easing to. */
   private ghostLevel = 1;
@@ -179,7 +175,7 @@ class Fighter<B extends Body = Body> {
     // washing over the coat, and never cut by the ground.
     const material = new THREE.SpriteMaterial({ map: glowTexture(this.ink), transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
     this.glow = new THREE.Sprite(material);
-    this.glow.scale.set(GLOW_SIZE * 0.55, GLOW_SIZE, 1);
+    this.glow.scale.set(GLOW_SIZE * 0.42, GLOW_SIZE, 1);
     this.glow.renderOrder = 50;
     if (this.body instanceof Character) this.body.ownMaterials(51);
     this.glow.visible = false;
@@ -287,23 +283,17 @@ class Fighter<B extends Body = Body> {
     this.sketch.classList.toggle('off', !visible);
   }
 
-  /** The halo fades in once the alchemist has stood still a moment, and out as soon as it walks or falls. */
+  /** The halo stays on, a thin edge of light around the alchemist (Guillermo: a pulse could confuse); off when down. */
   updateGlow() {
     const glow = this.glow;
     if (!glow) return;
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.glowAt) / 1000);
     this.glowAt = now;
-    const moved = Math.hypot(this.position.x - this.prev.x, this.position.z - this.prev.z) > 1e-4;
-    this.stillFor = moved || this.down ? 0 : this.stillFor + dt;
-    const want = this.stillFor >= GLOW_STILL ? 1 : 0;
-    this.glowLevel = THREE.MathUtils.clamp(this.glowLevel + (want ? dt * 2.5 : -dt * 6), 0, 1);
+    this.glowLevel = THREE.MathUtils.clamp(this.glowLevel + (this.down ? -dt * 6 : dt * 2.5), 0, 1);
     glow.visible = this.glowLevel > 0;
     if (!glow.visible) return;
-    // One soft breath every few seconds, dark in between: noticeable without staying on all the time.
-    const phase = (this.stillFor - GLOW_STILL) % GLOW_EVERY;
-    const pulse = phase < GLOW_PULSE ? Math.sin((Math.PI * phase) / GLOW_PULSE) ** 2 : 0;
-    glow.material.opacity = this.glowLevel * 0.8 * pulse;
+    glow.material.opacity = this.glowLevel * 0.7;
     glow.position.copy(this.position);
     glow.position.y += GLOW_HEIGHT;
   }

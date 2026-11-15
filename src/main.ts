@@ -132,7 +132,9 @@ mountSoundButton();
 /** Screen pixels of a world point, `lift` world units above it. */
 function toScreen(p: THREE.Vector3, lift: number) {
   const q = new THREE.Vector3(p.x, p.y + lift, p.z).project(camera);
-  return { x: ((q.x + 1) / 2) * innerWidth, y: ((1 - q.y) / 2) * innerHeight };
+  const w = renderer.domElement.clientWidth || innerWidth; // the canvas's real size (innerWidth can be stale on iOS)
+  const h = renderer.domElement.clientHeight || innerHeight;
+  return { x: ((q.x + 1) / 2) * w, y: ((1 - q.y) / 2) * h };
 }
 // The first match walks through walking, the goal, the square (attack), the circle (wall), fire and water against a
 // rival that stands still, then the duel starts.
@@ -448,7 +450,8 @@ function sourceAt(point: THREE.Vector3, element: 'fire' | 'water'): THREE.Vector
 
 /** Screen pixels to the ground point under them. */
 function groundAt(clientX: number, clientY: number, out: THREE.Vector3) {
-  return groundFromNdc((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1, out);
+  const { w, h } = screenSize(); // the canvas's real size: innerWidth/innerHeight can be stale on iOS
+  return groundFromNdc((clientX / w) * 2 - 1, -(clientY / h) * 2 + 1, out);
 }
 
 const elementOf = (kind: ShapeKind) => (kind === 'triangle' ? 'fire' : kind === 'triangleDown' ? 'water' : null);
