@@ -288,6 +288,7 @@ const guides = new Guides({
   covered: () => help.open || dev.open || board.open || combat.over || tutorial.showing,
   toScreen: (p, lift) => toScreen(p, lift),
   hero: () => hero.root.position,
+  dummy: () => combat.dummy(),
   source: (element) => nearestSource(element),
   selected: () => held,
   drawing: () => router.isDrawing,

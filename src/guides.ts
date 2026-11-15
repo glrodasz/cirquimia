@@ -31,8 +31,9 @@ const STEPS: Step[] = [
 /** Shapes that go off as soon as they are drawn; the rest wait in hand for a tap. */
 const INSTANT = new Set<ShapeKind>(['circle', 'rhombus']);
 const SOURCE: Partial<Record<GuideShape, Fluid>> = { triangle: 'fire', triangleDown: 'water' };
-const NEXT_AFTER = 1.1; // s the "well done" line stays before the next step
-const ALL_AFTER = 2.6; // s the "all done" line stays before the loop starts over
+const NEXT_AFTER = 1.1; // s the "well done" bubble stays before the next step
+const ALL_AFTER = 2.6; // s the "all done" bubble stays, the first time every box is ticked
+const HOLD_SAY = 1.4; // s "hold it" stays over the alchemist after a combination's first stroke
 const DRAW = 2.2; // s the hand takes to trace the guide
 const HOLD = 0.7; // s the traced ink stays before it fades
 const REST = 3; // s with only the guide on the ground before the hand traces it again
@@ -80,6 +81,8 @@ export interface GuidesHost {
   toScreen(p: THREE.Vector3, lift: number): { x: number; y: number };
   /** Where the alchemist stands. */
   hero(): THREE.Vector3;
+  /** The scarecrow standing now, if any. */
+  dummy(): THREE.Vector3 | null;
   /** The nearest campfire (or lagoon), on screen or not. */
   source(element: 'fire' | 'water'): THREE.Vector3 | null;
   /** The shape in hand. */
@@ -92,10 +95,11 @@ export interface GuidesHost {
  * Training's shape loop: one symbol at a time lies on the meadow as a dashed outline with a dot where the stroke
  * starts and an arrowhead for the way to go, and a hand traces it now and then, so players learn the symbols by
  * following them. Circle, square, diamond, star and spiral sit beside the alchemist; the triangles over the campfire
- * and the water (an arrow points there while it is off screen); the combinations ask for their two strokes in turn.
- * Drawn (and, for what waits in hand, cast), a step is ticked on the line at the bottom right and the next one shows.
- * With every box ticked: "Great!", the boxes clear and the loop starts over. "Another shape" skips a step for later in
- * the lap; × hides the loop until training starts again.
+ * and the water (an arrow points there while it is off screen); the combinations ask for their two strokes in turn
+ * ("Step 1", "hold it", "Step 2", "throw it"). What to do is said in a speech bubble next to where to do it.
+ * Drawn (and, for what waits in hand, cast), a step is ticked on the grimoire sheet at the bottom right and the next
+ * one shows. Nothing resets: once every box is ticked ("Great!") the loop goes on and the counts keep growing.
+ * "Another shape" skips a step for later; × hides the loop until training starts again.
  */
 export class Guides {
   private index = 0;
@@ -105,8 +109,14 @@ export class Guides {
   private hidden = false;
   /** The step's symbol is in hand, waiting to be cast. */
   private pending = false;
-  /** Seconds left on the "well done" line before the next step. */
+  /** Seconds left on the "well done" bubble before the next step. */
   private praise = 0;
+  /** Seconds left on "hold it" after a combination's first stroke. */
+  private holding = 0;
+  /** "You did them all" was said (once per training). */
+  private allSaid = false;
+  /** The bubble on now is "you did them all". */
+  private praiseAll = false;
   /** How many times each symbol was used in this lap: ticked from 1, ×2 and up shown on its box. */
   private readonly counts = new Map<Drill, number>();
   private time = 0;
@@ -119,8 +129,11 @@ export class Guides {
   private readonly guide = document.createElement('div');
   private readonly arrow = document.createElement('div');
   private readonly card = document.createElement('div');
-  private readonly title = document.createElement('b');
-  private readonly body = document.createElement('span');
+  /** The speech bubble: what to do, next to where to do it. */
+  private readonly bubble = document.createElement('div');
+  private readonly bubbleText = document.createElement('span');
+  private bubbleKey = '';
+  private bubbleAt: { x: number; y: number; under: number } | null = null;
   /** One little symbol per step, ticked once done: the loop's checklist. */
   private readonly boxes = document.createElement('ol');
 
@@ -131,13 +144,16 @@ export class Guides {
     this.arrow.className = 'to-source';
     this.arrow.innerHTML = downArrow();
     this.card.className = 'tip';
-    this.card.setAttribute('role', 'status');
-    const text = document.createElement('div');
-    text.className = 'text';
+    this.bubble.className = 'say';
+    this.bubble.setAttribute('role', 'status');
+    const nub = document.createElement('i');
+    nub.className = 'nub';
+    this.bubble.append(this.bubbleText, nub);
+    const title = document.createElement('b');
+    title.textContent = t.guides.title;
     this.boxes.className = 'boxes';
     this.boxes.setAttribute('aria-hidden', 'true');
     this.boxes.innerHTML = STEPS.map((s) => `<li data-id="${s.id}">${shapeIcon(s.result, true)}</li>`).join('');
-    text.append(this.title, this.body);
     const next = this.button('next', t.guides.next, '<path d="M9 5l7 7-7 7"/>', () => this.advance());
     const close = this.button('close', t.guides.close, '<path d="M6 6l12 12M18 6 6 18"/>', () => {
       this.hidden = true;
@@ -145,9 +161,9 @@ export class Guides {
     });
     const top = document.createElement('div');
     top.className = 'top';
-    top.append(text, next, close);
+    top.append(title, next, close);
     this.card.append(top, this.boxes);
-    this.root.append(this.guide, this.arrow, this.card);
+    this.root.append(this.guide, this.arrow, this.bubble, this.card);
     document.body.append(this.root);
   }
 
@@ -181,8 +197,10 @@ export class Guides {
     else this.part = kind === step.parts[0] ? 1 : 0; // something else replaced the hand: start the step over
     if (this.part < step.parts.length) {
       this.pending = false;
+      this.holding = this.part > 0 ? HOLD_SAY : 0;
       return;
     }
+    this.holding = 0;
     if (INSTANT.has(step.result)) this.part = 0;
     else if (held === step.result) this.pending = true;
     else this.part = 0;
@@ -204,21 +222,26 @@ export class Guides {
     const step = STEPS.find((s) => s.result === kind);
     if (!step) return;
     this.counts.set(step.id, (this.counts.get(step.id) ?? 0) + 1);
-    if (this.counts.size === STEPS.length && this.praise <= 0) this.praise = ALL_AFTER;
-    else if (step === this.step && this.praise <= 0) this.praise = NEXT_AFTER;
+    if (this.counts.size === STEPS.length && !this.allSaid) {
+      this.allSaid = this.praiseAll = true;
+      this.praise = ALL_AFTER;
+    } else if (step === this.step && this.praise <= 0) {
+      this.praiseAll = false;
+      this.praise = NEXT_AFTER;
+    }
     this.paint();
   }
 
-  /** On to the next step (from "another shape" too); after a whole loop the boxes clear and it starts over. */
+  /** On to the next step (from "another shape" too); once every box is ticked, simply the next one round. */
   private advance() {
     const lap = this.counts.size === STEPS.length;
     this.pending = false;
     this.part = 0;
     this.praise = 0;
+    this.holding = 0;
     this.time = 0;
     if (lap) {
-      this.counts.clear();
-      this.index = 0;
+      this.index = (this.index + 1) % STEPS.length;
     } else {
       // The next step not ticked yet, so a skipped one comes back later in the lap.
       for (let i = 1; i <= STEPS.length; i++) {
@@ -253,6 +276,8 @@ export class Guides {
         this.part = 0;
         this.pending = false;
         this.praise = 0;
+        this.holding = 0;
+        this.allSaid = false;
         this.counts.clear();
         this.hidden = false;
         this.paint();
@@ -262,11 +287,11 @@ export class Guides {
     this.root.hidden = !this.on || this.hidden || this.host.covered();
     if (this.root.hidden) return;
     this.arrow.hidden = true;
+    const hero = this.host.toScreen(this.host.hero(), 1.9);
 
     if (this.praise > 0) {
       this.praise -= dt;
-      const all = this.counts.size === STEPS.length;
-      this.say(all ? t.guides.allDone : t.guides.good, all ? t.guides.again : '');
+      this.say(this.praiseAll ? t.guides.allDone : t.guides.good, hero, dt);
       this.place(null);
       if (this.praise <= 0) this.advance();
       return;
@@ -275,36 +300,54 @@ export class Guides {
     if (this.pending && held !== this.step.result) this.pending = false; // dropped without casting
     if (!this.pending && this.part > 0 && held === null) this.part = 0; // half a combination dropped
     const step = this.step;
-    const role = t.help.roles[step.result];
-    const of = step.parts.length > 1 ? ` · ${t.guides.partOf(this.part + 1, step.parts.length)}` : '';
+    const combo = step.parts.length > 1;
     if (this.pending) {
-      this.say(hasKeyboard() ? t.guides.castMouse : t.guides.cast, role);
+      this.say(hasKeyboard() ? t.guides.castMouse : t.guides.cast, this.overScarecrow() ?? hero, dt);
+      this.place(null);
+      return;
+    }
+    if (this.holding > 0) {
+      this.holding -= dt;
+      this.say(t.guides.hold, hero, dt);
       this.place(null);
       return;
     }
 
     const shape = this.shape;
+    const label = combo ? `${t.guides.step} ${this.part + 1}` : '';
     const element = SOURCE[shape];
     if (element) {
       const src = this.host.source(element);
       const p = src && this.host.toScreen(src, 0);
       if (!p) {
+        this.say('', null, dt);
         this.place(null);
         return;
       }
       if (p.x < 0 || p.y < 0 || p.x > innerWidth || p.y > innerHeight) {
-        this.say(t.guides.goTo[element], role + of);
-        this.pointAt(p);
+        const edge = this.pointAt(p);
+        this.say(t.guides.goTo[element], edge, dt, label);
         this.place(null);
         return;
       }
-      this.say(t.guides.draw[shape], role + of);
       this.at = null; // pinned to the source
-      this.place({ x: p.x, y: p.y - 6 }, BOX_AT_SOURCE, element, dt);
+      const at = { x: p.x, y: p.y - 6 };
+      this.place(at, BOX_AT_SOURCE, element, dt);
+      this.say(t.guides.draw[shape], { x: at.x, y: at.y - BOX_AT_SOURCE / 2 }, dt, label, at.y + BOX_AT_SOURCE / 2);
       return;
     }
-    this.say(t.guides.draw[shape], role + of);
-    this.place(this.besideHero(dt), BOX, null, dt);
+    const at = this.besideHero(dt);
+    this.place(at, BOX, null, dt);
+    this.say(t.guides.draw[shape], { x: at.x, y: at.y - BOX / 2 + 8 }, dt, label, at.y + BOX / 2 - 8);
+  }
+
+  /** Over the scarecrow's "Hit me!" label (or its head when the label is not up). */
+  private overScarecrow() {
+    const label = document.querySelector<HTMLElement>('.hitme:not([hidden]) span');
+    const r = label?.getBoundingClientRect();
+    if (r && r.width) return { x: r.left + r.width / 2, y: r.top - 2 };
+    const d = this.host.dummy();
+    return d ? this.host.toScreen(d, 1.2) : null;
   }
 
   /** A clear spot beside the alchemist, off the HUD at the top and the stick and this line at the bottom. */
@@ -330,7 +373,7 @@ export class Guides {
     return at;
   }
 
-  /** The arrow at the edge of the screen, pointing towards an off-screen source. */
+  /** The arrow at the edge of the screen, pointing towards an off-screen source; returns where its bubble goes. */
   private pointAt(p: { x: number; y: number }) {
     const cx = innerWidth / 2;
     const cy = innerHeight / 2;
@@ -342,6 +385,9 @@ export class Guides {
     const turn = Math.atan2(dy, dx) - Math.PI / 2;
     this.arrow.hidden = false;
     this.arrow.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${turn.toFixed(3)}rad)`;
+    // The bubble sits a little inside the arrow, towards the middle of the screen.
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: x - (dx / len) * 34, y: y - (dy / len) * 34 - (dy < 0 ? -40 : 0) };
   }
 
   /** Draws the guide centred at `at` (or hides it), with the hand tracing it now and then. */
@@ -389,13 +435,46 @@ export class Guides {
     this.guide.innerHTML =
       `<svg viewBox="0 0 48 48" aria-hidden="true"><path class="path" d="${guide}"/>` +
       `<path class="head" d="M${head[0]}L${ahead[0].toFixed(1)} ${ahead[1].toFixed(1)}L${head[1]}"/>` +
-      `<circle class="start" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.2"/>${ink}</svg>` +
-      (this.step.parts.length > 1 ? `<span class="step-tag">${t.guides.step} <em>${this.part + 1}</em></span>` : '');
+      `<circle class="start" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.2"/>${ink}</svg>`;
   }
 
-  private say(title: string, body: string) {
-    if (this.title.textContent !== title) this.title.textContent = title;
-    if (this.body.textContent !== body) this.body.textContent = body;
-    this.body.hidden = !body;
+  /**
+   * The speech bubble over `at` (its nub points down at it), or under `under` (default `at`) when there is no room
+   * above; `label` is a combination's "Step 1"/"Step 2", in red before the text. It glides instead of jumping.
+   */
+  private say(text: string, at: { x: number; y: number } | null, dt: number, label = '', under = at?.y ?? 0) {
+    if (!at || !text) {
+      this.bubble.hidden = true;
+      this.bubbleAt = null;
+      return;
+    }
+    this.bubble.hidden = false;
+    const key = `${label}|${text}`;
+    if (this.bubbleKey !== key) {
+      this.bubbleKey = key;
+      this.bubbleText.replaceChildren();
+      if (label) {
+        const em = document.createElement('em');
+        em.textContent = label;
+        this.bubbleText.append(em, ' ');
+      }
+      this.bubbleText.append(text);
+      this.bubbleAt = null; // a new line pops in place
+    }
+    const k = this.bubbleAt ? 1 - Math.exp(-dt * 10) : 1;
+    const b = (this.bubbleAt ??= { x: at.x, y: at.y, under });
+    b.x += (at.x - b.x) * k;
+    b.y += (at.y - b.y) * k;
+    b.under += (under - b.under) * k;
+    const w = this.bubble.offsetWidth;
+    const h = this.bubble.offsetHeight;
+    const gap = 12;
+    const top = 70; // under the HUD row
+    const below = b.y - gap - h < top;
+    const y = below ? b.under + gap : b.y - gap - h;
+    const x = Math.min(innerWidth - 8 - w, Math.max(8, b.x - w / 2));
+    this.bubble.dataset.side = below ? 'below' : 'above';
+    this.bubble.style.setProperty('--nub', `${Math.min(w - 14, Math.max(14, b.x - x)).toFixed(1)}px`);
+    this.bubble.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
   }
 }
