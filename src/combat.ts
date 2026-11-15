@@ -423,7 +423,8 @@ class Rival extends Fighter<Character> {
     const cage = combat.caged(this);
     if (cage && cage !== this.cageSeen) {
       this.cageSeen = cage;
-      this.cageHold = Math.random() < this.tuning.dodge;
+      // A golem never reads it: it just ploughs on through the columns.
+      this.cageHold = !this.golem && Math.random() < this.tuning.dodge;
     }
     const caged = cage !== null && this.cageHold;
     if (caged) {
@@ -914,9 +915,23 @@ export class Combat {
     return this.cages.find((c) => (c.standing > 0 || c.erupted < c.tips) && c.caster !== f && c.inside.get(f) === true && !c.struck.has(f)) ?? null;
   }
 
-  /** Whoever crosses a standing star's ring, in or out, is struck once more by it (unless that star already hit them). */
+  /**
+   * Whoever crosses a standing star's ring, in or out, or walks onto one of its standing tips, is struck once more by it
+   * (unless that star already hit them). The columns are never solid, so nobody is kept out of them.
+   */
   private updateCages() {
     const fighters = [this.hero, ...this.rivals];
+    if (this.cages.length && !this.over) {
+      this.spells.forEachStandingTip((x, z, area, c) => {
+        for (const f of fighters) {
+          if (f === c.caster || f.down || c.struck.has(f)) continue;
+          if (c.caster instanceof Rival && c.caster.golem && f instanceof Rival && f.golem) continue;
+          if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+          this.hurt(f, c.element, c.caster);
+          c.struck.add(f);
+        }
+      });
+    }
     for (let i = this.cages.length - 1; i >= 0; i--) {
       const c = this.cages[i];
       // Over once every tip has erupted and sunk; a safety age too, e.g. when a new meadow drops every effect.

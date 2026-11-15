@@ -508,7 +508,8 @@ class PillarStrike extends Effect {
     const main = this.addPiece(pillarGeo, ROCK[Math.floor(Math.random() * ROCK.length)], x, z, 0.46 * tall, 0);
     main.scale.set(0.17, 0.46 * tall, 0.17);
     main.rotation.set(lean, away + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
-    this.obstacles.push({ x, z, r: 0.1, rises: true });
+    // The square's pillar blocks the way; a star's columns never do: anyone may walk over them (and is struck).
+    if (!this.cage) this.obstacles.push({ x, z, r: 0.1, rises: true });
 
     const small = THREE.MathUtils.randInt(4, 6);
     for (let i = 0; i < small; i++) {
@@ -1040,6 +1041,11 @@ export class Spells {
       if (on && k < 0) this.obstacles.push(o);
       else if (!on && k >= 0) this.obstacles.splice(k, 1);
     }
+  }
+
+  /** Calls `fn` for every star tip standing right now (erupted, not yet sinking): walking onto one strikes. */
+  forEachStandingTip(fn: (x: number, z: number, area: number, cage: StarCage) => void) {
+    for (const e of this.active) if (e instanceof PillarStrike && e.cage && e.solid && !e.blocked) fn(e.x, e.z, e.area, e.cage);
   }
 
   /** True while a standing earth wall protects this spot. */
