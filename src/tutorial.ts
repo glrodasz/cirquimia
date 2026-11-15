@@ -24,6 +24,16 @@ type Shape = 'square' | 'circle' | 'triangle' | 'triangleDown';
 type Lesson = 'move' | 'goal' | Shape | 'duel';
 type Step = 'walk' | 'read' | 'draw' | 'aim' | 'watch';
 type Stage = '' | 'moved' | Exclude<Lesson, 'move' | 'duel'> | 'done';
+/**
+ * Where the card points: a spot on screen (x, y) and how far around it to keep clear (r), and which side of it the card
+ * would rather sit on.
+ */
+interface Anchor {
+  x: number;
+  y: number;
+  r: number;
+  side: 'above' | 'below';
+}
 /** What the walking lesson shows right now: the tap, the other way (stick or keys), or nothing once the alchemist walks. */
 type WalkShow = 'tap' | 'alt' | 'go';
 
@@ -125,6 +135,12 @@ export class Tutorial {
   private alt: HTMLElement | null = null;
   /** The spotlight as drawn, easing toward where it should be. */
   private lit: { x: number; y: number; r: number } | null = null;
+  /** What the card points at right now: it sits next to it, with its nub toward it. */
+  private target: () => Anchor | null = () => null;
+  /** The card's top-left corner as drawn, easing toward where it should be (null: jump there). */
+  private placed: { x: number; y: number } | null = null;
+  /** Where the demo hand draws, for the card to sit under it. */
+  private demoAt: Anchor | null = null;
 
   private readonly root = document.createElement('div');
   private readonly dim = document.createElement('div');
@@ -136,6 +152,8 @@ export class Tutorial {
   private readonly card = document.createElement('div');
   private readonly title = document.createElement('b');
   private readonly body = document.createElement('span');
+  /** The little point on the card's edge, toward what it talks about. */
+  private readonly nub = document.createElement('i');
   /** Goes on from a lesson that is only read (the goal, the duel). */
   private readonly next = document.createElement('button');
   private hintTimer = 0;
@@ -156,7 +174,8 @@ export class Tutorial {
     this.next.addEventListener('click', () => {
       if (this.step === 'read') this.finish();
     });
-    this.card.append(this.title, this.body, this.next);
+    this.nub.className = 'nub';
+    this.card.append(this.nub, this.title, this.body, this.next);
     this.mark.className = 'mark';
     this.mark.innerHTML = `<i></i><svg viewBox="-16 -8 40 40" aria-hidden="true">${hand(0, 0, 1, true)}</svg>`;
     this.padHand.className = 'pad-hand';
@@ -233,6 +252,7 @@ export class Tutorial {
     const covered = this.host.covered();
     this.root.classList.toggle('covered', covered);
     if (covered) return;
+    if (!this.root.hidden) this.position(dt);
 
     if (!this.lesson) {
       if (this.done || (this.wait -= dt) > 0) return;
@@ -251,7 +271,7 @@ export class Tutorial {
     }
     this.timer += dt;
 
-    if (this.step === 'read') this.pointAtFoe(this.lesson === 'goal');
+    if (this.step === 'read') this.pointAtFoe(false); // the card itself points at the rival
     else if (this.step === 'draw') this.animateDemo(dt);
     else if (this.step === 'aim') {
       if (this.host.selected() !== this.lesson) this.go('draw'); // dropped, or drawn away from its source: draw it again
@@ -269,6 +289,7 @@ export class Tutorial {
     this.shown++;
     clearTimeout(this.hintTimer);
     this.lesson = lesson;
+    if (this.root.hidden) this.placed = null;
     this.root.hidden = false;
     this.root.dataset.lesson = lesson;
     void this.root.offsetWidth;
@@ -343,6 +364,17 @@ export class Tutorial {
     this.walkShow = what;
     this.root.dataset.walk = what;
     this.alt?.classList.toggle('lit', what === 'alt');
+    if (what === 'alt' && this.alt) {
+      const alt = this.alt;
+      this.target = () => {
+        const r = alt.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: Math.max(r.width, r.height) / 2 + 6, side: 'above' };
+      };
+    } else if (this.goal) {
+      // The tap, or walking already: the card stays by the mark it asks to reach.
+      const goal = this.goal;
+      this.target = () => ({ ...this.host.toScreen(goal, 0), r: 30, side: 'above' });
+    }
     if (what === 'go') return;
     const move = t.tutorial.move;
     const touch = !hasKeyboard();
@@ -376,6 +408,7 @@ export class Tutorial {
       return;
     }
     if (step === 'read') {
+      this.target = () => this.at('foe');
       const text = t.tutorial[this.lesson as 'goal' | 'duel'];
       this.demo.innerHTML = '';
       this.say(text.title, text.body);
@@ -383,6 +416,11 @@ export class Tutorial {
       return;
     }
     const text = TEXT[this.lesson as Shape];
+    // Drawing: under the demo hand. Aiming: by the rival to tap. Watching: by whoever the cast is about (the wall
+    // rises around the alchemist; the strikes land on the rival).
+    this.demoAt = null;
+    this.target =
+      step === 'draw' ? () => this.demoAt : step === 'aim' || this.lesson !== 'circle' ? () => this.at('foe') : () => this.at('hero', 44);
     if (step === 'watch') this.say(text.watch, '');
     else this.say(...text[step as 'draw' | 'aim']);
     if (step !== 'draw') this.demo.innerHTML = '';
@@ -415,6 +453,9 @@ export class Tutorial {
     this.root.dataset.step = 'done';
     this.wait = AFTER[lesson];
     if (lesson === 'duel') this.host.duel();
+    // The closing line stays by the rival after a strike, by the alchemist otherwise.
+    const byFoe = lesson === 'square' || lesson === 'triangle' || lesson === 'triangleDown';
+    this.target = byFoe ? () => this.at('foe') : () => this.at('hero', lesson === 'circle' ? 44 : 30);
     const line = lesson === 'move' ? t.tutorial.move.done : lesson === 'duel' ? t.tutorial.duelGo : lesson === 'goal' ? '' : TEXT[lesson].done;
     if (line) {
       this.say(line, '');
@@ -472,6 +513,7 @@ export class Tutorial {
       this.demo.style.top = `${(p.y - 6).toFixed(1)}px`;
       spot = { x: p.x, y: p.y, r: 76 };
     }
+    this.demoAt = { x: spot.x, y: element ? spot.y - 6 : spot.y, r: element ? 50 : 72, side: 'below' };
     this.demoTime = (this.demoTime + dt) % (DEMO_DRAW + DEMO_HOLD);
     const line = demoLine(kind);
     const t = Math.min(1, this.demoTime / DEMO_DRAW);
@@ -488,6 +530,54 @@ export class Tutorial {
       (t < 1 ? `<circle class="finger" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="3.2"/>` : '') +
       '</g></svg>';
     this.glide(spot, dt);
+  }
+
+  /** A fighter on screen, as a spot for the card: under its feet, clear of its body and health bar. */
+  private at(who: 'foe' | 'hero', clear = 30): Anchor | null {
+    const p = who === 'foe' ? this.host.foe() : this.host.hero();
+    if (!p) return null;
+    const head = this.host.toScreen(p, 0.75);
+    const feet = this.host.toScreen(p, 0);
+    return { x: feet.x, y: (feet.y + head.y) / 2, r: Math.max(clear, (feet.y - head.y) / 2 + 10), side: 'below' };
+  }
+
+  /**
+   * Puts the card next to what it points at: on its preferred side when it fits, else the other one, inside the
+   * screen and under the HUD, with the nub toward the spot. It glides there rather than jumping.
+   */
+  private position(dt: number) {
+    const a = this.target();
+    const w = this.card.offsetWidth;
+    const h = this.card.offsetHeight;
+    const pad = 12;
+    const gap = 12; // room for the nub
+    const top = Math.max(pad, (document.getElementById('book-btn')?.getBoundingClientRect().bottom ?? 52) + 10);
+    const bottom = innerHeight - pad;
+    let x: number;
+    let y: number;
+    let side: Anchor['side'] | 'none' = 'none';
+    if (a) {
+      const below = a.y + a.r + gap;
+      const above = a.y - a.r - gap - h;
+      const fitsBelow = below + h <= bottom;
+      const fitsAbove = above >= top;
+      side = a.side === 'below' ? (fitsBelow || !fitsAbove ? 'below' : 'above') : fitsAbove || !fitsBelow ? 'above' : 'below';
+      y = side === 'below' ? below : above;
+      x = a.x - w / 2;
+    } else {
+      // Nothing to point at: bottom centre.
+      x = (innerWidth - w) / 2;
+      y = bottom - h;
+    }
+    x = Math.min(Math.max(x, pad), innerWidth - pad - w);
+    y = Math.min(Math.max(y, top), bottom - h);
+    const k = this.placed ? 1 - Math.exp(-dt * 10) : 1;
+    const placed = (this.placed ??= { x, y });
+    placed.x += (x - placed.x) * k;
+    placed.y += (y - placed.y) * k;
+    this.card.style.transform = `translate(${placed.x.toFixed(1)}px, ${placed.y.toFixed(1)}px)`;
+    this.card.dataset.side = side;
+    if (a) this.nub.style.left = `${Math.min(Math.max(a.x - placed.x, 16), w - 16).toFixed(1)}px`;
   }
 
   /** Lights the rival (and its health bar), with the arrow over it when `arrow`. */
