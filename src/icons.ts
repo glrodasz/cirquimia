@@ -123,6 +123,10 @@ export const pageTabIcon = () =>
 export const flaskTabIcon = () =>
   solid('M8.6 1.8H15.4V3.8H14.2V8.9L19.8 18.6C20.7 20.2 19.6 22.2 17.8 22.2H6.2C4.4 22.2 3.3 20.2 4.2 18.6L9.8 8.9V3.8H8.6ZM11.4 3.8V9.4L5.9 18.9C5.6 19.5 5.9 20.4 6.6 20.4H17.4C18.1 20.4 18.4 19.5 18.1 18.9L12.6 9.4V3.8ZM8.6 14.4H15.4L17.2 17.6C17.5 18.1 17.2 18.8 16.6 18.8H7.4C6.8 18.8 6.5 18.1 6.8 17.6Z');
 
+/** Language: a globe, ring with a meridian and three parallels, drawn in the tab's ink. */
+export const globeTabIcon = () =>
+  `<svg class="globe" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.3"/><ellipse cx="12" cy="12" rx="4.1" ry="9.3"/><path d="M2.7 12H21.3M4.3 7.2H19.7M4.3 16.8H19.7"/></g></svg>`;
+
 /** A gear: toothed wheel with a hole. */
 export const gearIcon = () =>
   solid('M19.4 13A7.6 7.6 0 0 0 19.4 11L21.4 9.4 19.4 6 17 7A7.4 7.4 0 0 0 15.3 6L15 3.5H11L10.6 6A7.4 7.4 0 0 0 8.9 7L6.5 6 4.5 9.4 6.5 11A7.6 7.6 0 0 0 6.5 13L4.5 14.6 6.5 18 8.9 17A7.4 7.4 0 0 0 10.6 18L11 20.5H15L15.4 18A7.4 7.4 0 0 0 17.1 17L19.5 18 21.5 14.6ZM12 9A3 3 0 1 0 12 15A3 3 0 1 0 12 9Z');
