@@ -228,3 +228,24 @@ describe('defending', () => {
     }
   });
 });
+
+describe('healing', () => {
+  const heals = (level: Difficulty, hp: number) => {
+    let n = 0;
+    for (let seed = 0; seed < SEEDS; seed++) n += acts(play(level, seed, 30, { hp }).log).filter(({ plan }) => plan.kind === 'heal').length;
+    return n;
+  };
+
+  it('no level heals at full health', () => {
+    for (const level of LEVELS) expect(heals(level, 100)).toBe(0);
+  });
+
+  it('Hardcore already heals at 70 health, where the other levels still attack', () => {
+    expect(heals('hardcore', 70)).toBeGreaterThan(0);
+    for (const level of LEVELS.filter((l) => l !== 'hardcore')) expect(heals(level, 70)).toBe(0);
+  });
+
+  it('Hardcore heals more often than Muy difícil when hurt', () => {
+    expect(heals('hardcore', 40)).toBeGreaterThan(heals('experto', 40));
+  });
+});

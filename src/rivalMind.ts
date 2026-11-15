@@ -24,8 +24,10 @@ export interface Tuning {
   blastStar: number;
   /** Chance, planning fire or water, of drawing the star over it to merge them into a fire or water star (5×20). */
   star: number;
-  /** Chance of healing instead of attacking when at half health or less (never with a symbol in hand). */
+  /** Chance of healing instead of attacking once at `healBelow` health or less (never with a symbol in hand). */
   heal: number;
+  /** Health at or under which it starts thinking of healing (50 = half). */
+  healBelow: number;
   /** Chance of an earth attack being the pentagram's columns (10) instead of the square's pillars (20). */
   columns: number;
   /** Seconds spent drawing a spell's shape over its head before storing it, as the player has to draw too. */
@@ -56,17 +58,18 @@ export interface Tuning {
 // The levels differ in skill, not in luck: harder rivals read a still target sooner, combine symbols more, defend
 // more, move more and draw faster. Whatever the level, a rival commits to the attack it planned and casts it.
 export const TUNING: Record<Difficulty, Tuning> = {
-  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, blastStar: 0, star: 0, heal: 0.15, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false, evade: 0, restless: false, punishAfter: 3, punishGap: 1.5 },
-  normal: { speed: 1.4, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.12, lead: 0.3, dodge: 0.75, reaction: 0.14, elemental: 0.3, blast: 0.15, blastStar: 0, star: 0.15, heal: 0.35, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.3, fortress: 0.08, wallCooldown: 9, counter: false, evade: 0.6, restless: true, punishAfter: 2, punishGap: 0.8 },
+  facil: { speed: 0.9, cooldown: [4, 5.5], warn: 0.9, aimError: 0.35, lead: 0, dodge: 0.1, reaction: 0.25, elemental: 0, blast: 0, blastStar: 0, star: 0, heal: 0.15, healBelow: 50, columns: 0.4, draw: 1, stagger: 0, guard: 0.08, fortress: 0, wallCooldown: 12, counter: false, evade: 0, restless: false, punishAfter: 3, punishGap: 1.5 },
+  normal: { speed: 1.4, cooldown: [2.8, 3.8], warn: 0.6, aimError: 0.12, lead: 0.3, dodge: 0.75, reaction: 0.14, elemental: 0.3, blast: 0.15, blastStar: 0, star: 0.15, heal: 0.35, healBelow: 50, columns: 0.25, draw: 0.85, stagger: 0, guard: 0.3, fortress: 0.08, wallCooldown: 9, counter: false, evade: 0.6, restless: true, punishAfter: 2, punishGap: 0.8 },
   // Hard but beatable: the warning outlasts a human reaction plus a step, and every spell is drawn in sight first.
-  dificil: { speed: 1.55, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.08, lead: 0.6, dodge: 0.7, reaction: 0.12, elemental: 0.5, blast: 0.5, blastStar: 0.25, star: 0.3, heal: 0.35, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.5, fortress: 0.3, wallCooldown: 6, counter: true, evade: 0.8, restless: true, punishAfter: 1.2, punishGap: 0.5 },
+  dificil: { speed: 1.55, cooldown: [2.6, 3.4], warn: 0.65, aimError: 0.08, lead: 0.6, dodge: 0.7, reaction: 0.12, elemental: 0.5, blast: 0.5, blastStar: 0.25, star: 0.3, heal: 0.35, healBelow: 50, columns: 0.15, draw: 0.7, stagger: 1, guard: 0.5, fortress: 0.3, wallCooldown: 6, counter: true, evade: 0.8, restless: true, punishAfter: 1.2, punishGap: 0.5 },
   // Hard pushed well further: relentless, sharp aim well ahead, dodges and walls most strikes, loves the blast;
   // the warning still leaves time to step out.
-  experto: { speed: 1.6, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.46, reaction: 0.1, elemental: 0.7, blast: 0.75, blastStar: 0.35, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.85, fortress: 0.45, wallCooldown: 3, counter: true, evade: 1, restless: true, punishAfter: 0.6, punishGap: 0.3 },
+  experto: { speed: 1.6, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.46, reaction: 0.1, elemental: 0.7, blast: 0.75, blastStar: 0.35, star: 0.4, heal: 0.5, healBelow: 50, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.85, fortress: 0.45, wallCooldown: 3, counter: true, evade: 1, restless: true, punishAfter: 0.6, punishGap: 0.3 },
   // Hardcore: still the player's limits (never faster than the alchemist walks, every strike warned and drawn in sight);
   // its edge is drawing: twice as fast as Muy difícil, almost no rest between attacks, combinations nearly always,
-  // a wall against nearly every strike, and no standing still ever goes unpunished.
-  hardcore: { speed: 1.6, cooldown: [1.1, 1.5], warn: 0.5, aimError: 0.03, lead: 1, dodge: 0.5, reaction: 0.09, elemental: 0.75, blast: 0.8, blastStar: 0.45, star: 0.45, heal: 0.55, columns: 0.08, draw: 0.36, stagger: 0.5, guard: 0.95, fortress: 0.6, wallCooldown: 2, counter: true, evade: 1, restless: true, punishAfter: 0.45, punishGap: 0.2 },
+  // a wall against nearly every strike, no standing still ever goes unpunished, and it heals early and nearly always
+  // (from three quarters of its health down), so a one-on-one is a long fight.
+  hardcore: { speed: 1.6, cooldown: [1.1, 1.5], warn: 0.5, aimError: 0.03, lead: 1, dodge: 0.5, reaction: 0.09, elemental: 0.75, blast: 0.8, blastStar: 0.45, star: 0.45, heal: 0.9, healBelow: 75, columns: 0.08, draw: 0.36, stagger: 0.5, guard: 0.95, fortress: 0.6, wallCooldown: 2, counter: true, evade: 1, restless: true, punishAfter: 0.45, punishGap: 0.2 },
 };
 
 /**
@@ -91,6 +94,7 @@ export function golemTuning(n: number): Tuning {
     blast: 0,
     star: 0,
     heal: 0,
+    healBelow: 0,
     columns: 0,
     draw: lerp(1, 0.75),
     stagger: 0.7,
@@ -215,7 +219,7 @@ export class RivalMind {
   private planAttack(view: MindView): Plan[] {
     // Something already in hand (a combination cut short): it is cast, never thrown away.
     if (this.charged) return [{ kind: 'strike', element: this.charged }];
-    if (view.hp <= 50 && this.rng() < this.tuning.heal) return [{ kind: 'heal' }];
+    if (view.hp <= this.tuning.healBelow && this.rng() < this.tuning.heal) return [{ kind: 'heal' }];
     const near = view.foeDistance < FORTRESS_RANGE;
     if (view.canWall && near && this.rng() < this.tuning.fortress) {
       // With counter it strikes right out of the fresh wall; otherwise it rests behind it.
