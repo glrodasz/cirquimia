@@ -65,8 +65,7 @@ export const TUNING: Record<Difficulty, Tuning> = {
 
 /**
  * How a golem of wave `n` plays. Earth only: no fire or water, no stars, no walls, no healing. Slow and heavy: it walks
- * well under the alchemist's pace, strikes straight from the ground with no symbol to read (only the ground's warning),
- * and rests long between strikes to make up for it. Later waves aim a little better and rest a little less, but every golem keeps the player's limits (never faster than the alchemist walks)
+ * well under the alchemist's pace and draws its square over its head like anyone. Later waves aim a little better and rest a little less, but every golem keeps the player's limits (never faster than the alchemist walks)
  * and leaves time to step out of its strike. Their strikes at the alchemist are staggered, so a crowd never lands
  * all at once.
  */
@@ -76,7 +75,7 @@ export function golemTuning(n: number): Tuning {
   return {
     ...TUNING.facil,
     speed: lerp(0.7, 1.0),
-    cooldown: [lerp(7.5, 5.5), lerp(10, 7.5)],
+    cooldown: [lerp(4.6, 3.2), lerp(6.2, 4.4)],
     warn: lerp(0.9, 0.7),
     aimError: lerp(0.35, 0.15),
     lead: lerp(0, 0.5),
@@ -87,7 +86,7 @@ export function golemTuning(n: number): Tuning {
     star: 0,
     heal: 0,
     columns: 0,
-    draw: 0.2, // no symbol to draw: a golem strikes straight from the ground
+    draw: lerp(1, 0.75),
     stagger: 0.7,
     guard: 0,
     fortress: 0,

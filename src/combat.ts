@@ -486,8 +486,7 @@ class Rival extends Fighter<Character> {
         plan.kind !== 'strike' || combat.book(foe, delay, isStar(plan.element) ? STAR_STAGGER * 4 : 0, this.tuning.stagger),
     };
     const action = this.mind.tick(dt, view);
-    // Golems strike straight from the ground: no symbol over their heads, only the warning where it will break out.
-    if (action?.kind === 'draw' && !this.golem) this.drawSketch(sketchFor(action.plan), action.seconds);
+    if (action?.kind === 'draw') this.drawSketch(sketchFor(action.plan), action.seconds);
     else if (action?.kind === 'act') this.act(action.plan, foe, combat, dt);
   }
 
