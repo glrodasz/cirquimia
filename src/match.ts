@@ -50,8 +50,13 @@ export interface MatchControls {
   restart(): void;
 }
 
+/** A match against someone: what Go to battle starts again from training. */
+type Battle = 'duel' | 'horde';
+
 interface Saved {
   mode?: Mode;
+  /** The last battle chosen (duel or horde), kept while training. */
+  battle?: Battle;
   rivals?: number;
   difficulty?: Difficulty;
 }
@@ -63,7 +68,7 @@ export function savedMode(): Mode {
 
 function load(): Saved {
   // A challenge link plays the challenger's match, and it becomes the player's own choice from then on.
-  if (challenge) return { mode: 'duel', rivals: challenge.rivals, difficulty: challenge.difficulty };
+  if (challenge) return { mode: 'duel', battle: 'duel', rivals: challenge.rivals, difficulty: challenge.difficulty };
   try {
     const own = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Saved | null;
     const old = own ?? (JSON.parse(localStorage.getItem(OLD_STORE) ?? '{}') as Saved);
@@ -71,7 +76,8 @@ function load(): Saved {
     const mode = old.mode ?? (old.rivals === 0 ? 'training' : 'duel');
     const rivals = old.rivals && old.rivals >= 1 && old.rivals <= MAX_RIVALS ? old.rivals : FIRST_MATCH.rivals;
     const difficulty = old.difficulty && LEVELS.includes(old.difficulty) ? old.difficulty : FIRST_MATCH.difficulty;
-    return { mode, rivals, difficulty };
+    const battle: Battle = old.battle === 'horde' || old.battle === 'duel' ? old.battle : mode === 'horde' ? 'horde' : 'duel';
+    return { mode, battle, rivals, difficulty };
   } catch {
     return FIRST_MATCH;
   }
@@ -155,14 +161,15 @@ export function mountMatchControls(match: MatchControls) {
   const newBtn = button('newgame', newGameIcon(), t.match.newGame, t.match.newGameAria);
   newBtn.setAttribute('aria-haspopup', 'dialog');
 
-  // Training has a clear way back: one rival on Fácil, the gentlest real match (New game picks anything else).
+  // Training has one clear way back: the last battle chosen (duel with its rivals and level, or the horde).
+  // New game hides meanwhile, so the two do not compete.
+  let battle: Battle = load().battle ?? 'duel';
   const battleBtn = document.createElement('button');
   battleBtn.type = 'button';
   battleBtn.id = 'battle-btn';
-  battleBtn.innerHTML = `${rivalsIcon(1)}<span class="cap">${t.match.toBattle}</span>`;
   battleBtn.hidden = true;
   stopPointer(battleBtn);
-  battleBtn.addEventListener('click', () => start('duel', 1, 'facil', battleBtn));
+  battleBtn.addEventListener('click', () => start(battle, match.rivals, match.difficulty, battleBtn));
 
   const toast = document.createElement('div');
   toast.id = 'match-toast';
@@ -173,8 +180,12 @@ export function mountMatchControls(match: MatchControls) {
     const training = match.mode === 'training';
     trainBtn.classList.toggle('on', training);
     trainBtn.setAttribute('aria-pressed', String(training));
+    if (!training) battle = match.mode as Battle;
     battleBtn.hidden = !training;
-    save({ mode: match.mode, rivals: match.rivals, difficulty: match.difficulty });
+    newBtn.hidden = training;
+    if (pickerOpen && training) closePicker(false);
+    battleBtn.innerHTML = `${battle === 'horde' ? hordeIcon() : rivalsIcon(match.rivals)}<span class="cap">${t.match.toBattle}</span>`;
+    save({ mode: match.mode, battle, rivals: match.rivals, difficulty: match.difficulty });
     fit();
   };
 
