@@ -286,6 +286,13 @@
       :root[data-theme="dark"] :is(#book-btn, #rank-btn) .glyph { fill: #ffd27a; }
       #tutorial { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .3s; }
       #tutorial[hidden] { display: none; }
+      /* Skip the whole tutorial: a quiet paper tab bottom right (the match timer, its usual tenant, is hidden in the tutorial). */
+      #tutorial-skip { position: fixed; right: max(12px, calc(env(safe-area-inset-right) + 8px)); bottom: max(14px, calc(env(safe-area-inset-bottom) + 6px)); z-index: 5; display: flex; align-items: center; gap: 2px; height: 34px; padding: 0 6px 0 12px; border: 1px solid var(--hud-ink); border-radius: 0; background: var(--hud-paper); color: var(--hud-ink); box-shadow: inset 0 0 0 2px var(--hud-paper), inset 0 0 0 2.6px rgba(31,26,21,.45), 0 2px 6px rgba(20,28,24,.18); font: 500 17px/1 'EB Garamond Variable', Garamond, Georgia, serif; font-variant-caps: small-caps; letter-spacing: .04em; cursor: pointer; opacity: .85; -webkit-tap-highlight-color: transparent; }
+      #tutorial-skip[hidden] { display: none; }
+      #tutorial-skip:hover { opacity: 1; }
+      #tutorial-skip span { text-decoration: underline; text-decoration-color: rgba(31,26,21,.35); text-underline-offset: 3px; }
+      #tutorial-skip svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+      @media (pointer: fine) { #tutorial-skip { right: 16px; bottom: 16px; } }
       #tutorial.show { opacity: 1; }
       #tutorial.covered { visibility: hidden; }
       #tutorial .dim { position: absolute; inset: 0; --x: 50%; --y: 45%; --r: 110px; background: radial-gradient(circle at var(--x) var(--y), transparent var(--r), rgba(28,40,34,.5) calc(var(--r) + 28px)); transition: opacity .3s; }

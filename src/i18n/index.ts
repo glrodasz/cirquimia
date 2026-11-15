@@ -250,6 +250,7 @@ const es = {
       button: '¡A pelear!',
     },
     duelGo: '¡Suerte!',
+    skip: 'Saltar tutorial',
     wrong: {
       square: 'Eso no fue un cuadrado. Sigue la guía e inténtalo otra vez.',
       circle: 'Eso no fue un círculo. Sigue la guía e inténtalo otra vez.',
@@ -265,6 +266,7 @@ const es = {
     triangleDown: Lesson;
     duel: ReadLesson;
     duelGo: string;
+    skip: string;
     wrong: Record<'square' | 'circle' | 'triangle' | 'triangleDown', string>;
   },
   sound: { mute: 'Silenciar sonido', unmute: 'Activar sonido' },
@@ -600,6 +602,7 @@ const en: Strings = {
       button: 'Fight!',
     },
     duelGo: 'Good luck!',
+    skip: 'Skip tutorial',
     wrong: {
       square: "That wasn't a square. Follow the guide and try again.",
       circle: "That wasn't a circle. Follow the guide and try again.",
