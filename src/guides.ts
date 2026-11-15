@@ -39,6 +39,10 @@ const HOLD = 0.7; // s the traced ink stays before it fades
 const REST = 3; // s with only the guide on the ground before the hand traces it again
 const BOX = 150; // px of the guide's 48-unit box on the meadow (the tutorial's size)
 const BOX_AT_SOURCE = 110; // px over a campfire or lagoon, sized to the source
+/** On a touch screen the guides are bigger: easier to follow with a finger, and the screen is there to use. */
+const touch = () => matchMedia('(pointer: coarse)').matches;
+const boxSize = () => (touch() ? Math.round(Math.max(BOX, Math.min(260, innerWidth * 0.6, innerHeight * 0.32))) : BOX);
+const sourceSize = () => (touch() ? Math.round(BOX_AT_SOURCE * 1.45) : BOX_AT_SOURCE);
 const EDGE = 44; // px from the screen edge for the arrow to an off-screen source
 
 /** The ideal stroke in a 48×48 box, the way a hand draws it: from the dot, round, a little past the start. */
@@ -362,13 +366,15 @@ export class Guides {
       }
       this.at = null; // pinned to the source
       const at = { x: p.x, y: p.y - 6 };
-      this.place(at, BOX_AT_SOURCE, element, dt);
-      this.say(t.guides.draw[shape], { x: at.x, y: at.y - BOX_AT_SOURCE / 2 }, dt, label, at.y + BOX_AT_SOURCE / 2);
+      const size = sourceSize();
+      this.place(at, size, element, dt);
+      this.say(t.guides.draw[shape], { x: at.x, y: at.y - size / 2 }, dt, label, at.y + size / 2);
       return;
     }
-    const at = this.besideHero(dt);
-    this.place(at, BOX, null, dt);
-    this.say(t.guides.draw[shape], { x: at.x, y: at.y - BOX / 2 + 8 }, dt, label, at.y + BOX / 2 - 8);
+    const size = boxSize();
+    const at = this.besideHero(dt, size);
+    this.place(at, size, null, dt);
+    this.say(t.guides.draw[shape], { x: at.x, y: at.y - size / 2 + 8 }, dt, label, at.y + size / 2 - 8);
   }
 
   /** Over the scarecrow's "Hit me!" label (or its head when the label is not up). */
@@ -381,11 +387,11 @@ export class Guides {
   }
 
   /** A clear spot beside the alchemist, off the HUD at the top and the stick and this line at the bottom. */
-  private besideHero(dt: number) {
+  private besideHero(dt: number, size: number) {
     const h = this.host.toScreen(this.host.hero(), 0.35);
-    const half = BOX / 2;
+    const half = size / 2;
     const top = 96 + half;
-    const bottom = innerHeight - 120 - half;
+    const bottom = innerHeight - (touch() ? 170 : 120) - half; // phones: clear of the sheet of circles too
     const fits = (x: number, y: number) => x - half > 8 && x + half < innerWidth - 8 && y > top && y < bottom;
     const gap = half + 46;
     const tries = [
