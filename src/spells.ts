@@ -423,6 +423,8 @@ class PillarStrike extends Effect {
   private readonly boostRing: THREE.Group | null = null;
   /** Set when the strike lands inside a standing wall's zone: the warning shows but nothing erupts. */
   blocked = false;
+  /** Already struck by it (by the whole star for a star's tip): never twice. */
+  readonly struck: Set<unknown>;
 
   /** Radius of the cluster. */
   get area() {
@@ -443,6 +445,7 @@ class PillarStrike extends Effect {
     readonly cage: StarCage | null = null,
   ) {
     super(warn, PILLAR_RISE, PILLAR_HOLD, PILLAR_SINK);
+    this.struck = cage?.struck ?? new Set();
     if (element === 'earth' || element === 'columns') this.buildPillars(from, element === 'columns' ? COLUMN_SCALE : 1);
     else if (isBlast(element)) this.buildBlast();
     else if (element === 'vine') this.buildVines();
@@ -508,7 +511,6 @@ class PillarStrike extends Effect {
     const main = this.addPiece(pillarGeo, ROCK[Math.floor(Math.random() * ROCK.length)], x, z, 0.46 * tall, 0);
     main.scale.set(0.17, 0.46 * tall, 0.17);
     main.rotation.set(lean, away + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
-    this.obstacles.push({ x, z, r: 0.1, rises: true });
 
     const small = THREE.MathUtils.randInt(4, 6);
     for (let i = 0; i < small; i++) {
@@ -970,7 +972,7 @@ export class Spells {
   private readonly active: Active[] = [];
 
   /** Called when a strike breaks out (not when a wall stops it), with whoever cast it. */
-  onStrike: (x: number, z: number, element: Element, caster: unknown, area: number, cage: StarCage | null) => void = () => {};
+  onStrike: (x: number, z: number, element: Element, caster: unknown, area: number, struck: Set<unknown>) => void = () => {};
 
   constructor(private readonly obstacles: Obstacle[]) {}
 
@@ -1042,6 +1044,16 @@ export class Spells {
     }
   }
 
+  /**
+   * Calls `fn` for every rock pillar or star tip standing right now (erupted, not yet sinking). None of them blocks
+   * the way: walking onto one strikes instead.
+   */
+  forEachStanding(fn: (x: number, z: number, area: number, element: Element, caster: unknown, struck: Set<unknown>) => void) {
+    for (const e of this.active) {
+      if (e instanceof PillarStrike && (e.cage || e.element === 'earth') && e.solid && !e.blocked) fn(e.x, e.z, e.area, e.element, e.caster, e.struck);
+    }
+  }
+
   /** True while a standing earth wall protects this spot. */
   shielded(x: number, z: number, by: unknown = null) {
     // A wall only stops other people's strikes: its owner can still strike out of (or into) its own zone.
@@ -1061,7 +1073,7 @@ export class Spells {
           clack(effect);
         } else {
           strike(effect.element, effect);
-          this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area, effect.cage);
+          this.onStrike(effect.x, effect.z, effect.element, effect.caster, effect.area, effect.struck);
         }
         if (effect.cage) effect.cage.erupted++;
       }
