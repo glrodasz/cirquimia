@@ -21,7 +21,7 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
-const GLOW_SIZE = 1.05; // world units across the soft halo behind the alchemist
+const GLOW_SIZE = 0.66; // world units tall, the soft halo behind the alchemist (a thin rim around the figure)
 const GLOW_HEIGHT = 0.28; // its centre above the feet (mid-body)
 const GLOW_STILL = 0.35; // s standing still before the halo shows
 /** A soft oval of light in `ink`: bright at the centre, fading to nothing at the edge. */
@@ -31,7 +31,8 @@ function glowTexture(ink: string) {
   const g = c.getContext('2d')!;
   const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
   grad.addColorStop(0, ink);
-  grad.addColorStop(0.45, ink + 'aa');
+  grad.addColorStop(0.5, ink + 'cc');
+  grad.addColorStop(0.8, ink + '33');
   grad.addColorStop(1, ink + '00');
   g.fillStyle = grad;
   g.fillRect(0, 0, 64, 64);
@@ -176,7 +177,7 @@ class Fighter<B extends Body = Body> {
     // washing over the coat, and never cut by the ground.
     const material = new THREE.SpriteMaterial({ map: glowTexture(this.ink), transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
     this.glow = new THREE.Sprite(material);
-    this.glow.scale.set(GLOW_SIZE * 0.75, GLOW_SIZE, 1);
+    this.glow.scale.set(GLOW_SIZE * 0.55, GLOW_SIZE, 1);
     this.glow.renderOrder = 50;
     if (this.body instanceof Character) this.body.ownMaterials(51);
     this.glow.visible = false;
