@@ -173,7 +173,7 @@ class Fighter<B extends Body = Body> {
   markAsYou() {
     // Drawn without depth test right before the alchemist, which then covers it: a halo around the figure, never
     // washing over the coat, and never cut by the ground.
-    const material = new THREE.SpriteMaterial({ map: glowTexture(this.ink), transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+    const material = new THREE.SpriteMaterial({ map: glowTexture(this.ink), transparent: true, opacity: 0, depthWrite: false, depthTest: false });
     this.glow = new THREE.Sprite(material);
     this.glow.scale.set(GLOW_SIZE * 0.42, GLOW_SIZE, 1);
     this.glow.renderOrder = 50;
@@ -293,7 +293,7 @@ class Fighter<B extends Body = Body> {
     this.glowLevel = THREE.MathUtils.clamp(this.glowLevel + (this.down ? -dt * 6 : dt * 2.5), 0, 1);
     glow.visible = this.glowLevel > 0;
     if (!glow.visible) return;
-    glow.material.opacity = this.glowLevel * 0.7;
+    glow.material.opacity = this.glowLevel * 0.45; // plain (not additive) blend, half strength: a quiet edge
     glow.position.copy(this.position);
     glow.position.y += GLOW_HEIGHT;
   }
