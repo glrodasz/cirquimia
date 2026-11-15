@@ -12,6 +12,8 @@ export interface PopAnchor {
   side: 'above' | 'below';
   /** When the note sits below, the edge it hangs from (default y + r): e.g. the bottom of a guide drawn over the spot. */
   below?: number;
+  /** When the note sits above, the edge it rests on (default y - r): e.g. the top of an arrow drawn over the spot. */
+  above?: number;
   /** A spot the note should not cover (the player's alchemist): it takes the other side when that one leaves it clear. */
   avoid?: { x: number; y: number; r: number };
 }
@@ -52,7 +54,7 @@ export class Popover {
     let side: PopAnchor['side'] | 'none' = 'none';
     if (a) {
       const below = (a.below ?? a.y + a.r) + GAP;
-      const above = a.y - a.r - GAP - h;
+      const above = (a.above ?? a.y - a.r) - GAP - h;
       const fitsBelow = below + h <= bottom;
       const fitsAbove = above >= top;
       side = a.side === 'below' ? (fitsBelow || !fitsAbove ? 'below' : 'above') : fitsAbove || !fitsBelow ? 'above' : 'below';

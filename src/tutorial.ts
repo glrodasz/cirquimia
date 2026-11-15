@@ -111,6 +111,9 @@ const isShape = (l: Lesson | null): l is Shape => l === 'square' || l === 'circl
  * strike, charge fire over a campfire and water over a lagoon and cast them, and then a card asks whether to start the
  * duel. Only then does the rival move and fight, with everyone back at full health.
  */
+/** px from the rival's head to the top of the arrow over it (gap + arrow + bounce). */
+const ARROW_TOP = 18 + 34 + 4;
+
 export class Tutorial {
   private stage = load();
   private lesson: Lesson | null = null;
@@ -536,7 +539,10 @@ export class Tutorial {
     if (!p) return null;
     const head = this.host.toScreen(p, 0.75);
     const feet = this.host.toScreen(p, 0);
-    return { x: feet.x, y: (feet.y + head.y) / 2, r: Math.max(clear, (feet.y - head.y) / 2 + 10), side: 'below' };
+    const a: PopAnchor = { x: feet.x, y: (feet.y + head.y) / 2, r: Math.max(clear, (feet.y - head.y) / 2 + 10), side: 'below' };
+    // Above the rival, rest on top of its arrow (tip at head - 18, 34px tall, bounces a few px) rather than over it.
+    if (who === 'foe' && !this.arrow.hidden) a.above = Math.min(a.y - a.r, head.y - ARROW_TOP);
+    return a;
   }
 
   /** Keeps the card next to what the lesson points at. */
