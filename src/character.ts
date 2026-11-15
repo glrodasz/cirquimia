@@ -45,6 +45,32 @@ function mat(hex: string, emissive = '#000000', side: THREE.Side = THREE.FrontSi
   return m;
 }
 
+/**
+ * A soft dark spot on the ground under every character, on every quality tier (the sun's shadows are off on the low
+ * one, and tiny from above anyway): it sets the figures on the meadow instead of floating over it.
+ */
+const BLOB_SIZE = 0.42;
+let blobMaterial: THREE.MeshBasicMaterial | null = null;
+const blobGeometry = new THREE.PlaneGeometry(BLOB_SIZE, BLOB_SIZE).rotateX(-Math.PI / 2);
+function blob() {
+  if (!blobMaterial) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(10,18,14,.8)');
+    grad.addColorStop(0.5, 'rgba(10,18,14,.55)');
+    grad.addColorStop(1, 'rgba(10,18,14,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    blobMaterial = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  }
+  const mesh = new THREE.Mesh(blobGeometry, blobMaterial);
+  mesh.position.y = 0.012;
+  mesh.renderOrder = 1;
+  return mesh;
+}
+
 /** See-through copies of the shared materials, for a character shown as a ghost (one opacity for all of them). */
 const ghosts = new Map<THREE.Material, THREE.MeshLambertMaterial>();
 function ghostOf(m: THREE.MeshLambertMaterial) {
@@ -158,6 +184,8 @@ export class Character {
    */
   bounds: ((p: THREE.Vector3) => boolean) | null = null;
   private readonly probe = new THREE.Vector3();
+  /** The soft spot on the ground under the feet. */
+  private readonly shadow: THREE.Mesh;
 
   constructor(private readonly obstacles: Obstacle[], look: CharacterLook = {}) {
     const coat = look.coat ?? COAT;
@@ -225,6 +253,9 @@ export class Character {
     this.model.traverse((o) => {
       if (o instanceof THREE.Mesh) o.userData.material = o.material;
     });
+    // On the root, not the model: it stays flat on the ground when the body falls, and never flashes white.
+    this.shadow = blob();
+    this.root.add(this.shadow);
   }
 
   /** True while walking somewhere. */
@@ -245,6 +276,7 @@ export class Character {
       o.castShadow = solid;
       if (this.flashTimer <= 0) o.material = o.userData.material;
     });
+    this.shadow.material = solid ? blobMaterial! : ghostOf(blobMaterial as unknown as THREE.MeshLambertMaterial);
     for (const g of ghosts.values()) g.opacity = opacity; // shared: every faint rival fades together
   }
 
