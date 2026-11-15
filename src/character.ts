@@ -53,6 +53,7 @@ const BLOB_SIZE = 0.42;
 let blobMaterial: THREE.MeshBasicMaterial | null = null;
 const blobGeometry = new THREE.PlaneGeometry(BLOB_SIZE, BLOB_SIZE).rotateX(-Math.PI / 2);
 function blob() {
+  if (!blobMaterial && typeof document === 'undefined') blobMaterial = new THREE.MeshBasicMaterial({ visible: false }); // tests (no DOM)
   if (!blobMaterial) {
     const c = document.createElement('canvas');
     c.width = c.height = 64;
