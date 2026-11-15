@@ -218,6 +218,8 @@ export function mountLeaderboard(): Leaderboard {
     let runId: string | null = null;
     /** The initials the score is saved under; '' while anonymous. */
     let named = '';
+    /** The last initials taken from the line, so each new value is taken once. */
+    let committed = input.value;
     let placed = '';
     let shareLink: string | null = null;
     /** Whose name is on the uploaded card (null: none uploaded yet), and the link once that card is up to date. */
@@ -279,7 +281,7 @@ export function mountLeaderboard(): Leaderboard {
       placed = t.rank.placed(res.rank.today, res.rank.all);
       shareLink = res.share ?? null;
       // A name typed while the score was on its way goes in with "Change"; otherwise show what it was saved as.
-      if (document.activeElement !== input) input.value = named;
+      if (document.activeElement !== input && cleanInitials(input.value) === committed) input.value = committed = named;
       Object.assign(data, { score: res.score, initials: named || undefined, rank: res.rank });
       card = draw();
       say(named ? placed : `${placed}<br>${t.rank.anonymous}`);
@@ -318,7 +320,14 @@ export function mountLeaderboard(): Leaderboard {
       mastodon(mastoInput.value);
     });
     for (const btn of shared.querySelectorAll<HTMLButtonElement>('.net')) btn.addEventListener('click', () => void share(btn.dataset.to ?? ''));
-    actions.querySelector('.view')!.addEventListener('click', () => show(newId ? 'today' : period, newId));
+    // The ranking opens at once; when it just took the typed initials, it reloads once the score carries them.
+    actions.querySelector('.view')!.addEventListener('click', () => {
+      const renamed = commit();
+      show(newId ? 'today' : period, newId);
+      void renamed.then((done) => {
+        if (done && open) void load(period);
+      });
+    });
 
     // No button: the initials line is the name. Leaving it (or Enter) renames the score just saved, and the
     // initials become the handle for the next matches. A blank or invalid line goes back to the saved name.
@@ -326,30 +335,44 @@ export function mountLeaderboard(): Leaderboard {
       e.preventDefault();
       input.blur();
     });
+    // Typed initials count even when the player never leaves the line: on phones a tap on "Play again" or
+    // "See leaderboard" does not take the focus, so the line never blurs and no change event comes.
     let renaming = 0;
-    input.addEventListener('change', async () => {
+    let renamed: Promise<boolean> = Promise.resolve(false);
+    /** Takes the initials on the line (once per new value); resolves true when the saved score was renamed. */
+    const commit = (): Promise<boolean> => {
       const initials = cleanInitials(input.value);
+      if (initials === committed) return renamed;
       if (!validInitials(initials)) {
-        input.value = named;
-        return;
+        input.value = committed = named;
+        return renamed;
       }
+      committed = initials;
       saveInitials(initials);
       const turn = ++renaming;
-      const ok = await saving;
-      if (!ok || !runId || initials === named) return;
-      say(`${placed}<br>${t.rank.saving}`);
-      const res = await renameScore(runId, initials);
-      if (turn !== renaming) return; // a newer name is on its way
-      if (failed(res)) {
-        say(`${placed}<br>${res === 'too-many' ? t.rank.tooMany : t.rank.changeFailed}`);
-        return;
-      }
-      named = initials;
-      data.initials = initials;
-      ready = null; // the uploaded card still shows the old name
-      card = draw();
-      say(`${placed}<br>${t.rank.changed(esc(initials))}`);
-    });
+      renamed = (async () => {
+        const ok = await saving;
+        if (!ok || !runId || initials === named) return false;
+        say(`${placed}<br>${t.rank.saving}`);
+        const res = await renameScore(runId, initials);
+        if (turn !== renaming) return false; // a newer name is on its way
+        if (failed(res)) {
+          say(`${placed}<br>${res === 'too-many' ? t.rank.tooMany : t.rank.changeFailed}`);
+          return false;
+        }
+        named = initials;
+        data.initials = initials;
+        ready = null; // the uploaded card still shows the old name
+        card = draw();
+        say(`${placed}<br>${t.rank.changed(esc(initials))}`);
+        return true;
+      })();
+      return renamed;
+    };
+    input.addEventListener('change', () => void commit());
+    // Any way off the card (play again, the ranking, a share) takes the name first: captured, so it runs before
+    // the button's own handler, and on pointerdown too, ahead of a card that closes on the tap.
+    for (const area of [actions, shared]) for (const type of ['pointerdown', 'click']) area.addEventListener(type, () => void commit(), true);
   };
 
   return {
