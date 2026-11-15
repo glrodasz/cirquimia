@@ -21,6 +21,8 @@ const END_DELAY = 1.3;
 // A strike hits anyone whose body overlaps the eruption.
 const HIT_RADIUS = PILLAR_AREA + BODY_RADIUS;
 const HEAD_HEIGHT = 0.72; // world units above the feet for the health bar
+const YOU_SIZE = 0.075; // the "you" crystal over the alchemist's head (half width before stretching)
+const YOU_HEIGHT = 0.78; // its centre, world units above the feet: between the head and the health bar
 const GHOST = 0.3; // opacity of a rival the tutorial has not introduced yet
 export const MAX_RIVALS = 3;
 // While the tutorial's rival stands still as a sparring partner, it cannot be knocked out: it holds on at this much health.
@@ -92,10 +94,8 @@ class Fighter<B extends Body = Body> {
   /** The symbol it just stored, traced over its head in its ink so others can tell what it holds. */
   private readonly sketch = document.createElementNS(SVG_NS, 'svg');
   private readonly sketchPath = document.createElementNS(SVG_NS, 'path');
-  /** Until when (ms) a symbol is traced over the head; the hero's "you" diamond steps aside meanwhile. */
-  private sketchUntil = 0;
-  /** The small diamond over the alchemist that says "this one is you" (the hero only). */
-  private you: HTMLElement | null = null;
+  /** The slim crystal floating over the alchemist's head that says "this one is you" (the hero only). */
+  private you: THREE.Mesh | null = null;
   /** How faint the body is drawn (1 = solid), and where it is easing to. */
   private ghostLevel = 1;
   private ghostTo = 1;
@@ -136,7 +136,6 @@ class Fighter<B extends Body = Body> {
     this.sketch.classList.toggle('held', keep);
     this.sketchPath.setAttribute('d', SKETCH_PATH[shape]);
     this.sketch.style.setProperty('--draw', `${seconds}s`);
-    this.sketchUntil = keep ? Infinity : performance.now() + (seconds + 1.4) * 1000;
     this.sketch.style.display = '';
     this.sketch.classList.remove('drawing');
     void this.sketch.getBoundingClientRect(); // restart the trace
@@ -144,7 +143,6 @@ class Fighter<B extends Body = Body> {
   }
 
   hideSketch() {
-    this.sketchUntil = 0;
     this.sketch.style.display = 'none';
     this.sketch.classList.remove('drawing');
   }
@@ -153,12 +151,14 @@ class Fighter<B extends Body = Body> {
     return this.body.root.position;
   }
 
-  /** Adds the small diamond that floats over this fighter: the player's own alchemist. */
+  /** Adds the slim crystal that floats and turns over this fighter's head: the player's own alchemist. */
   markAsYou() {
-    this.you = document.createElement('div');
-    this.you.className = 'you';
-    this.you.style.color = this.ink;
-    document.body.append(this.you);
+    const color = new THREE.Color(this.ink);
+    const material = new THREE.MeshLambertMaterial({ color, emissive: color.clone().multiplyScalar(0.45), flatShading: true });
+    this.you = new THREE.Mesh(new THREE.OctahedronGeometry(YOU_SIZE, 0), material);
+    this.you.scale.set(0.6, 1.6, 0.6);
+    this.you.position.y = YOU_HEIGHT;
+    this.body.root.add(this.you);
   }
 
   /** Fades the body (and its bar) to see-through, or back to solid. */
@@ -255,10 +255,11 @@ class Fighter<B extends Body = Body> {
     const visible = this.screen(camera);
     this.bar.hidden = !visible;
     this.bar.classList.toggle('gone', this.down);
-    const now = performance.now();
     if (this.you) {
-      this.you.hidden = !visible || this.down || now < this.sketchUntil;
-      if (visible) this.you.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
+      const t = performance.now() / 1000;
+      this.you.visible = !this.down;
+      this.you.rotation.y = t * 1.6 - this.body.root.rotation.y; // turns steadily whichever way the alchemist faces
+      this.you.position.y = YOU_HEIGHT + Math.sin(t * 2.2) * 0.012;
     }
     if (visible) {
       this.bar.style.transform = `translate(${projected.x}px, ${projected.y}px)`;
@@ -278,7 +279,11 @@ class Fighter<B extends Body = Body> {
   }
 
   dispose() {
-    this.you?.remove();
+    if (this.you) {
+      this.you.removeFromParent();
+      this.you.geometry.dispose();
+      (this.you.material as THREE.Material).dispose();
+    }
     this.bar.remove();
     this.sketch.remove();
   }

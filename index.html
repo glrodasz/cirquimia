@@ -433,12 +433,6 @@
       body.aiming canvas { cursor: crosshair; }
       .hp { position: fixed; left: 0; top: 0; width: 38px; height: 4px; margin: -16px 0 0 -19px; border-radius: 3px; background: rgba(20,28,24,.55); box-shadow: 0 0 0 1px rgba(255,255,255,.55); overflow: hidden; pointer-events: none; z-index: 1; will-change: transform; }
       .hp[hidden] { display: none; }
-      /* "This one is you": a small diamond over the alchemist's health bar, in its ink, bobbing gently. */
-      .you { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 1; will-change: transform; }
-      .you[hidden] { display: none; }
-      .you::before { content: ''; position: absolute; left: -4.5px; top: -32px; width: 9px; height: 9px; transform: rotate(45deg); background: currentColor; box-shadow: 0 0 0 1.2px rgba(255,255,255,.75), 0 1px 3px rgba(0,0,0,.35); opacity: .9; animation: you-bob 1.6s ease-in-out infinite alternate; }
-      @keyframes you-bob { from { translate: 0 0; } to { translate: 0 -3px; } }
-      @media (prefers-reduced-motion: reduce) { .you::before { animation: none; } }
       .hp-fill { height: 100%; transform-origin: left; transition: transform .25s ease-out; }
       .hp.ko .hp-fill { filter: grayscale(1) brightness(.8); }
       /* A fighter tracing the shape of its spell over its head, in its ink: slowly for rivals before they cast, briefly for the alchemist. */
