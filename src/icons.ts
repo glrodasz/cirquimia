@@ -18,7 +18,17 @@ export function rivalsIcon(count: number) {
     );
   if (count === 1) return box(figure(0, 1, 'red'));
   if (count === 2) return box(figure(-3.6, 0.82, 'red') + figure(7.9, 0.82, 'green'));
-  return box(figure(-2.5, 0.6, 'red') + figure(4.8, 0.6, 'green') + figure(12.1, 0.6, 'plum'));
+  if (count === 3) return box(figure(-2.5, 0.6, 'red') + figure(4.8, 0.6, 'green') + figure(12.1, 0.6, 'plum'));
+  return box(figure(-2.6, 0.5, 'red') + figure(2.9, 0.5, 'green') + figure(8.4, 0.5, 'plum') + figure(13.9, 0.5, 'ochre'));
+}
+
+/** Hardcore: a solid skull, hollow eyes and nose, three teeth. */
+export function skullIcon() {
+  return box(
+    '<path class="ink" fill-rule="evenodd" d="M12 2C6.9 2 3.2 5.6 3.2 10.4C3.2 13.3 4.6 15.4 6.6 16.6V20.2C6.6 21.2 7.4 22 8.4 22H15.6C16.6 22 17.4 21.2 17.4 20.2V16.6C19.4 15.4 20.8 13.3 20.8 10.4C20.8 5.6 17.1 2 12 2Z' +
+      'M8.6 9.2A2.3 2.3 0 1 0 8.6 13.8A2.3 2.3 0 1 0 8.6 9.2ZM15.4 9.2A2.3 2.3 0 1 0 15.4 13.8A2.3 2.3 0 1 0 15.4 9.2ZM12 14.2L10.6 16.8H13.4Z' +
+      'M9.8 19H10.9V22H9.8ZM13.1 19H14.2V22H13.1Z"/>',
+  );
 }
 
 /** The horde: a stone golem, square head sunk in broad shoulders, long arms with rock fists, glowing eyes. */

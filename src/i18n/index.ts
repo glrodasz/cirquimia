@@ -110,7 +110,7 @@ interface MoveLesson {
 const es = {
   title: 'Cirquimia',
   switchLanguage: 'Cambiar a español',
-  difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil' },
+  difficulty: { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil', experto: 'Muy difícil', hardcore: 'Hardcore' },
   match: {
     toolbar: 'Partida',
     time: 'Tiempo de partida',
@@ -137,7 +137,7 @@ const es = {
     picker: {
       title: 'Nuevo juego',
       duel: 'Duelo',
-      duelBody: 'Contra la computadora: tú contra uno, dos o tres alquimistas.',
+      duelBody: 'Contra la computadora: tú contra uno, dos, tres o cuatro alquimistas.',
       rivals: 'Rivales',
       level: 'Dificultad',
       horde: 'Horda',
@@ -494,7 +494,7 @@ export type Strings = typeof es;
 const en: Strings = {
   title: 'Cirquimia',
   switchLanguage: 'Switch to English',
-  difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard' },
+  difficulty: { facil: 'Easy', normal: 'Normal', dificil: 'Hard', experto: 'Very hard', hardcore: 'Hardcore' },
   match: {
     toolbar: 'Match',
     time: 'Match time',
@@ -520,7 +520,7 @@ const en: Strings = {
     picker: {
       title: 'New game',
       duel: 'Duel',
-      duelBody: 'Against the computer: you against one, two or three alchemists.',
+      duelBody: 'Against the computer: you against one to four alchemists.',
       rivals: 'Rivals',
       level: 'Difficulty',
       horde: 'Horde',

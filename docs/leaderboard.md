@@ -5,7 +5,7 @@ up to four initials, no account. The board has two tabs: **Today** (UTC day) and
 
 ## Score
 
-`points = damage dealt × difficulty × 600 / (seconds + 30)`, with Easy ×1, Normal ×1.5, Hard ×2, Very hard ×3.
+`points = damage dealt × difficulty × 600 / (seconds + 30)`, with Easy ×1, Normal ×1.5, Hard ×2, Very hard ×3, Hardcore ×4.
 Damage is the health the alchemist's own strikes took off the rivals: rivals knocking each other down
 score nothing for the player. Seconds are play time (the game holds still while a card is open). Rules live in `src/leaderboard/score.ts`,
 shared by the game and the server.

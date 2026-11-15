@@ -1,7 +1,7 @@
 import { isStar, type Element } from './spells';
 
 export type Fluid = 'fire' | 'water';
-export type Difficulty = 'facil' | 'normal' | 'dificil' | 'experto';
+export type Difficulty = 'facil' | 'normal' | 'dificil' | 'experto' | 'hardcore';
 
 export interface Tuning {
   speed: number;
@@ -63,6 +63,10 @@ export const TUNING: Record<Difficulty, Tuning> = {
   // Hard pushed well further: relentless, sharp aim well ahead, dodges and walls most strikes, loves the blast;
   // the warning still leaves time to step out.
   experto: { speed: 1.6, cooldown: [1.8, 2.4], warn: 0.55, aimError: 0.04, lead: 0.9, dodge: 0.46, reaction: 0.1, elemental: 0.7, blast: 0.75, blastStar: 0.35, star: 0.4, heal: 0.5, columns: 0.1, draw: 0.5, stagger: 0.6, guard: 0.85, fortress: 0.45, wallCooldown: 3, counter: true, evade: 1, restless: true, punishAfter: 0.6, punishGap: 0.3 },
+  // Hardcore: still the player's limits (never faster than the alchemist walks, every strike warned and drawn in sight);
+  // its edge is drawing: twice as fast as Muy difícil, almost no rest between attacks, combinations nearly always,
+  // a wall against nearly every strike, and no standing still ever goes unpunished.
+  hardcore: { speed: 1.6, cooldown: [1.1, 1.5], warn: 0.5, aimError: 0.03, lead: 1, dodge: 0.5, reaction: 0.09, elemental: 0.75, blast: 0.8, blastStar: 0.45, star: 0.45, heal: 0.55, columns: 0.08, draw: 0.36, stagger: 0.5, guard: 0.95, fortress: 0.6, wallCooldown: 2, counter: true, evade: 1, restless: true, punishAfter: 0.45, punishGap: 0.2 },
 };
 
 /**

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RivalMind, TUNING, type Difficulty, type MindAction, type MindView, type Plan } from '../src/rivalMind';
 import { isStar } from '../src/spells';
 
-const LEVELS: Difficulty[] = ['facil', 'normal', 'dificil', 'experto'];
+const LEVELS: Difficulty[] = ['facil', 'normal', 'dificil', 'experto', 'hardcore'];
 const DT = 1 / 60;
 const SEEDS = 150;
 
@@ -128,7 +128,7 @@ describe('a rival commits to the symbol it draws', () => {
 
 describe('a foe standing still gets hit soon', () => {
   // From the moment the foe stops: the rival notices, draws a square, holds it a moment, the ground warns, it lands.
-  const LIMIT: Record<Difficulty, number> = { facil: 7.2, normal: 5.8, dificil: 4, experto: 3 };
+  const LIMIT: Record<Difficulty, number> = { facil: 7.2, normal: 5.8, dificil: 4, experto: 3, hardcore: 2.5 };
 
   const landings = (level: Difficulty, stopAt: number) => {
     const out: number[] = [];

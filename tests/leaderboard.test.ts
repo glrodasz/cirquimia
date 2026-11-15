@@ -15,7 +15,7 @@ describe('score', () => {
 
   it('refuses impossible matches', () => {
     expect(plausible(0, 'facil', 60_000, 100)).toBe(false); // training
-    expect(plausible(4, 'facil', 60_000, 100)).toBe(false);
+    expect(plausible(5, 'facil', 60_000, 100)).toBe(false);
     expect(plausible(3, 'facil', 60_000, 100)).toBe(true);
     expect(plausible(1, 'imposible', 60_000, 100)).toBe(false);
     expect(plausible(1, 'normal', 60_000, 0)).toBe(false); // the rivals did it all

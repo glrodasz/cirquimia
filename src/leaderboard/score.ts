@@ -12,10 +12,10 @@ export const BOARD_MODES: BoardMode[] = ['duel', 'horde'];
 export const isBoardMode = (v: unknown): v is BoardMode => v === 'duel' || v === 'horde';
 
 /** How much each difficulty multiplies the score. */
-export const LEVEL_FACTOR: Record<Difficulty, number> = { facil: 1, normal: 1.5, dificil: 2, experto: 3 };
+export const LEVEL_FACTOR: Record<Difficulty, number> = { facil: 1, normal: 1.5, dificil: 2, experto: 3, hardcore: 4 };
 export const LEVELS = Object.keys(LEVEL_FACTOR) as Difficulty[];
 export const MIN_RIVALS = 1;
-export const MAX_RIVALS = 3;
+export const MAX_RIVALS = 4;
 
 /**
  * Points come from the damage the alchemist itself dealt, not from how many rivals fell: in a free-for-all
