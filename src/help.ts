@@ -3,8 +3,8 @@ import type { ShapeKind } from './gestures';
 import { hasKeyboard } from './keys';
 import { padEnabled } from './pad';
 import { LANG, langLink, t } from './i18n';
-import { LANGUAGE_NAMES } from './i18n/locale';
-import { bookIcon, circleTabIcon, dropIcon, flameIcon, quillTabIcon } from './icons';
+import { bookIcon, circleTabIcon, dropIcon, flameIcon, globeTabIcon, quillTabIcon } from './icons';
+import { VERSION } from './version';
 import runeShot from './assets/help/rune.webp';
 
 /** A pointing hand like the 👆 emoji, fingertip at the origin: index up, three folded knuckles, thumb out to the left. */
@@ -55,6 +55,7 @@ function bookCard() {
     `<div class="book" tabindex="-1"><button type="button" class="x" aria-label="${t.help.close}">×</button>` +
     `<h2 id="help-title"></h2>` +
     `<div class="pages">${pages}</div>` +
+    `<p class="ver">v${VERSION.split('-')[0]}</p>` +
     `<div class="foot"><div class="tabs">` +
     `<button type="button" class="tab" data-to="symbols">${circleTabIcon()}<span>${t.help.symbolsButton}</span></button>` +
     `<button type="button" class="tab" data-to="guide">${quillTabIcon()}<span>${t.help.howTo}</span></button>` +
@@ -187,21 +188,16 @@ export function mountHelp() {
     for (const tab of tabs) tab.addEventListener('click', () => tab.dataset.to !== current && switchTo(tab.dataset.to as Section));
 
     const langs = overlay.querySelector('.langs')!;
-    for (const lang of ['es', 'en'] as const) {
-      const link = langLink(lang, 'lang', lang.toUpperCase());
-      if (lang === LANG) {
-        link.removeAttribute('aria-label');
-        link.title = LANGUAGE_NAMES[lang];
-        link.addEventListener('click', (e) => e.preventDefault());
-      } else {
-        link.title = link.getAttribute('aria-label')!;
-        // Stay in the book across the reload, on this same section.
-        link.addEventListener('click', () => {
-          try { sessionStorage.setItem(REOPEN, current); } catch { /* private mode: the book just stays closed */ }
-        });
-      }
-      langs.append(link);
-    }
+    // One tab: a globe and the language it switches to.
+    const other = LANG === 'es' ? 'en' : 'es';
+    const link = langLink(other, 'lang', '');
+    link.innerHTML = `${globeTabIcon()}<span>${other.toUpperCase()}</span>`;
+    link.title = link.getAttribute('aria-label')!;
+    // Stay in the book across the reload, on this same section.
+    link.addEventListener('click', () => {
+      try { sessionStorage.setItem(REOPEN, current); } catch { /* private mode: the book just stays closed */ }
+    });
+    langs.append(link);
 
     return switchTo;
   }

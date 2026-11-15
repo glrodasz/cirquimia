@@ -423,7 +423,8 @@ class Rival extends Fighter<Character> {
     const cage = combat.caged(this);
     if (cage && cage !== this.cageSeen) {
       this.cageSeen = cage;
-      this.cageHold = Math.random() < this.tuning.dodge;
+      // A golem never reads it: it just ploughs on through the columns.
+      this.cageHold = !this.golem && Math.random() < this.tuning.dodge;
     }
     const caged = cage !== null && this.cageHold;
     if (caged) {
@@ -686,7 +687,7 @@ export class Combat {
   ) {
     this.hero = new Fighter(heroBody, HERO_INK);
     this.hero.markAsYou();
-    spells.onStrike = (x, z, element, caster, area, cage) => this.strike(x, z, element, caster, area, cage);
+    spells.onStrike = (x, z, element, caster, area, struck) => this.strike(x, z, element, caster, area, struck);
   }
 
   /** The alchemist, as a fighter the rivals can pick. */
@@ -914,6 +915,25 @@ export class Combat {
     return this.cages.find((c) => (c.standing > 0 || c.erupted < c.tips) && c.caster !== f && c.inside.get(f) === true && !c.struck.has(f)) ?? null;
   }
 
+  /**
+   * Rock pillars and star tips are never solid: whoever walks onto one while it stands is struck by it, once
+   * (a star strikes once in all, at a tip or for crossing its ring).
+   */
+  private updateStanding() {
+    if (this.over) return;
+    const fighters = [this.hero, ...this.rivals];
+    this.spells.forEachStanding((x, z, area, element, caster, struck) => {
+      const fromGolem = caster instanceof Rival && caster.golem;
+      for (const f of fighters) {
+        if (f === caster || f.down || struck.has(f)) continue;
+        if (fromGolem && f instanceof Rival && f.golem) continue;
+        if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
+        this.hurt(f, element, caster);
+        struck.add(f);
+      }
+    });
+  }
+
   /** Whoever crosses a standing star's ring, in or out, is struck once more by it (unless that star already hit them). */
   private updateCages() {
     const fighters = [this.hero, ...this.rivals];
@@ -1124,7 +1144,7 @@ export class Combat {
     }
   }
 
-  private strike(x: number, z: number, element: Element, caster: unknown, area: number, cage: StarCage | null = null) {
+  private strike(x: number, z: number, element: Element, caster: unknown, area: number, struck: Set<unknown>) {
     // Everyone against everyone: a strike hits anybody in it except whoever cast it.
     const fromGolem = caster instanceof Rival && caster.golem;
     for (const f of [this.hero, ...this.rivals]) {
@@ -1132,8 +1152,8 @@ export class Combat {
       if (fromGolem && f instanceof Rival && f.golem) continue; // the horde fights as one
       if (Math.hypot(f.position.x - x, f.position.z - z) > area + BODY_RADIUS) continue;
       this.hurt(f, element, caster);
-      // Hit by a tip, it walks off that column freely: crossing the ring will not strike it again.
-      cage?.struck.add(f);
+      // Hit once, it walks off the pillar freely: standing on it (or crossing a star's ring) will not strike again.
+      struck.add(f);
     }
     const boosted = area > PILLAR_AREA * AREA_OF[element] * 1.01;
     for (const d of this.dummies) {
@@ -1188,6 +1208,7 @@ export class Combat {
       r.update(this.camera);
     }
     this.updateDummies(dt);
+    this.updateStanding();
     this.updateCages();
     this.hero.update(this.camera);
     for (const f of all) {
