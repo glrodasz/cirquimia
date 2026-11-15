@@ -487,6 +487,11 @@ const DUMMY_LINGER = 2.5;
 /** Head height of the scarecrow for its bar, and how far above that the "Hit me!" arrow points. */
 const DUMMY_HEAD = 0.7;
 const ARROW_GAP = 6;
+/** Training's guided round speaks for itself, so the scarecrow's "Hit me!" waits for the free practice after it. */
+let hitMeOn = true;
+export function showHitMe(on: boolean) {
+  hitMeOn = on;
+}
 
 /** A training scarecrow: never moves or strikes back, shows the damage of every hit, and tips over at zero. */
 class Dummy extends Fighter<Scarecrow> {
@@ -514,7 +519,7 @@ class Dummy extends Fighter<Scarecrow> {
     this.body.update(dt);
     if (this.down) this.downFor += dt;
     this.update(camera);
-    const visible = !this.down && this.screen(camera, DUMMY_HEAD);
+    const visible = !this.down && this.screen(camera, DUMMY_HEAD) && hitMeOn;
     this.label.place(projected.x, projected.y - ARROW_GAP, visible);
   }
 

@@ -209,12 +209,15 @@ function sweepAround(points: Point[], cx: number, cy: number) {
 /**
  * Recognizes a shape even when it was traced over more than once in the same stroke: each time the
  * stroke comes back to its start after a full lap, the part up to there is tried as the shape.
- * A pentagram never passes its start mid-stroke, so it is still read from the whole stroke.
+ * A pentagram is read from the whole stroke first: a finger that lands a little off its top tip passes near the
+ * start again mid-stroke, and the first "lap" (tip, tip, crossing) would otherwise read as an upside-down triangle.
  */
 export function recognize(raw: Point[]): Recognized | null {
   // A spiral is open and its radius keeps growing, so no closed shape can pass for one (nor it for them).
   const spiral = recognizeSpiral(raw);
   if (spiral) return spiral;
+  const whole = recognizeOutline(raw);
+  if (whole?.kind === 'pentagram') return whole;
   const along = [0];
   for (let i = 1; i < raw.length; i++) along.push(along[i - 1] + dist(raw[i - 1], raw[i]));
   const total = along[along.length - 1];
@@ -222,7 +225,7 @@ export function recognize(raw: Point[]): Recognized | null {
     const shape = recognizeOutline(raw.slice(0, end + 1));
     if (shape) return { ...shape, laps: total / along[end] };
   }
-  return recognizeOutline(raw);
+  return whole;
 }
 
 /**

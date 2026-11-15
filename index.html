@@ -346,24 +346,40 @@
       #guides .guide.fire .stroke { fill: #d9483b; } #guides .guide.fire .finger { stroke: #d9483b; }
       #guides .to-source { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; will-change: transform; }
       #guides .to-source svg { fill: #e0a23c; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); animation: tutorial-bob .9s ease-in-out infinite alternate; }
-      #guides .tip { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: var(--edge-bottom); display: flex; flex-direction: column; gap: 4px; width: max-content; max-width: min(320px, calc(100vw - 24px)); box-sizing: border-box; padding: 7px 6px 8px 11px; border-radius: 12px; background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgba(20,28,24,.25); font: 500 13px/1.3 system-ui, -apple-system, sans-serif; }
-      #guides .tip .top { display: flex; align-items: flex-start; gap: 2px; }
-      #guides .tip .text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-      #guides .tip b { font: 800 14px/1.2 system-ui, -apple-system, sans-serif; }
-      #guides .tip :is(.next, .close) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -5px 0 -6px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; opacity: .6; cursor: pointer; }
-      #guides .tip :is(.next, .close):hover { opacity: 1; background: rgba(127,127,127,.15); }
-      #guides .tip :is(.next, .close) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      #guides .boxes { display: flex; flex-wrap: wrap; gap: 2px; margin: 0; padding: 0; list-style: none; }
-      #guides .boxes li { position: relative; width: 19px; height: 19px; border-radius: 6px; box-shadow: inset 0 0 0 1.2px rgba(127,127,127,.45); }
+      /* Training's sheet of circles: a page of the grimoire rising from the bottom edge (its foot runs off screen), the
+         symbols centred level with the stick (or the keys); same size all the time. */
+      #guides .tip { --mid: calc(var(--edge-bottom) + 58px); --sink: 26px; position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(0px - var(--sink)); display: flex; flex-direction: column; gap: 6px; width: min(272px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px max(calc(var(--sink) + 12px), calc(var(--mid) - 64px + var(--sink))) 14px; background: var(--g-paper); color: var(--g-ink); box-shadow: var(--g-rule), 0 -3px 14px rgba(20,28,24,.3); font-family: var(--g-font); }
+      @media (min-width: 600px) and (min-height: 800px) { #guides .tip { --mid: calc(var(--edge-bottom) + 70px); } }
+      @media (pointer: fine) { #guides .tip { --mid: calc(var(--edge-bottom) + 37px); } }
+      .has-pad #guides .tip { width: min(272px, calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - 134px)); }
+      @media (min-width: 600px) and (min-height: 800px) { .has-pad #guides .tip { width: 300px; } }
+      @media (max-width: 420px) { #guides .tip b { font-size: 15px; letter-spacing: .01em; } #guides .tip { padding-left: 11px; padding-right: 8px; } }
+      #guides .tip .top { display: flex; align-items: center; gap: 2px; height: 22px; }
+      #guides .tip b { flex: 1; min-width: 0; color: var(--g-red); font: 600 17px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #guides .tip :is(.reset, .fold) { pointer-events: auto; flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -4px -2px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--g-ink); opacity: .65; cursor: pointer; }
+      #guides .tip .reset[hidden] { display: none; }
+      #guides .tip :is(.reset, .fold):hover { opacity: 1; background: rgba(31,26,21,.08); }
+      #guides .tip :is(.reset, .fold) svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+      #guides .boxes { display: grid; grid-template-columns: repeat(5, minmax(0, 46px)); gap: 7px; justify-content: space-between; margin: 0; padding: 3px 0 0; list-style: none; }
+      #guides .boxes li { position: relative; aspect-ratio: 1; color: var(--g-ink); box-shadow: inset 0 0 0 1px rgba(31,26,21,.45); }
       #guides .boxes li svg { width: 100%; height: 100%; display: block; }
+      #guides .tip .fold svg { transition: transform .2s; }
+      #guides .tip.folded .fold svg { transform: rotate(180deg); }
+      #guides .tip.folded .boxes { display: none; }
+      #guides .tip.folded { padding-bottom: calc(var(--sink) + 8px); }
       #guides .boxes .glyph { fill: currentColor; opacity: .55; }
-      #guides .boxes li.now { box-shadow: inset 0 0 0 2px #e0a23c; }
+      #guides .boxes li.now { box-shadow: inset 0 0 0 2px var(--g-red); }
       #guides .boxes li.now .glyph { opacity: 1; }
-      #guides .boxes li.tick { background: #4fbf63; box-shadow: none; }
-      #guides .boxes li.tick .glyph { fill: #fff; opacity: .9; }
-      #guides .boxes li.tick::after { content: '✓'; position: absolute; right: -3px; bottom: -4px; width: 12px; height: 12px; border-radius: 50%; background: #2c6a36; color: #fff; font: 800 8px/12px system-ui, sans-serif; text-align: center; }
-      #guides .boxes li[data-n]::before { content: attr(data-n); position: absolute; z-index: 1; top: -7px; right: -6px; min-width: 15px; height: 13px; padding: 0 3px; box-sizing: border-box; border-radius: 7px; background: #c8372d; color: #fff; font: 800 9px/13px system-ui, -apple-system, sans-serif; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.35); }
-      #guides .boxes { padding-top: 3px; }
+      #guides .boxes li.tick { background: var(--g-green); box-shadow: none; }
+      #guides .boxes li.tick .glyph { fill: var(--g-paper); opacity: .95; }
+      #guides .boxes li.tick::after { content: '✓'; position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px; border-radius: 50%; background: var(--g-ink); color: var(--g-paper); font: 800 9px/15px system-ui, sans-serif; text-align: center; }
+      #guides .boxes li[data-n]::before { content: attr(data-n); position: absolute; z-index: 1; top: -7px; right: -6px; min-width: 15px; height: 13px; padding: 0 3px; box-sizing: border-box; background: var(--g-red); color: var(--g-paper); font: 700 10px/13px var(--g-font); font-variant-numeric: lining-nums; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+      /* What to do, said in a speech bubble next to where to do it (the guide, the scarecrow, the alchemist). */
+      #guides .say { position: absolute; left: 0; top: 0; max-width: min(250px, calc(100vw - 16px)); width: max-content; box-sizing: border-box; padding: 5px 11px 6px; background: var(--g-paper); color: var(--g-ink); border: 1px solid rgba(31,26,21,.75); box-shadow: 0 3px 10px rgba(20,28,24,.28); font: 500 16px/1.22 var(--g-font); text-align: center; will-change: transform; pointer-events: none; }
+      #guides .say em { font-style: normal; font-weight: 700; color: var(--g-red); font-variant-caps: small-caps; letter-spacing: .04em; }
+      #guides .say .nub { position: absolute; left: var(--nub, 50%); width: 10px; height: 10px; margin-left: -5px; background: var(--g-paper); transform: rotate(45deg); }
+      #guides .say[data-side="above"] .nub { bottom: -6px; box-shadow: inset -1px -1px 0 rgba(31,26,21,.75); }
+      #guides .say[data-side="below"] .nub { top: -6px; box-shadow: inset 1px 1px 0 rgba(31,26,21,.75); }
       @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #guides .guide .stroke { fill: #7fb2f0; } }
       :root[data-theme="dark"] #guides .guide .stroke { fill: #7fb2f0; }
       /* A watermark, never a control: clear at first, then it fades back and stays out of the way. */
@@ -406,8 +422,6 @@
       /* Phones: clear of the stick on the left. */
       .has-pad #tutorial .tip { max-width: min(300px, calc(100vw - max(12px, env(safe-area-inset-left)) - 152px)); }
       @media (min-width: 600px) and (min-height: 800px) { .has-pad #tutorial .tip { max-width: 320px; } }
-      .has-pad #guides .tip { max-width: calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - 130px); }
-      @media (min-width: 600px) and (min-height: 800px) { .has-pad #guides .tip { max-width: 340px; } }
       /* A note after the tutorial match (fire or water still to charge) sits on top of the match time, not over it. */
       @media (max-width: 699.98px) { body:has(#match-time:not([hidden])) #tutorial .tip { bottom: calc(var(--edge-bottom) + 44px); } }
       #fps { position: fixed; top: calc(var(--edge-top) + 50px); left: max(12px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hud-border); background: var(--hud-bg); color: var(--hud-fg); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 600 13px/1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
