@@ -26,6 +26,8 @@ export interface Entry {
   mode: BoardMode;
   /** Horde: the wave reached (0 in a duel). */
   wave: number;
+  /** Horde: golems brought down (null in a duel, and for horde scores saved before they were counted). */
+  kills: number | null;
 }
 
 export interface Submitted {
@@ -41,6 +43,7 @@ export interface Submitted {
   category: Category;
   mode: BoardMode;
   wave: number;
+  kills: number | null;
   rank: Record<Period, number>;
   total: Record<Period, number>;
   /** The score's share link, whose preview is its card. */
@@ -114,14 +117,15 @@ async function hints() {
   };
 }
 
-/** Saves a won match (or a horde's wave reached, `wave`); without initials (`''`) it is saved as anonymous. */
-export async function submitScore(runId: string, initials: string, durationMs: number, damage: number, wave?: number) {
+/** Saves a won match (or a horde's wave reached, `wave`, and golems brought down, `kills`); without initials (`''`) it is saved as anonymous. */
+export async function submitScore(runId: string, initials: string, durationMs: number, damage: number, wave?: number, kills?: number) {
   const body = {
     runId,
     initials: initials || undefined,
     durationMs,
     damage,
     wave,
+    kills,
     hints: await hints(),
     screen: `${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 100) / 100}`,
     locale: LANG,

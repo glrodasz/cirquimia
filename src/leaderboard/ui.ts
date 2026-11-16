@@ -42,7 +42,7 @@ export interface Leaderboard {
     meadow?: Promise<CanvasImageSource | null>,
   ): void;
   /** The horde's card: the wave reached and how long it took, saved to the horde's boards (no share card yet). */
-  fillHordeEnd(slots: EndSlots, runs: Runs, result: { wave: number; durationMs: number; damage: number }): void;
+  fillHordeEnd(slots: EndSlots, runs: Runs, result: { wave: number; durationMs: number; damage: number; kills: number }): void;
 }
 
 export function mountLeaderboard(): Leaderboard {
@@ -93,7 +93,7 @@ export function mountLeaderboard(): Leaderboard {
       `<span class="pos${medal}">${place}</span>` +
       `<span class="who">${esc(e.initials)}${mine.has(e.id) ? ` <i>${t.rank.mine}</i>` : ''}</span>` +
       (e.mode === 'horde'
-        ? `<span class="pts wave">${t.rank.wave(e.wave)}</span><span class="meta">⏱ ${t.rank.hordeTime(formatTime(e.durationMs))} · ${t.rank.category[e.category] ?? ''}</span>`
+        ? `<span class="pts wave">${t.rank.wave(e.wave)}</span><span class="meta">⏱ ${t.rank.hordeTime(formatTime(e.durationMs))}${e.kills !== null ? ` · ${t.rank.golems(e.kills)}` : ''} · ${t.rank.category[e.category] ?? ''}</span>`
         : `<span class="pts">${e.score.toLocaleString(LANG)}</span><span class="meta">${metaLine(e, true)} · ${t.rank.category[e.category] ?? ''}</span>`) +
       `</li>`
     );
@@ -156,17 +156,16 @@ export function mountLeaderboard(): Leaderboard {
     runs: Runs,
     match: { rivals: number; difficulty: Difficulty; durationMs: number; damage: number },
     meadow?: Promise<CanvasImageSource | null>,
-    /** Horde: the wave reached. It goes to the horde's boards, and has no share card yet. */
-    wave?: number,
+    /** Horde: the wave reached and the golems brought down. It goes to the horde's boards, and has no share card yet. */
+    horde?: { wave: number; kills: number },
   ) => {
-    const horde = wave !== undefined;
     const mode: BoardMode = horde ? 'horde' : 'duel';
-    const data: ShareData = { ...match, score: horde ? hordeScore(wave, match.durationMs) : scoreFor(match.damage, match.difficulty, match.durationMs) };
+    const data: ShareData = { ...match, score: horde ? hordeScore(horde.wave, match.durationMs) : scoreFor(match.damage, match.difficulty, match.durationMs) };
     slot.hidden = false;
-    shared.hidden = horde;
+    shared.hidden = !!horde;
     slot.innerHTML =
       (horde
-        ? `<div class="pts wave"><b>${t.rank.wave(wave)}</b></div><div class="meta">⏱ ${formatTime(match.durationMs)}</div>`
+        ? `<div class="pts wave"><b>${t.rank.wave(horde.wave)}</b></div><div class="meta">⏱ ${formatTime(match.durationMs)}</div>`
         : `<div class="pts"><b>${data.score.toLocaleString(LANG)}</b> ${t.rank.points(data.score)}</div><div class="meta">${metaLine(match)}</div>`) +
       `<form class="sign" novalidate><label><span>${t.rank.initials}</span>` +
       `<input name="initials" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="ABCD" required></label>` +
@@ -295,7 +294,7 @@ export function mountLeaderboard(): Leaderboard {
         settle(null);
         return false;
       }
-      const res = await submitScore(id, savedInitials(), match.durationMs, match.damage, wave);
+      const res = await submitScore(id, savedInitials(), match.durationMs, match.damage, horde?.wave, horde?.kills);
       if (failed(res)) {
         form.hidden = true;
         say(res === 'too-many' ? t.rank.tooMany : res === 'rejected' ? t.rank.rejected : t.rank.unavailable);
@@ -427,6 +426,6 @@ export function mountLeaderboard(): Leaderboard {
     },
     show: (p, m) => show(p, null, m),
     fillEnd: (slots, runs, match, meadow) => fillEnd(slots, runs, match, meadow),
-    fillHordeEnd: (slots, runs, { wave, durationMs, damage }) => fillEnd(slots, runs, { rivals: 0, difficulty: 'normal', durationMs, damage }, undefined, wave),
+    fillHordeEnd: (slots, runs, { wave, durationMs, damage, kills }) => fillEnd(slots, runs, { rivals: 0, difficulty: 'normal', durationMs, damage }, undefined, { wave, kills }),
   };
 }

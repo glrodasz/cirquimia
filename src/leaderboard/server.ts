@@ -113,6 +113,8 @@ const MIGRATIONS = [
   "ALTER TABLE scores ADD COLUMN mode TEXT NOT NULL DEFAULT 'duel'",
   'ALTER TABLE scores ADD COLUMN wave INTEGER NOT NULL DEFAULT 0',
   'CREATE INDEX IF NOT EXISTS scores_mode ON scores (mode, score DESC, created_at)',
+  // Horde: golems the alchemist brought down (NULL for scores saved before it was counted, and for duels).
+  'ALTER TABLE scores ADD COLUMN kills INTEGER',
 ];
 
 let ready: Promise<unknown> | null = null;
@@ -198,6 +200,7 @@ interface Row {
   created_at: number;
   mode: string;
   wave: number;
+  kills: number | null;
 }
 
 const entry = (r: Row) => ({
@@ -212,6 +215,7 @@ const entry = (r: Row) => ({
   at: r.created_at,
   mode: r.mode,
   wave: r.wave,
+  kills: r.kills ?? null,
 });
 
 /**
@@ -223,7 +227,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   if (!s) return fail('unavailable', 503);
   const body = await readBody(ctx.request);
   if (!body) return fail('bad-request', 400);
-  const { runId, initials, durationMs, damage, wave } = body;
+  const { runId, initials, durationMs, damage, wave, kills } = body;
   if (typeof runId !== 'string' || runId.length > 64) return fail('bad-request', 400);
   const anonymous = initials === undefined || initials === null || initials === '';
   if (!anonymous && !validInitials(initials)) return fail('bad-initials', 400);
@@ -240,7 +244,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   if (!run || run.used || now - run.created_at > RUN_TTL_MS) return fail('unknown-run', 409);
   const mode: BoardMode = isBoardMode(run.mode) ? run.mode : 'duel';
   if (!isDifficulty(run.difficulty)) return fail('implausible', 422);
-  if (mode === 'horde' ? !plausibleHorde(wave, durationMs, damage) : !plausible(run.rivals, run.difficulty, durationMs, damage)) return fail('implausible', 422);
+  if (mode === 'horde' ? !plausibleHorde(wave, durationMs, damage, kills ?? undefined) : !plausible(run.rivals, run.difficulty, durationMs, damage)) return fail('implausible', 422);
   const duration = Math.round(durationMs as number);
   if (now - run.created_at + CLOCK_SLACK_MS < duration) return fail('implausible', 422);
 
@@ -259,6 +263,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
   const device = classifyDevice(ua, hints);
   const dealt = damage as number;
   const reached = mode === 'horde' ? (wave as number) : 0;
+  const downed = mode === 'horde' && Number.isInteger(kills) ? (kills as number) : null;
   const score = mode === 'horde' ? hordeScore(reached, duration) : scoreFor(dealt, run.difficulty, duration);
   const day = dayOf(now);
   const country = (ctx.request as Request & { cf?: { country?: string } }).cf?.country ?? null;
@@ -266,8 +271,8 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
 
   const inserted = await s.db
     .prepare(
-      `INSERT INTO scores (share_id, run_id, initials, anonymous, score, duration_ms, damage, rivals, difficulty, seed, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at, mode, wave)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO scores (share_id, run_id, initials, anonymous, score, duration_ms, damage, rivals, difficulty, seed, category, os, device, browser, model, os_version, screen, locale, user_agent, country, ip_hash, day, created_at, mode, wave, kills)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .bind(
       shareId,
@@ -295,6 +300,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       now,
       mode,
       reached,
+      downed,
     )
     .first<{ id: number }>();
 
@@ -329,6 +335,7 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
       category: device.category,
       mode,
       wave: reached,
+      kills: downed,
       rank: { today: today?.rank ?? 1, week: week?.rank ?? 1, month: month?.rank ?? 1, all: all?.rank ?? 1 },
       total: { today: today?.total ?? 1, week: week?.total ?? 1, month: month?.total ?? 1, all: all?.total ?? 1 },
       share: `${new URL(ctx.request.url).origin}/s/${shareId}`,
@@ -398,7 +405,7 @@ export async function listScores(ctx: Ctx): Promise<Response> {
         : ['created_at >= ?', [period === 'week' ? weekStart(now) : monthStart(now)]];
   const where = `mode = ? AND ${when}`;
   const args = [mode, ...whenArgs];
-  const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at, mode, wave';
+  const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at, mode, wave, kills';
   const order = 'ORDER BY score DESC, created_at ASC LIMIT ?';
   const { results } = await s.prepare(`SELECT ${columns} FROM scores WHERE ${where} ${order}`).bind(...args, BOARD_SIZE).all<Row>();
 
