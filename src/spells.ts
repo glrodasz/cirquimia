@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { charge, clack, healChord, rumble, strike, vineCreak, wallRise } from './audio';
 import { heightAt } from './noise';
+import { alignToGround, groundNormal, seatDepth } from './seat';
 import type { Obstacle } from './meadow';
 
 // Circle = defence: a temporary arc of earth and rock that shields the alchemist.
@@ -169,7 +170,11 @@ const easeIn = (t: number) => t * t;
 
 interface Piece {
   mesh: THREE.Mesh;
-  ground: number; // y of the terrain under the piece
+  /** Sits on the ground at the piece's foot, turned to the terrain's normal: the piece rises along its +Y. */
+  socket: THREE.Object3D;
+  /** The piece's own geometry already follows the terrain (wall segments): never turned or seated. */
+  flat?: boolean;
+  ground: number; // local y of the base once risen (0, or a little below to bed it into a curving slope)
   height: number; // full height above ground once risen
   delay: number; // s after the effect starts rising
   geo?: THREE.BufferGeometry; // owned geometry, disposed with the effect
@@ -195,12 +200,40 @@ abstract class Effect {
     (mesh.material as THREE.MeshLambertMaterial).color.set(color);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    const ground = heightAt(x, z);
-    mesh.position.set(x, ground - height, z);
+    const socket = new THREE.Object3D();
+    socket.position.set(x, heightAt(x, z), z);
+    socket.add(mesh);
+    mesh.position.y = -height;
     mesh.visible = false;
-    this.group.add(mesh);
-    this.pieces.push({ mesh, ground, height, delay });
+    this.group.add(socket);
+    this.pieces.push({ mesh, socket, ground: 0, height, delay });
     return mesh;
+  }
+
+  /**
+   * Once built: stands every piece on the ground under its foot, perpendicular to the terrain there,
+   * and beds its base just deep enough that no edge floats over a dip or a slope, so it always breaks
+   * out of the ground cleanly instead of getting stuck half inside a bank.
+   */
+  protected seat() {
+    const box = new THREE.Box3();
+    const normal = new THREE.Vector3();
+    for (const p of this.pieces) {
+      if (p.flat) continue;
+      const { mesh, socket } = p;
+      const { x, z } = socket.position;
+      const geo = mesh.geometry;
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      box.copy(geo.boundingBox!);
+      const r = Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z) * Math.max(mesh.scale.x, mesh.scale.z);
+      groundNormal(x, z, r, normal);
+      socket.position.y = heightAt(x, z);
+      alignToGround(socket, normal);
+      // A piece leaning off the normal lifts one edge of its base by about r·sin(lean).
+      const lean = Math.min(1, Math.hypot(Math.sin(mesh.rotation.x), Math.sin(mesh.rotation.z)));
+      p.ground = -(seatDepth(x, z, r, normal) + r * lean);
+      mesh.position.y = p.ground - p.height * 1.15;
+    }
   }
 
   update(dt: number) {
@@ -215,7 +248,7 @@ abstract class Effect {
       else if (t < sinkAt) up = 1;
       else up = 1 - easeIn(Math.min(1, (t - sinkAt - p.delay * 0.5) / this.sink));
       p.mesh.visible = up > 0.01;
-      // Sink a little past full depth so the base never floats above a slope.
+      // Rises along the socket's up, i.e. straight out of the terrain; sinks a little past full depth when down.
       p.mesh.position.y = p.ground - (1 - up) * p.height * 1.15;
     }
     this.solid = t >= 0 && t < sinkAt;
@@ -341,11 +374,14 @@ class EarthWall extends Effect {
     (mesh.material as THREE.MeshLambertMaterial).color.set(color);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.position.set(cx, -height, cz);
+    mesh.position.y = -height;
     mesh.visible = false;
-    this.group.add(mesh);
-    // The geometry already follows the terrain, so its "ground" is 0.
-    this.pieces.push({ mesh, ground: 0, height, delay, geo });
+    // The geometry already follows the terrain (local to cx, cz, absolute y), so its socket is level and its "ground" is 0.
+    const socket = new THREE.Object3D();
+    socket.position.set(cx, 0, cz);
+    socket.add(mesh);
+    this.group.add(socket);
+    this.pieces.push({ mesh, socket, flat: true, ground: 0, height, delay, geo });
     return mesh;
   }
 }
@@ -454,14 +490,14 @@ class PillarStrike extends Effect {
       // Grow the cluster about its centre: spread, width and height alike.
       for (const p of this.pieces) {
         const m = p.mesh;
-        m.position.x = x + (m.position.x - x) * scale;
-        m.position.z = z + (m.position.z - z) * scale;
+        p.socket.position.x = x + (p.socket.position.x - x) * scale;
+        p.socket.position.z = z + (p.socket.position.z - z) * scale;
         m.scale.multiplyScalar(scale);
         (m.userData.base as THREE.Vector3 | undefined)?.multiplyScalar(scale);
-        p.ground = heightAt(m.position.x, m.position.z);
         p.height *= scale;
       }
     }
+    this.seat();
     if (ink) {
       // A hint of the caster's ink in the rock, flame or water.
       tmpColor.set(ink);
@@ -504,13 +540,12 @@ class PillarStrike extends Effect {
   /** `tall` shortens the whole cluster, e.g. for the pentagram's lighter strikes. */
   private buildPillars(from: THREE.Vector3, tall = 1) {
     const { x, z } = this;
-    // The pillars lean away from the caster, as if driven up from underneath at an angle.
+    // The pillars break straight out of the ground (perpendicular to it, see seat()), their faces turned to the caster.
     const away = Math.atan2(x - from.x, z - from.z);
-    const lean = THREE.MathUtils.randFloat(0.3, 0.45);
 
     const main = this.addPiece(pillarGeo, ROCK[Math.floor(Math.random() * ROCK.length)], x, z, 0.46 * tall, 0);
     main.scale.set(0.17, 0.46 * tall, 0.17);
-    main.rotation.set(lean, away + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
+    main.rotation.set(0, away + THREE.MathUtils.randFloatSpread(0.3), 0, 'YXZ');
 
     const small = THREE.MathUtils.randInt(4, 6);
     for (let i = 0; i < small; i++) {
@@ -521,8 +556,8 @@ class PillarStrike extends Effect {
       tmpColor.set((Math.random() < 0.6 ? ROCK : EARTH)[Math.floor(Math.random() * 3)]);
       const mesh = this.addPiece(pillarGeo, tmpColor, x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0.02, 0.07));
       mesh.scale.set(w, h, w);
-      // Small pillars splay outward from the main one.
-      mesh.rotation.set(THREE.MathUtils.randFloat(0.25, 0.55), a + THREE.MathUtils.randFloatSpread(0.4), 0, 'YXZ');
+      // Small pillars barely splay from the main one, so they still read as straight out of the ground.
+      mesh.rotation.set(THREE.MathUtils.randFloat(0.04, 0.12), a + THREE.MathUtils.randFloatSpread(0.4), 0, 'YXZ');
     }
   }
 
@@ -553,7 +588,7 @@ class PillarStrike extends Effect {
       const d = PILLAR_AREA * THREE.MathUtils.randFloat(0.45, 0.95);
       const h = THREE.MathUtils.randFloat(0.14, 0.3);
       const w = THREE.MathUtils.randFloat(0.06, 0.1);
-      add(x + Math.sin(a) * d, z + Math.cos(a) * d, w, h, palette[i % palette.length], THREE.MathUtils.randFloat(0.02, 0.08), THREE.MathUtils.randFloat(0.15, 0.4), a);
+      add(x + Math.sin(a) * d, z + Math.cos(a) * d, w, h, palette[i % palette.length], THREE.MathUtils.randFloat(0.02, 0.08), THREE.MathUtils.randFloat(0.06, 0.18), a);
     }
   }
 
@@ -568,7 +603,7 @@ class PillarStrike extends Effect {
       const geo = tendrilGeo(h, THREE.MathUtils.randFloat(0.035, 0.06), Math.random() < 0.5 ? 1 : -1, i === 0 ? 0.016 : 0.011);
       const mesh = this.addPiece(geo, VINE[i % VINE.length], x + Math.sin(a) * d, z + Math.cos(a) * d, h, THREE.MathUtils.randFloat(0, 0.08));
       this.pieces[this.pieces.length - 1].geo = geo;
-      mesh.rotation.set(THREE.MathUtils.randFloat(0.1, 0.3), a, 0, 'YXZ'); // leaning out, away from the middle
+      mesh.rotation.set(THREE.MathUtils.randFloat(0.04, 0.14), a, 0, 'YXZ'); // leaning a touch out, away from the middle
       mesh.userData.base = mesh.scale.clone();
       mesh.userData.phase = Math.random() * 10;
       for (let k = 0; k < 2; k++) {
