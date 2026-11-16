@@ -9,7 +9,7 @@
 import { classifyDevice, type DeviceHints } from './device';
 import { newShareId } from './shareId';
 import { validSeed } from './challengeLink';
-import { CATEGORIES_OF, isDeviceFilter, ANONYMOUS_INITIALS, dayOf, monthStart, weekStart, hordeScore, isBoardMode, isDifficulty, plausible, plausibleHorde, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS, type BoardMode } from './score';
+import { isDeviceFilter, ANONYMOUS_INITIALS, dayOf, monthStart, weekStart, hordeScore, isBoardMode, isDifficulty, plausible, plausibleHorde, scoreFor, validInitials, MIN_RIVALS, MAX_RIVALS, type BoardMode } from './score';
 
 /** The slice of Cloudflare's D1 API used here. */
 export interface D1Result<T> {
@@ -381,7 +381,7 @@ export function parseMine(raw: string | null): number[] {
 }
 
 /**
- * GET /api/scores?period=today|week|month|all[&mode=duel|horde][&device=mobile|desktop][&mine=ids] → the top BOARD_SIZE of the board, plus `me`: the best of
+ * GET /api/scores?period=today|week|month|all[&mode=duel|horde][&device=mobile|tablet|desktop][&mine=ids] → the top BOARD_SIZE of the board, plus `me`: the best of
  * the player's own scores on that board with its place, when it is below the top. Days, weeks (from Monday) and
  * months are UTC. Reads only, so the board costs no D1 writes.
  */
@@ -403,11 +403,11 @@ export async function listScores(ctx: Ctx): Promise<Response> {
       : period === 'today'
         ? ['day = ?', [day]]
         : ['created_at >= ?', [period === 'week' ? weekStart(now) : monthStart(now)]];
-  // Phones and tablets count as mobile; leaving `device` out (or `all`) keeps every score.
+  // Only phones, tablets or computers; leaving `device` out (or `all`) keeps every score.
   const askedDevice = url.searchParams.get('device');
-  const kinds = isDeviceFilter(askedDevice) && askedDevice !== 'all' ? CATEGORIES_OF[askedDevice] : null;
-  const where = `mode = ? AND ${when}${kinds ? ` AND category IN (${kinds.map(() => '?').join(',')})` : ''}`;
-  const args = [mode, ...whenArgs, ...(kinds ?? [])];
+  const kind = isDeviceFilter(askedDevice) && askedDevice !== 'all' ? askedDevice : null;
+  const where = `mode = ? AND ${when}${kind ? ' AND category = ?' : ''}`;
+  const args = [mode, ...whenArgs, ...(kind ? [kind] : [])];
   const columns = 'id, initials, score, duration_ms, damage, rivals, difficulty, category, created_at, mode, wave, kills';
   const order = 'ORDER BY score DESC, created_at ASC LIMIT ?';
   const { results } = await s.prepare(`SELECT ${columns} FROM scores WHERE ${where} ${order}`).bind(...args, BOARD_SIZE).all<Row>();

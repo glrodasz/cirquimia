@@ -36,7 +36,7 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
 - `PATCH /api/scores {runId, initials}` renames the score just saved (leaving the initials line on the victory card, or Enter; the run id is the
   proof, only within an hour of saving) and clears `anonymous`. One row written, none when the name is unchanged. The
   new initials also become the device's handle for the next matches.
-- `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC.
+- `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC. `&device=mobile|tablet|desktop` keeps only phones, tablets or computers (the ranking's Todos / Móvil / Tablet / Escritorio filter); the player's place is counted on that filtered board.
 
 The board shows only Mobile / Tablet / Desktop; each row also stores OS, device (iPhone, iPad, Android
 phone/tablet, Mac, PC…), browser, model and OS version where the browser offers them, screen, language,
