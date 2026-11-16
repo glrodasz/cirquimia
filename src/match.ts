@@ -170,11 +170,12 @@ export function mountMatchControls(match: MatchControls) {
   battleBtn.hidden = true;
   stopPointer(battleBtn);
   battleBtn.addEventListener('click', () => start(battle, match.rivals, match.difficulty, battleBtn));
+  box.append(battleBtn);
 
   const toast = document.createElement('div');
   toast.id = 'match-toast';
   toast.setAttribute('role', 'status');
-  document.body.append(box, battleBtn, toast);
+  document.body.append(box, toast);
 
   const render = () => {
     const training = match.mode === 'training';
