@@ -37,4 +37,16 @@ describe('horde waves', () => {
     expect(plausibleHorde(5, 5_000, cleared)).toBe(false); // too fast for that much health
     expect(plausibleHorde(5.5, 240_000, cleared)).toBe(false);
   });
+
+  it('counts the golems brought down only when they fit the waves and the damage', () => {
+    const cleared = golemsThrough(4); // 11 golems down to reach wave 5
+    const damage = cleared * GOLEM_HP + 2 * GOLEM_HP; // and two more of wave 5
+    expect(plausibleHorde(5, 240_000, damage, cleared + 2)).toBe(true);
+    expect(plausibleHorde(5, 240_000, damage)).toBe(true); // older games send no count
+    expect(plausibleHorde(5, 240_000, damage, cleared - 1)).toBe(false); // fewer than the cleared waves
+    expect(plausibleHorde(5, 240_000, damage, cleared + 3)).toBe(false); // more than the damage could fell
+    expect(plausibleHorde(5, 240_000, golemsThrough(5) * GOLEM_HP, golemsThrough(5))).toBe(true); // fell with the last one
+    expect(plausibleHorde(5, 240_000, golemsThrough(5) * GOLEM_HP + 2, golemsThrough(5) + 1)).toBe(false); // past the wave
+    expect(plausibleHorde(5, 240_000, damage, 12.5)).toBe(false);
+  });
 });

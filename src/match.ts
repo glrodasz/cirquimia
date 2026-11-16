@@ -407,7 +407,7 @@ export function mountMatchControls(match: MatchControls) {
      * `suggestTraining`: a lost first real match also offers training (no rivals), beside playing again.
      * `horde`: the wave reached and how long it took, for the horde's own card.
      */
-    showEnd(outcome: Outcome, suggestTraining = false, horde?: { wave: number; durationMs: number }) {
+    showEnd(outcome: Outcome, suggestTraining = false, horde?: { wave: number; durationMs: number; kills: number }) {
       for (const slot of [scored, shared]) {
         slot.hidden = true;
         slot.innerHTML = '';
@@ -420,7 +420,7 @@ export function mountMatchControls(match: MatchControls) {
       end.className = horde ? 'defeat horde' : won ? 'victory' : 'defeat';
       end.querySelector('h2')!.textContent = horde ? t.match.hordeOver : won ? t.match.victory : t.match.defeat;
       const line = end.querySelector('p')!;
-      if (horde) line.innerHTML = t.match.hordeReached(horde.wave, formatTime(horde.durationMs));
+      if (horde) line.innerHTML = t.match.hordeReached(horde.wave, formatTime(horde.durationMs), horde.kills);
       else line.textContent = won ? t.match.won(n, level) : t.match.lost(level);
       end.setAttribute('aria-label', horde ? t.match.hordeOver : won ? t.match.victoryAria : t.match.defeat);
       tip.hidden = won || !suggestTraining;

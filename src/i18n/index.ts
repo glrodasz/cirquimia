@@ -152,7 +152,8 @@ const es = {
     waveLeft: (n: number) => (n === 1 ? 'queda 1' : `quedan ${n}`),
     waveCleared: '¡Oleada superada!',
     hordeOver: 'Fin de la horda',
-    hordeReached: (wave: number, time: string) => (wave <= 1 ? 'Caíste en la primera oleada' : `Llegaste a la oleada <b>${wave}</b> en ${time}`),
+    hordeReached: (wave: number, time: string, kills: number) =>
+      (wave <= 1 ? 'Caíste en la primera oleada' : `Llegaste a la oleada <b>${wave}</b> en ${time}`) + (kills ? ` · <b>${kills}</b> ${kills === 1 ? 'golem derrotado' : 'golems derrotados'}` : ''),
   },
   rank: {
     button: 'Ranking',
@@ -205,6 +206,7 @@ const es = {
     horde: 'Horda',
     wave: (n: number) => `Oleada ${n}`,
     hordeTime: (time: string) => `llegó en ${time}`,
+    golems: (n: number) => (n === 1 ? '1 golem' : `${n} golems`),
     hordeFirst: 'Supera la primera oleada para entrar al ranking.',
     mine: 'Tuyo',
   },
@@ -538,7 +540,8 @@ const en: Strings = {
     waveLeft: (n) => `${n} left`,
     waveCleared: 'Wave cleared!',
     hordeOver: 'The horde got you',
-    hordeReached: (wave, time) => (wave <= 1 ? 'You fell in the first wave' : `You reached wave <b>${wave}</b> in ${time}`),
+    hordeReached: (wave, time, kills) =>
+      (wave <= 1 ? 'You fell in the first wave' : `You reached wave <b>${wave}</b> in ${time}`) + (kills ? ` · <b>${kills}</b> ${kills === 1 ? 'golem defeated' : 'golems defeated'}` : ''),
   },
   rank: {
     button: 'Leaderboard',
@@ -591,6 +594,7 @@ const en: Strings = {
     horde: 'Horde',
     wave: (n) => `Wave ${n}`,
     hordeTime: (time) => `reached in ${time}`,
+    golems: (n) => (n === 1 ? '1 golem' : `${n} golems`),
     hordeFirst: 'Clear the first wave to enter the leaderboard.',
     mine: 'Yours',
   },

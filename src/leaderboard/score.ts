@@ -65,8 +65,9 @@ export const MAX_HORDE_SECONDS = 2.5 * 60 * 60;
  * Whether a horde run could really have happened: wave `wave` reached (every wave before it cleared, so from 2 on)
  * after `durationMs` of play, with `damage` dealt by the alchemist. Golems never heal and never hurt each other,
  * so the damage is at least every cleared golem's health, and at most that plus the wave in play.
+ * `kills` (golems brought down) is checked when sent; games from before it was counted leave it out.
  */
-export function plausibleHorde(wave: unknown, durationMs: unknown, damage: unknown): boolean {
+export function plausibleHorde(wave: unknown, durationMs: unknown, damage: unknown, kills?: unknown): boolean {
   if (!Number.isInteger(wave) || (wave as number) < 2 || (wave as number) > MAX_WAVE) return false;
   if (typeof durationMs !== 'number' || !Number.isFinite(durationMs)) return false;
   if (!Number.isInteger(damage)) return false;
@@ -74,7 +75,19 @@ export function plausibleHorde(wave: unknown, durationMs: unknown, damage: unkno
   const most = golemsThrough(wave as number) * GOLEM_HP;
   const seconds = durationMs / 1000;
   if (seconds < MIN_SECONDS || seconds > MAX_HORDE_SECONDS) return false;
-  return (damage as number) >= cleared - 2 && (damage as number) <= most + 2 && cleared <= seconds * MAX_DAMAGE_PER_SECOND;
+  if ((damage as number) < cleared - 2 || (damage as number) > most + 2 || cleared > seconds * MAX_DAMAGE_PER_SECOND) return false;
+  return kills === undefined || plausibleKills(wave as number, damage as number, kills);
+}
+
+/**
+ * Golems brought down in a horde that reached wave `wave`: every golem of the cleared waves, plus some of the wave in
+ * play (all of it only if the alchemist fell on the same frame as its last golem). Only the alchemist hurts golems and
+ * they never heal, so each one down took GOLEM_HP of the damage dealt.
+ */
+export function plausibleKills(wave: number, damage: number, kills: unknown): boolean {
+  if (!Number.isInteger(kills)) return false;
+  const n = kills as number;
+  return n >= golemsThrough(wave - 1) && n <= golemsThrough(wave) && n * GOLEM_HP <= damage + 2;
 }
 
 /** Letters (Ñ included) and digits, up to four, like an arcade cabinet. */

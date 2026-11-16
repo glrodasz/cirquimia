@@ -17,7 +17,10 @@ score is the wave reached (every wave before it cleared, so from wave 2 on) and 
 higher wave first, then the quicker run. It is stored in the same `scores` table with `mode = 'horde'` and `wave`,
 as `score = wave × 100 000 − seconds`, so the boards sort it like any score (index `scores_mode`). The run is opened
 with `{mode: 'horde'}`; the server checks the damage against the golems' health of the cleared waves
-(`plausibleHorde` in score.ts). Horde scores have no share card yet.
+(`plausibleHorde` in score.ts). It also keeps the golems brought down in `kills` (shown on the end card and the
+board, not used to sort): at least every golem of the cleared waves, at most the whole wave in play, and never more
+than the damage dealt could fell at `GOLEM_HP` each (`plausibleKills`). Games from before the count send none and
+are saved with `kills = NULL`. Horde scores have no share card yet.
 
 ## Backend
 
