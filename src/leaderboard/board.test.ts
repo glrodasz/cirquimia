@@ -77,6 +77,20 @@ describe('board: top 20 plus the player', () => {
     expect(horde.entries.map((e) => e.kills)).toEqual([34, 33, null]);
   });
 
+  it('filters by device: phones and tablets as mobile, computers as desktop', async () => {
+    const db = board();
+    db.raw.prepare("UPDATE scores SET category = 'desktop' WHERE id IN (2, 4)").run();
+    db.raw.prepare("UPDATE scores SET category = 'tablet' WHERE id = 3").run();
+    const desktop = await get(db, 'period=all&device=desktop');
+    expect(desktop.entries.map((e) => e.id)).toEqual([2, 4]);
+    const mobile = await get(db, 'period=all&device=mobile');
+    expect(mobile.entries.slice(0, 3).map((e) => e.id)).toEqual([1, 3, 5]);
+    // Unknown or `all` keeps everyone; the player's place counts only the filtered board.
+    expect((await get(db, 'period=all&device=all')).entries[1].id).toBe(2);
+    expect((await get(db, 'period=all&device=tv')).entries[1].id).toBe(2);
+    expect((await get(db, 'period=all&device=mobile&mine=49')).me).toMatchObject({ rank: 47, entry: { id: 49 } });
+  });
+
   it('reads only whole positive ids', () => {
     expect(parseMine('3,x,-1,3,1.5,8')).toEqual([3, 8]);
     expect(parseMine(null)).toEqual([]);

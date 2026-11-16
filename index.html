@@ -907,6 +907,13 @@
       #rank .modes { display: flex; justify-content: center; margin: -4px auto 10px; box-shadow: inset 0 0 0 1px var(--g-ink); }
       #rank .modes button { flex: 1; min-width: 110px; height: 34px; padding: 0 14px; border: 0; border-radius: 0; background: none; color: var(--g-ink); font: 500 18px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .1em; cursor: pointer; }
       #rank .modes [aria-selected="true"] { background: var(--g-ink); color: var(--g-paper); }
+      #rank .devices { display: flex; justify-content: center; gap: 6px; margin: -2px auto 8px; }
+      #rank .devices button { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border: 1px solid rgba(31,26,21,.3); border-radius: 999px; background: none; color: var(--g-soft); font: italic 400 14px/1 var(--g-font); cursor: pointer; }
+      #rank .devices [aria-pressed="true"] { border-color: var(--g-ink); background: var(--g-ink); color: var(--g-paper); }
+      #rank svg.device { width: 1.05em; height: 1.05em; flex: none; }
+      #rank svg.device .ink { fill: currentColor; }
+      #rank .dev { white-space: nowrap; }
+      #rank .dev svg.device { display: inline-block; vertical-align: -.17em; margin-right: 2px; }
       #rank .pts.wave { font: 500 18px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; color: var(--g-red); white-space: nowrap; }
     </style>
   </head>

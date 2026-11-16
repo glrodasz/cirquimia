@@ -6,7 +6,7 @@
 import type { Difficulty } from '../combat';
 import { LANG } from '../i18n';
 import { API_BASE } from '../platform';
-import { cleanInitials, validInitials, type BoardMode } from './score';
+import { cleanInitials, validInitials, type BoardMode, type DeviceFilter } from './score';
 import type { Category } from './device';
 
 const API = API_BASE;
@@ -141,10 +141,10 @@ export function renameScore(runId: string, initials: string) {
 }
 
 /** The top of a board; `mine` (the player's own score ids) adds their best place below it when they are not on it. */
-export function fetchBoard(period: Period, mine: Iterable<number> = [], mode: BoardMode = 'duel') {
+export function fetchBoard(period: Period, mine: Iterable<number> = [], mode: BoardMode = 'duel', device: DeviceFilter = 'all') {
   const ids = [...mine].sort((a, b) => a - b).join(',');
   return call<{ period: Period; day: string; entries: Entry[]; me?: { rank: number; entry: Entry } | null }>(
-    `/scores?period=${period}${mode === 'duel' ? '' : `&mode=${mode}`}${ids ? `&mine=${ids}` : ''}`,
+    `/scores?period=${period}${mode === 'duel' ? '' : `&mode=${mode}`}${device === 'all' ? '' : `&device=${device}`}${ids ? `&mine=${ids}` : ''}`,
   );
 }
 
