@@ -11,6 +11,11 @@ export type BoardMode = 'duel' | 'horde';
 export const BOARD_MODES: BoardMode[] = ['duel', 'horde'];
 export const isBoardMode = (v: unknown): v is BoardMode => v === 'duel' || v === 'horde';
 
+/** The ranking's device filter: everyone, or only phones, tablets or computers (a score's `category`). */
+export type DeviceFilter = 'all' | 'mobile' | 'tablet' | 'desktop';
+export const DEVICE_FILTERS: DeviceFilter[] = ['all', 'mobile', 'tablet', 'desktop'];
+export const isDeviceFilter = (v: unknown): v is DeviceFilter => (DEVICE_FILTERS as unknown[]).includes(v);
+
 /** How much each difficulty multiplies the score. */
 export const LEVEL_FACTOR: Record<Difficulty, number> = { facil: 1, normal: 1.5, dificil: 2, experto: 3, hardcore: 4 };
 export const LEVELS = Object.keys(LEVEL_FACTOR) as Difficulty[];

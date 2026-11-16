@@ -4,10 +4,10 @@
  */
 import { DIFFICULTY_LABEL, type Difficulty } from '../combat';
 import { LANG, t } from '../i18n';
-import { blueskyLogo, checkIcon, discordLogo, linkIcon, mastodonLogo, saveIcon, telegramLogo, threadsLogo, trophyIcon, whatsappLogo, xLogo } from '../icons';
+import { blueskyLogo, checkIcon, deviceIcon, discordLogo, linkIcon, mastodonLogo, saveIcon, telegramLogo, threadsLogo, trophyIcon, whatsappLogo, xLogo } from '../icons';
 import { failed, fetchBoard, myScores, renameScore, savedInitials, saveInitials, submitScore, uploadCard, type Entry, type Period, type Runs } from './client';
 import { copyShareText, mastodonHost, openComposer, renderShareCard, saveImage, savedMastodon, shareDiscord, shareImage, type ShareData, type ShareLink } from './share';
-import { cleanInitials, formatTime, hordeScore, scoreFor, validInitials, type BoardMode } from './score';
+import { cleanInitials, formatTime, hordeScore, scoreFor, validInitials, DEVICE_FILTERS, type BoardMode, type DeviceFilter } from './score';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -68,6 +68,9 @@ export function mountLeaderboard(): Leaderboard {
     `<div class="tabs" role="tablist">` +
     (['today', 'week', 'month', 'all'] as const).map((p) => `<button type="button" role="tab" data-period="${p}">${t.rank[p]}</button>`).join('') +
     `</div>` +
+    `<div class="devices" role="group" aria-label="${t.rank.devices}">` +
+    DEVICE_FILTERS.map((d) => `<button type="button" data-device="${d}">${d === 'all' ? '' : deviceIcon(d)}${t.rank.deviceFilter[d]}</button>`).join('') +
+    `</div>` +
     `<div class="list" role="tabpanel"></div>` +
     `<p class="rule">${t.rank.rule}</p></div>`;
   stop(button);
@@ -77,13 +80,18 @@ export function mountLeaderboard(): Leaderboard {
   const list = overlay.querySelector<HTMLElement>('.list')!;
   const tabs = [...overlay.querySelectorAll<HTMLButtonElement>('[data-period]')];
   const modeTabs = [...overlay.querySelectorAll<HTMLButtonElement>('[data-mode]')];
+  const deviceTabs = [...overlay.querySelectorAll<HTMLButtonElement>('[data-device]')];
   const rule = overlay.querySelector<HTMLElement>('.rule')!;
   let open = false;
   let period: Period = 'today';
   let boardMode: BoardMode = 'duel';
+  let device: DeviceFilter = 'all';
   let highlight: number | null = null;
   let opener: HTMLElement | null = null;
   let request = 0;
+
+  /** Móvil / Tablet / Escritorio with its glyph, so a glance tells where each score was played. */
+  const played = (e: Entry) => `<span class="dev">${deviceIcon(e.category)}${t.rank.category[e.category] ?? ''}</span>`;
 
   const row = (e: Entry, place: number, mine: Set<number>) => {
     const cls = [mine.has(e.id) ? 'mine' : '', e.id === highlight ? 'new' : ''].filter(Boolean).join(' ');
@@ -93,8 +101,8 @@ export function mountLeaderboard(): Leaderboard {
       `<span class="pos${medal}">${place}</span>` +
       `<span class="who">${esc(e.initials)}${mine.has(e.id) ? ` <i>${t.rank.mine}</i>` : ''}</span>` +
       (e.mode === 'horde'
-        ? `<span class="pts wave">${t.rank.wave(e.wave)}</span><span class="meta">⏱ ${t.rank.hordeTime(formatTime(e.durationMs))}${e.kills !== null ? ` · ${t.rank.golems(e.kills)}` : ''} · ${t.rank.category[e.category] ?? ''}</span>`
-        : `<span class="pts">${e.score.toLocaleString(LANG)}</span><span class="meta">${metaLine(e, true)} · ${t.rank.category[e.category] ?? ''}</span>`) +
+        ? `<span class="pts wave">${t.rank.wave(e.wave)}</span><span class="meta">⏱ ${t.rank.hordeTime(formatTime(e.durationMs))}${e.kills !== null ? ` · ${t.rank.golems(e.kills)}` : ''} · ${played(e)}</span>`
+        : `<span class="pts">${e.score.toLocaleString(LANG)}</span><span class="meta">${metaLine(e, true)} · ${played(e)}</span>`) +
       `</li>`
     );
   };
@@ -116,11 +124,12 @@ export function mountLeaderboard(): Leaderboard {
     boardMode = m;
     for (const tab of tabs) tab.setAttribute('aria-selected', String(tab.dataset.period === p));
     for (const tab of modeTabs) tab.setAttribute('aria-selected', String(tab.dataset.mode === m));
+    for (const tab of deviceTabs) tab.setAttribute('aria-pressed', String(tab.dataset.device === device));
     rule.textContent = m === 'horde' ? t.rank.hordeRule : t.rank.rule;
     list.innerHTML = `<p class="empty">${t.rank.loading}</p>`;
     const mine = ++request;
     // Right after saving, the place shown is the new score's; otherwise the player's best.
-    const res = await fetchBoard(p, highlight ? [highlight] : myScores(), m);
+    const res = await fetchBoard(p, highlight ? [highlight] : myScores(), m, device);
     if (mine !== request) return;
     if (failed(res)) list.innerHTML = `<p class="empty">${t.rank.unavailable}</p>`;
     else render(res.entries, res.me);
@@ -150,6 +159,11 @@ export function mountLeaderboard(): Leaderboard {
   overlay.addEventListener('keydown', (e) => e.key === 'Escape' && hide());
   for (const tab of tabs) tab.addEventListener('click', () => load(tab.dataset.period as Period));
   for (const tab of modeTabs) tab.addEventListener('click', () => load(period, tab.dataset.mode as BoardMode));
+  for (const tab of deviceTabs)
+    tab.addEventListener('click', () => {
+      device = tab.dataset.device as DeviceFilter;
+      void load(period);
+    });
 
   const fillEnd = (
     { score: slot, actions, share: shared }: EndSlots,
