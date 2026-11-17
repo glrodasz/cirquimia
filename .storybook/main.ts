@@ -9,7 +9,8 @@ function gameStyles() {
   const html = readFileSync(resolve(root, 'index.html'), 'utf8');
   const match = html.match(/<style>([\s\S]*?)<\/style>/);
   if (!match) throw new Error('storybook: no <style> block in index.html');
-  return `<style id="game-styles">${match[1]}</style>`;
+  const tokens = readFileSync(resolve(root, 'src/styles/design-tokens.css'), 'utf8');
+  return `<style id="game-tokens">${tokens}</style><style id="game-styles">${match[1]}</style>`;
 }
 
 /**

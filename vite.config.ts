@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import { pageLocale, type Locale } from './src/i18n/locale';
 import { seoFor } from './src/i18n/seo';
@@ -40,6 +41,18 @@ function localizedPages(): Plugin {
 }
 
 /**
+ * The design tokens (src/styles/design-tokens.css, generated from tokens/*.json by scripts/tokens.mjs) go inline,
+ * before the game's own stylesheet, so they cost no extra request and the bridges in index.html can use them.
+ */
+export function designTokens(): Plugin {
+  const file = new URL('./src/styles/design-tokens.css', import.meta.url);
+  return {
+    name: 'design-tokens',
+    transformIndexHtml: { order: 'pre', handler: (html) => html.replace('<style>', () => `<style>${readFileSync(file, 'utf8')}</style>\n    <style>`) },
+  };
+}
+
+/**
  * The game version comes from the latest release tag that semantic-release created (v0.3.1 -> "0.3.1").
  * Builds after that tag carry the distance and commit too ("0.3.1-4-gabc1234"); GAME_VERSION overrides it.
  */
@@ -62,5 +75,5 @@ export default defineConfig({
   define: { __GAME_VERSION__: JSON.stringify(gameVersion()) },
   // One bundle: boot.ts imports the game lazily (only once the GPU check passes) but it ships in the same file.
   build: { target: 'es2022', chunkSizeWarningLimit: 900, rollupOptions: { output: { inlineDynamicImports: true } } },
-  plugins: [localizedPages()],
+  plugins: [designTokens(), localizedPages()],
 });
