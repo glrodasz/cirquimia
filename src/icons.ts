@@ -103,6 +103,12 @@ const solid = (d: string, cls = 'ink', view = '0 0 24 24') => `<svg viewBox="${v
 const PHONE = 'M8 2H16A1.5 1.5 0 0 1 17.5 3.5V20.5A1.5 1.5 0 0 1 16 22H8A1.5 1.5 0 0 1 6.5 20.5V3.5A1.5 1.5 0 0 1 8 2ZM8.5 4.5V17.5H15.5V4.5ZM12 18.9A.9.9 0 1 0 12 20.7A.9.9 0 1 0 12 18.9Z';
 export const phoneIcon = (cls = '') => `<svg class="phone${cls ? ` ${cls}` : ''}" viewBox="0 0 24 24" aria-hidden="true"><path class="ink" fill-rule="evenodd" d="${PHONE}"/></svg>`;
 
+/** The kind of device a score was played on, as a small glyph before its name on the ranking. */
+const TABLET = 'M5.5 3H18.5A1.5 1.5 0 0 1 20 4.5V19.5A1.5 1.5 0 0 1 18.5 21H5.5A1.5 1.5 0 0 1 4 19.5V4.5A1.5 1.5 0 0 1 5.5 3ZM6 5V17.6H18V5ZM12 18.3A.85.85 0 1 0 12 20A.85.85 0 1 0 12 18.3Z';
+const DESKTOP = 'M3.5 3.5H20.5A1.5 1.5 0 0 1 22 5V15.5A1.5 1.5 0 0 1 20.5 17H14.2L14.8 19.4H17V21H7V19.4H9.2L9.8 17H3.5A1.5 1.5 0 0 1 2 15.5V5A1.5 1.5 0 0 1 3.5 3.5ZM4 5.5V15H20V5.5Z';
+export const deviceIcon = (category: string) =>
+  `<svg class="device" viewBox="0 0 24 24" aria-hidden="true"><path class="ink" fill-rule="evenodd" d="${category === 'desktop' ? DESKTOP : category === 'tablet' ? TABLET : PHONE}"/></svg>`;
+
 export const flameIcon = () => solid('M12 2.2C12.7 5.6 18 8 18 13.8A6 6 0 0 1 6 13.8C6 11 7.5 9.2 8.8 8C9 9.8 9.8 11 11 11.5C10.4 7.9 11.2 4.9 12 2.2ZM12 13.2C10.6 14.6 10 15.6 10 16.6A2 2 0 0 0 14 16.6C14 15.6 13.4 14.6 12 13.2Z', 'fire');
 export const dropIcon = () => solid('M12 2.4C15.2 6.8 18.2 10.2 18.2 14.2A6.2 6.2 0 0 1 5.8 14.2C5.8 10.2 8.8 6.8 12 2.4ZM8.6 14.4A3.4 3.4 0 0 0 11 17.6L11.4 16.3A2.1 2.1 0 0 1 9.9 14.4Z', 'water');
 export const crossIcon = () => solid('M5.6 3.5 12 9.9 18.4 3.5 20.5 5.6 14.1 12 20.5 18.4 18.4 20.5 12 14.1 5.6 20.5 3.5 18.4 9.9 12 3.5 5.6Z', 'cross');

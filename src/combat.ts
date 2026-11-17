@@ -640,6 +640,8 @@ export class Combat {
   /** Horde: the wave on now (0 before the first), golems of it still to walk in, and seconds to the next one walking in. */
   private wave = 0;
   private toSpawn = 0;
+  /** Horde: golems that have walked onto the meadow this match (fallen ones are removed, so they are counted here). */
+  private spawned = 0;
   private spawnTimer = 0;
   /** Horde: the wave a night starts on (1; dev mode may jump ahead with ?wave=N to test big waves). */
   firstWave = 1;
@@ -718,7 +720,12 @@ export class Combat {
 
   /** Horde: the wave reached (every wave before it cleared) and how long it took, in game time. */
   get hordeResult() {
-    return { wave: this.reached, durationMs: Math.round(this.reachedAt * 1000) };
+    return { wave: this.reached, durationMs: Math.round(this.reachedAt * 1000), kills: this.golemsDown };
+  }
+
+  /** Horde: golems the alchemist has brought down so far, the unfinished wave's included. */
+  get golemsDown() {
+    return this.spawned - this.rivals.filter((r) => !r.down).length;
   }
 
   /** Horde: the wave in play or about to start, and how many golems of it are still to fall. */
@@ -977,6 +984,7 @@ export class Combat {
     this.dealt = 0;
     this.wave = 0;
     this.toSpawn = 0;
+    this.spawned = 0;
     this.reached = this.firstWave;
     this.reachedAt = 0;
     if (this.gameMode === 'horde') {
@@ -1064,6 +1072,7 @@ export class Combat {
       if ((this.spawnTimer -= dt) <= 0 && alive < MAX_ALIVE) {
         this.spawnGolem();
         this.toSpawn--;
+        this.spawned++;
         this.spawnTimer = SPAWN_GAP;
       }
       return;

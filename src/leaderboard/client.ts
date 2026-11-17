@@ -6,7 +6,7 @@
 import type { Difficulty } from '../combat';
 import { LANG } from '../i18n';
 import { API_BASE } from '../platform';
-import { cleanInitials, validInitials, type BoardMode } from './score';
+import { cleanInitials, validInitials, type BoardMode, type DeviceFilter } from './score';
 import type { Category } from './device';
 
 const API = API_BASE;
@@ -26,6 +26,8 @@ export interface Entry {
   mode: BoardMode;
   /** Horde: the wave reached (0 in a duel). */
   wave: number;
+  /** Horde: golems brought down (null in a duel, and for horde scores saved before they were counted). */
+  kills: number | null;
 }
 
 export interface Submitted {
@@ -41,6 +43,7 @@ export interface Submitted {
   category: Category;
   mode: BoardMode;
   wave: number;
+  kills: number | null;
   rank: Record<Period, number>;
   total: Record<Period, number>;
   /** The score's share link, whose preview is its card. */
@@ -114,14 +117,15 @@ async function hints() {
   };
 }
 
-/** Saves a won match (or a horde's wave reached, `wave`); without initials (`''`) it is saved as anonymous. */
-export async function submitScore(runId: string, initials: string, durationMs: number, damage: number, wave?: number) {
+/** Saves a won match (or a horde's wave reached, `wave`, and golems brought down, `kills`); without initials (`''`) it is saved as anonymous. */
+export async function submitScore(runId: string, initials: string, durationMs: number, damage: number, wave?: number, kills?: number) {
   const body = {
     runId,
     initials: initials || undefined,
     durationMs,
     damage,
     wave,
+    kills,
     hints: await hints(),
     screen: `${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 100) / 100}`,
     locale: LANG,
@@ -137,10 +141,10 @@ export function renameScore(runId: string, initials: string) {
 }
 
 /** The top of a board; `mine` (the player's own score ids) adds their best place below it when they are not on it. */
-export function fetchBoard(period: Period, mine: Iterable<number> = [], mode: BoardMode = 'duel') {
+export function fetchBoard(period: Period, mine: Iterable<number> = [], mode: BoardMode = 'duel', device: DeviceFilter = 'all') {
   const ids = [...mine].sort((a, b) => a - b).join(',');
   return call<{ period: Period; day: string; entries: Entry[]; me?: { rank: number; entry: Entry } | null }>(
-    `/scores?period=${period}${mode === 'duel' ? '' : `&mode=${mode}`}${ids ? `&mine=${ids}` : ''}`,
+    `/scores?period=${period}${mode === 'duel' ? '' : `&mode=${mode}`}${device === 'all' ? '' : `&device=${device}`}${ids ? `&mine=${ids}` : ''}`,
   );
 }
 

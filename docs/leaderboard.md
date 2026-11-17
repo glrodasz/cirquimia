@@ -17,7 +17,10 @@ score is the wave reached (every wave before it cleared, so from wave 2 on) and 
 higher wave first, then the quicker run. It is stored in the same `scores` table with `mode = 'horde'` and `wave`,
 as `score = wave × 100 000 − seconds`, so the boards sort it like any score (index `scores_mode`). The run is opened
 with `{mode: 'horde'}`; the server checks the damage against the golems' health of the cleared waves
-(`plausibleHorde` in score.ts). Horde scores have no share card yet.
+(`plausibleHorde` in score.ts). It also keeps the golems brought down in `kills` (shown on the end card and the
+board, not used to sort): at least every golem of the cleared waves, at most the whole wave in play, and never more
+than the damage dealt could fell at `GOLEM_HP` each (`plausibleKills`). Games from before the count send none and
+are saved with `kills = NULL`. Horde scores have no share card yet.
 
 ## Backend
 
@@ -33,7 +36,7 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
 - `PATCH /api/scores {runId, initials}` renames the score just saved (leaving the initials line on the victory card, or Enter; the run id is the
   proof, only within an hour of saving) and clears `anonymous`. One row written, none when the name is unchanged. The
   new initials also become the device's handle for the next matches.
-- `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC.
+- `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC. `&device=mobile|tablet|desktop` keeps only phones, tablets or computers (the ranking's Todos / Móvil / Tablet / Escritorio filter); the player's place is counted on that filtered board.
 
 The board shows only Mobile / Tablet / Desktop; each row also stores OS, device (iPhone, iPad, Android
 phone/tablet, Mac, PC…), browser, model and OS version where the browser offers them, screen, language,

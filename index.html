@@ -760,15 +760,14 @@
       #match-end :is(.view, .again) .cap { white-space: nowrap; }
       @media (hover: hover) { #match-end .view:hover { background: rgba(31,26,21,.06); } }
       #match-end .view .cap::after, #match-end .ends:has(.view) .again .cap::after { content: none; }
-      /* Training's way back to a real match: a red seal top centre, under the HUD row on phones. */
-      #battle-btn { position: fixed; top: var(--edge-top); left: 50%; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 16px 0 12px; border: 0; border-radius: 0; background: var(--g-red); color: var(--g-paper); box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7), 0 2px 8px rgba(20,28,24,.2); font: 500 19px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .06em; white-space: nowrap; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
+      /* Training's way back to a real match: a red seal in the HUD row, right after the training pill. */
+      #battle-btn { display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 16px 0 12px; border: 0; border-radius: 0; background: var(--g-red); color: var(--g-paper); box-shadow: inset 0 0 0 3px var(--g-red), inset 0 0 0 3.6px rgba(245,239,224,.7), 0 2px 8px rgba(20,28,24,.2); font: 500 19px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .06em; white-space: nowrap; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
       #battle-btn[hidden] { display: none; }
-      #battle-btn:active { transform: translateX(-50%) scale(.95); }
+      #battle-btn:active { transform: scale(.95); }
       #battle-btn:focus-visible { outline: 1px solid var(--g-ink); outline-offset: 2px; }
       #battle-btn .hud-icon { width: 20px; height: 20px; flex: none; margin-top: -2px; }
       #battle-btn .hud-icon .red { fill: var(--g-paper); }
-      /* Phones: in the HUD row, right after the training pill. */
-      @media (max-width: 699.98px) { #battle-btn { left: calc(max(12px, env(safe-area-inset-left)) + 48px); transform: none; gap: 6px; padding: 0 12px 0 9px; font-size: 18px; letter-spacing: .03em; } #battle-btn:active { transform: scale(.95); } }
+      @media (max-width: 699.98px) { #battle-btn { gap: 6px; padding: 0 12px 0 9px; font-size: 18px; letter-spacing: .03em; } }
       @media (max-width: 374.98px) { #battle-btn { padding: 0 7px; font-size: 15px; letter-spacing: 0; } #battle-btn .hud-icon { display: none; } }
       #match-end p.train-tip { margin: -6px 0 14px; font-style: normal; color: var(--g-ink); }
       #match-end p.train-tip[hidden] { display: none; }
@@ -907,6 +906,14 @@
       #rank .modes { display: flex; justify-content: center; margin: -4px auto 10px; box-shadow: inset 0 0 0 1px var(--g-ink); }
       #rank .modes button { flex: 1; min-width: 110px; height: 34px; padding: 0 14px; border: 0; border-radius: 0; background: none; color: var(--g-ink); font: 500 18px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .1em; cursor: pointer; }
       #rank .modes [aria-selected="true"] { background: var(--g-ink); color: var(--g-paper); }
+      #rank .devices { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: -2px auto 8px; }
+      #rank .devices button { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border: 1px solid rgba(31,26,21,.3); border-radius: 999px; background: none; color: var(--g-soft); font: italic 400 14px/1 var(--g-font); cursor: pointer; }
+      #rank .devices [aria-pressed="true"] { border-color: var(--g-ink); background: var(--g-ink); color: var(--g-paper); }
+      @media (max-width: 360px) { #rank .devices { gap: 4px; } #rank .devices button { padding: 0 8px; font-size: 13.5px; } #rank .devices svg.device { display: none; } }
+      #rank svg.device { width: 1.05em; height: 1.05em; flex: none; }
+      #rank svg.device .ink { fill: currentColor; }
+      #rank .dev { white-space: nowrap; }
+      #rank .dev svg.device { display: inline-block; vertical-align: -.17em; margin-right: 2px; }
       #rank .pts.wave { font: 500 18px/1 var(--g-font); font-variant-caps: small-caps; letter-spacing: .05em; color: var(--g-red); white-space: nowrap; }
     </style>
   </head>
