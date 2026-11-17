@@ -94,3 +94,5 @@ html:not(.kit-story), html:not(.kit-story) body { position: static; height: auto
 .kit-docs-list p { margin: 0 !important; font-size: 13px !important; line-height: 1.4 !important; color: #6b6258; }
 .kit-docs-list code { font-size: 11px !important; white-space: normal !important; word-break: break-word; }
 .kit-docs-open { margin-top: auto; padding-top: 6px; color: #9a2f24; font-weight: 600; font-size: 13px; }
+/* Until a story mounts (while the canvas reloads on the next one) the page is paper, not an empty sky. */
+html:not(.kit-story) body { background: #f5efe0; }

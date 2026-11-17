@@ -2,7 +2,7 @@ import * as icons from '../../src/icons';
 import { shapeIcon } from '../../src/ammo';
 import { t } from '../../src/i18n';
 import type { ShapeKind } from '../../src/gestures';
-import type { StoryFn } from '../kit/story';
+import { sheet, type StoryFn } from '../kit/story';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 const gameCss = () => [...document.querySelectorAll('style')].map((s) => s.textContent ?? '').join('\n');
@@ -49,7 +49,7 @@ const palette: StoryFn = () => {
       );
     })
     .join('');
-  document.body.innerHTML =
+  sheet().innerHTML =
     `<h2>Variables CSS (${vars.size})</h2>` +
     `<p class="kit-note">Las variables que ya existen en el estilo del juego. Las del HUD (--hud-*) cambian con el tema; las del grimorio (--g-*, --paper, --ink…) viven dentro de cada pantalla.</p>` +
     `<div class="kit-grid">${varTiles}</div>` +
@@ -68,7 +68,7 @@ const type: StoryFn = () => {
     ["'Alegreya Variable', Georgia, serif", '800 44px/1', 'Puntos de la tarjeta de victoria (cae en Georgia: Alegreya no se carga)'],
     ["ui-monospace, 'SF Mono', Menlo, monospace", '800 22px/1', 'Iniciales del ranking'],
   ];
-  document.body.innerHTML =
+  sheet().innerHTML =
     `<h2>Tipografía</h2><p class="kit-note">Las familias que usa el juego, con el peso y tamaño de su uso principal.</p>` +
     fonts.map(([family, font, use]) => `<div class="kit-type"><small>${esc(font)} · ${esc(family)}</small><div style="font:${font} ${family}">${esc(sample)} · Cirquimia 0123</div><small style="margin-top:6px">${use}</small></div>`).join('');
 };
@@ -113,7 +113,7 @@ const icon: StoryFn = () => {
     ['telegramLogo', icons.telegramLogo()],
     ['saveIcon', icons.saveIcon()],
   ];
-  document.body.innerHTML =
+  sheet().innerHTML =
     `<h2>Iconos (${list.length})</h2><p class="kit-note">src/icons.ts. Se pintan con currentColor y clases (.ink, .red, .green, .plum, .faint) que el CSS de cada sitio colorea.</p>` +
     `<div class="kit-grid">${list.map(([name, svg]) => `<div class="kit-tile"><div class="kit-icon">${svg}</div><code>${name}</code></div>`).join('')}</div>`;
   for (const svg of document.querySelectorAll<SVGElement>('.kit-icon svg')) if (!svg.getAttribute('fill')) svg.style.fill = 'currentColor';
@@ -122,7 +122,7 @@ const icon: StoryFn = () => {
 const KINDS: ShapeKind[] = ['circle', 'square', 'triangle', 'triangleDown', 'rhombus', 'pentagram', 'spiral', 'hourglass', 'fireStar', 'waterStar', 'blastStar'];
 
 const symbols: StoryFn = () => {
-  document.body.innerHTML =
+  sheet().innerHTML =
     `<h2>Símbolos (${KINDS.length})</h2><p class="kit-note">Cada símbolo como trazo de pincel dentro del enso (la mano) y con plumilla (el libro y el checklist). El trazo cambia un poco en cada render, como en el juego. Recarga para ver otra variación.</p>` +
     `<div class="kit-grid">${KINDS.map((k) => `<div class="kit-tile"><div class="kit-symbol">${shapeIcon(k)}${shapeIcon(k, true)}</div><b>${esc(t.help.roles[k] ?? k)}</b><code>${k}</code></div>`).join('')}</div>`;
 };

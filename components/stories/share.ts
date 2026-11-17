@@ -1,6 +1,6 @@
 import { renderShareCard, type ShareData } from '../../src/leaderboard/share';
 import meadowPhoto from '../../src/assets/share/meadow.jpg';
-import type { StoryFn } from '../kit/story';
+import { sheet, type StoryFn } from '../kit/story';
 
 const DATA: ShareData = { score: 71_250, durationMs: 83_000, damage: 214, rivals: 2, difficulty: 'normal', initials: 'GLR', rank: { today: 3, all: 41 } };
 
@@ -14,7 +14,7 @@ function load(src: string) {
 }
 
 const card: StoryFn = async () => {
-  document.body.innerHTML = `<h2>Tarjeta para compartir</h2><p class="kit-note">Generada en un canvas por renderShareCard() con datos de ejemplo. Con prado: el frame de la partida; sin él, el fondo por defecto.</p><div class="kit-shots"></div>`;
+  sheet().innerHTML = `<h2>Tarjeta para compartir</h2><p class="kit-note">Generada en un canvas por renderShareCard() con datos de ejemplo. Con prado: el frame de la partida; sin él, el fondo por defecto.</p><div class="kit-shots"></div>`;
   const shots = document.querySelector('.kit-shots')!;
   const meadow = await load(meadowPhoto);
   const cases: Array<[string, ShareData, boolean, CanvasImageSource | null]> = [

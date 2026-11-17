@@ -2,7 +2,7 @@ import globalJson from '../../tokens/global.json';
 import lightJson from '../../tokens/system-light.json';
 import darkJson from '../../tokens/system-dark.json';
 import componentsJson from '../../tokens/components.json';
-import type { StoryFn } from '../kit/story';
+import { sheet, type StoryFn } from '../kit/story';
 
 /**
  * The design tokens straight from tokens/*.json: the three levels (Global → System → Component) and, for each
@@ -110,7 +110,7 @@ function roles(scope: string) {
 
 const colors: StoryFn = () => {
   const parts = group(GAME);
-  document.body.innerHTML =
+  sheet().innerHTML =
     `<h2>Design tokens</h2>` +
     `<p class="kit-note">Tres niveles en <code>tokens/*.json</code>. La UI solo usa los de <b>componente</b>; cada uno apunta a un <b>rol del sistema</b> (que cambia entre claro y oscuro), y el rol a un <b>valor global</b>. Para cambiar un color, se cambia el JSON y <code>npm run tokens</code>.</p>` +
     `<ol class="kit-levels"><li><b>Global</b><span>valores: paletas, fuentes</span></li><li><b>Sistema</b><span>roles: fondo, tinta, papel…</span></li><li><b>Componente</b><span>lo que usa la UI</span></li></ol>` +
