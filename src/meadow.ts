@@ -14,6 +14,8 @@ export interface Obstacle {
    * shoved out, it just walks off through it; anyone outside still has to go around.
    */
   rises?: boolean;
+  /** One of several laid along a long piece (a log, a fallen stone): walked straight into, it is not stepped round. */
+  long?: boolean;
 }
 
 const WORLD_SIZE = 90;

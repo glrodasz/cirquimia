@@ -18,6 +18,14 @@ const STEER_AHEAD = 0.3;
 // (something new, like an earth wall, may have risen in the way).
 const STUCK_TIME = 0.3;
 const STUCK_RATIO = 0.3;
+/** Within this gap of an obstacle's edge it counts as touching it, so the next step slides along instead of into it. */
+const CONTACT = 0.01;
+/** A step that keeps less than this share once the push into an obstacle is dropped counts as walking straight into it. */
+const HEAD_ON = 0.2;
+/** Props up to this radius (campfires, stumps, posts, small rocks) are stepped round when walked straight into. */
+const ROUND_SMALL = 0.35;
+/** Two edges it is pushing into whose outward directions are further apart than this (cosine, ~70°) form a corner. */
+const CORNER = 0.34;
 
 const LEG_UPPER = 0.46;
 const LEG_LOWER = 0.44;
@@ -245,6 +253,9 @@ export class Character {
   private readonly passing = new Set<Obstacle>();
   /** The obstacles it collides with and routes around: all but the ones it is walking out of. */
   private blocking: Obstacle[] = [];
+  /** Which way it last slid round an obstacle (1 or -1, 0 = free), so pushing straight into one never dithers. */
+  private slideSide = 0;
+  private readonly hits: Array<{ ux: number; uz: number; o: Obstacle }> = [];
   /**
    * Where it may walk (the rivals: the play area). It never takes a step that leaves it, and a goal past it is pulled
    * back inside along the way there. Null: anywhere (the alchemist, whose taps and keys are limited before they get here).
@@ -560,8 +571,9 @@ export class Character {
       const step = Math.min(dist, this.speed * dt);
       const fromX = pos.x;
       const fromZ = pos.z;
-      pos.x += (dx / dist) * step;
-      pos.z += (dz / dist) * step;
+      const [mx, mz] = this.slide((dx / dist) * step, (dz / dist) * step);
+      pos.x += mx;
+      pos.z += mz;
       this.resolveCollisions();
       this.keepInside(fromX, fromZ);
       this.stuckTimer += dt;
@@ -712,18 +724,83 @@ export class Character {
     }
   }
 
+  /**
+   * The step it actually takes when it is up against something: the part that would push into it is dropped and
+   * it walks on along the edge at full pace, so brushing a campfire, a rock or a pond's shore never holds it up.
+   * Pushing straight into a small prop it steps round it (on the side it was already leaning to); straight into a
+   * big one (a pond, a boulder) it simply stops, as anyone would. Caught between two things, it stops.
+   */
+  private slide(mx: number, mz: number): [number, number] {
+    const pos = this.root.position;
+    const step = Math.hypot(mx, mz);
+    if (step < 1e-9) return [mx, mz];
+    // Everything it is up against and walking into, with the direction that points away from each.
+    const hits = this.hits;
+    hits.length = 0;
+    let sumX = 0;
+    let sumZ = 0;
+    for (const o of this.solidNow()) {
+      const nx = pos.x - o.x;
+      const nz = pos.z - o.z;
+      const reach = o.r + BODY_RADIUS + CONTACT;
+      const d2 = nx * nx + nz * nz;
+      if (d2 >= reach * reach || d2 < 1e-12) continue;
+      const d = Math.sqrt(d2);
+      const ux = nx / d;
+      const uz = nz / d;
+      if (mx * ux + mz * uz >= 0) continue;
+      for (const h of hits) {
+        // Two edges meeting at a sharp angle (between a fire and a log, two trees): a corner, nowhere to slide.
+        if (h.ux * ux + h.uz * uz < CORNER) return [0, 0];
+      }
+      hits.push({ ux, uz, o });
+      sumX += ux;
+      sumZ += uz;
+    }
+    if (!hits.length) {
+      this.slideSide = 0;
+      return [mx, mz];
+    }
+    // Pieces of one long thing (the stones of a log's length) touch together: slide along their shared edge.
+    const n = Math.hypot(sumX, sumZ);
+    const nx = sumX / n;
+    const nz = sumZ / n;
+    const into = mx * nx + mz * nz;
+    const tx = mx - into * nx;
+    const tz = mz - into * nz;
+    const left = Math.hypot(tx, tz);
+    const lean = Math.sign(tx * -nz + tz * nx);
+    if (left > step * HEAD_ON) {
+      // Grazing it: keep the full pace along the edge.
+      this.slideSide = lean || this.slideSide;
+      return [(tx / left) * step, (tz / left) * step];
+    }
+    if (hits.some((h) => h.o.long || h.o.r > ROUND_SMALL)) return [tx, tz];
+    // Straight into a small prop: round it, on the side it leaned to before (or the side the step leans to).
+    const side = this.slideSide || lean || 1;
+    this.slideSide = side;
+    return [-nz * side * step, nx * side * step];
+  }
+
+  /** Pushes it back out of anything it overlaps; a few passes so two obstacles side by side settle together. */
   private resolveCollisions() {
     const pos = this.root.position;
-    for (const o of this.solidNow()) {
-      const dx = pos.x - o.x;
-      const dz = pos.z - o.z;
-      const min = o.r + BODY_RADIUS;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < min * min && d2 > 1e-8) {
-        const d = Math.sqrt(d2);
-        pos.x = o.x + (dx / d) * min;
-        pos.z = o.z + (dz / d) * min;
+    const solid = this.solidNow();
+    for (let pass = 0; pass < 3; pass++) {
+      let moved = false;
+      for (const o of solid) {
+        const dx = pos.x - o.x;
+        const dz = pos.z - o.z;
+        const min = o.r + BODY_RADIUS;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < min * min - 1e-9 && d2 > 1e-8) {
+          const d = Math.sqrt(d2);
+          pos.x = o.x + (dx / d) * min;
+          pos.z = o.z + (dz / d) * min;
+          moved = true;
+        }
       }
+      if (!moved) break;
     }
   }
 }
