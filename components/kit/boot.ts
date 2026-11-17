@@ -28,6 +28,10 @@ export interface SceneOptions<A extends StoryArgs> {
 
 let mounted: string | null = null;
 
+// A canvas that opened on a Docs page has the game's styles switched off and Storybook's docs on the page. A story
+// never mounts over that: the canvas reloads on the story instead (phones were left on a blank sky).
+const openedOnDocs = new URLSearchParams(location.search).get('viewMode') === 'docs';
+
 // Storybook shows a Docs page in the same canvas it used for the last story. The game's modules from that story are
 // still on the page (fixed HUD, a page that does not scroll), so the Docs page gets a fresh canvas instead.
 addons.getChannel().on(DOCS_RENDERED, () => {
@@ -115,10 +119,12 @@ async function start(load: () => Promise<StoryModule>, id: string, opts: SceneOp
 const docsFrame = window.frameElement as HTMLElement | null;
 if (docsFrame?.closest('.docs-story')) docsFrame.style.pointerEvents = 'none';
 
-// Links (the book's language tab) never navigate the canvas: they switch the toolbar's language instead.
+// Inside a mounted story, links (the book's language tab) never navigate the canvas: they switch the toolbar's
+// language instead. Docs pages keep their links (the index cards open each story).
 document.addEventListener(
   'click',
   (e) => {
+    if (!mounted) return;
     const a = (e.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
     if (!a || a.closest('.sb-wrapper, .docs-story')) return;
     e.preventDefault();
@@ -140,7 +146,7 @@ export function scene<A extends StoryArgs = StoryArgs>(load: () => Promise<Story
       const root = document.createElement('div');
       const key = JSON.stringify([sb.id, args, sb.globals.locale, sb.globals.touch, sb.globals.theme]);
       if (mounted === key) return root; // the same story drawn again: what is on the page already is it
-      if (mounted) {
+      if (mounted || openedOnDocs) {
         location.replace(urlFor(sb, args as StoryArgs));
         return root;
       }
