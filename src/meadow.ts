@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { heightAt, mulberry32, patchAt } from './noise';
+import { setGroundSurface } from './seat';
 import { GROUND_CELL, toScreenAligned, toWorld, type GenParams, type GroundPaint, type Layout } from './generator';
 import { GLADE } from './look';
 import { stylize } from './glade';
@@ -85,6 +86,7 @@ function buildGladeGround(seed: number, paint: GroundPaint, obstacles: Obstacle[
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
+  setGroundSurface(pos.array, segments, WORLD_SIZE);
   const mesh = new THREE.Mesh(geo, stylize(soft({ vertexColors: true }), { paint: { scale: 1.3, amount: 0.45 } }));
   mesh.receiveShadow = true;
   return mesh;
@@ -103,6 +105,8 @@ function buildGround(seed: number, paint: GroundPaint): THREE.Mesh {
     const z = pos.getZ(i) + (rand() - 0.5) * step * 0.45;
     pos.setXYZ(i, x, heightAt(x, z), z);
   }
+  // Strikes stand on the ground as drawn, not on the smooth height field between its vertices.
+  setGroundSurface(pos.array, segments, WORLD_SIZE);
 
   const flat = geo.toNonIndexed();
   geo.dispose();

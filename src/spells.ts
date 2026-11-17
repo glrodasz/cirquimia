@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { charge, clack, healChord, rumble, strike, vineCreak, wallRise } from './audio';
 import { heightAt } from './noise';
-import { alignToGround, groundNormal, seatDepth } from './seat';
+import { alignToGround, groundNormal, seatDepth, surfaceAt } from './seat';
 import type { Obstacle } from './meadow';
 
 // Circle = defence: a temporary arc of earth and rock that shields the alchemist.
@@ -201,7 +201,7 @@ abstract class Effect {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     const socket = new THREE.Object3D();
-    socket.position.set(x, heightAt(x, z), z);
+    socket.position.set(x, surfaceAt(x, z), z);
     socket.add(mesh);
     mesh.position.y = -height;
     mesh.visible = false;
@@ -227,7 +227,7 @@ abstract class Effect {
       box.copy(geo.boundingBox!);
       const r = Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z) * Math.max(mesh.scale.x, mesh.scale.z);
       groundNormal(x, z, r, normal);
-      socket.position.y = heightAt(x, z);
+      socket.position.y = surfaceAt(x, z);
       alignToGround(socket, normal);
       // A piece leaning off the normal lifts one edge of its base by about r·sin(lean).
       const lean = Math.min(1, Math.hypot(Math.sin(mesh.rotation.x), Math.sin(mesh.rotation.z)));
@@ -393,7 +393,7 @@ function groundRing(cx: number, cz: number, inner: number, outer: number, rings:
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i) + cx;
     const z = pos.getZ(i) + cz;
-    pos.setXYZ(i, x, heightAt(x, z) + 0.035, z);
+    pos.setXYZ(i, x, surfaceAt(x, z) + 0.035, z);
   }
   geo.computeBoundingSphere();
   return geo;
@@ -415,7 +415,7 @@ function wallSegment(cx: number, cz: number, a: Section, b: Section, capStart: b
     const at = (r: number, h: number, sink: number) => {
       const x = Math.sin(s.angle) * r;
       const z = Math.cos(s.angle) * r;
-      return new THREE.Vector3(x, heightAt(cx + x, cz + z) + h - sink, z);
+      return new THREE.Vector3(x, surfaceAt(cx + x, cz + z) + h - sink, z);
     };
     const shoulder = s.height * 0.62;
     return [
@@ -507,10 +507,10 @@ class PillarStrike extends Effect {
     // Warning: a patch of dark, trembling soil (or glowing embers, or seeping water) the size of the strike.
     this.crackMaterial = new THREE.MeshBasicMaterial({ color: WARNING[element], transparent: true, opacity: 0, depthWrite: false });
     this.crack = new THREE.Mesh(crackGeo, this.crackMaterial);
-    this.crack.position.set(x, heightAt(x, z) + 0.03, z);
+    this.crack.position.set(x, surfaceAt(x, z) + 0.03, z);
     // Lie flat on the slope instead of floating half out of it.
     const e = 0.05;
-    const normal = new THREE.Vector3(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
+    const normal = groundNormal(x, z, e);
     this.crack.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
     this.crack.scale.setScalar(this.area * 1.5);
     this.crack.renderOrder = 1;
@@ -975,9 +975,9 @@ class DeniedMark {
       bar.renderOrder = 4;
       this.group.add(back, bar);
     }
-    this.group.position.set(x, heightAt(x, z) + 0.04, z);
+    this.group.position.set(x, surfaceAt(x, z) + 0.04, z);
     const e = 0.05;
-    const normal = new THREE.Vector3(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
+    const normal = groundNormal(x, z, e);
     this.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
     this.group.userData.size = size;
   }
