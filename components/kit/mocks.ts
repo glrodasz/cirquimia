@@ -53,6 +53,7 @@ function entries(mode: 'duel' | 'horde', n: number): Entry[] {
     at: Date.now() - i * 3_600_000,
     mode,
     wave: mode === 'horde' ? 14 - i : 0,
+    kills: mode === 'horde' ? (14 - i) * 9 - (i % 4) : null,
   }));
 }
 

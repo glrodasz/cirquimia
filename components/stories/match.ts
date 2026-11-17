@@ -56,7 +56,7 @@ const horde: StoryFn = async () => {
   match.over = true;
   const hud = mountHud(match);
   await settle(50);
-  const result = { wave: 6, durationMs: 241_000 };
+  const result = { wave: 6, durationMs: 241_000, kills: 47 };
   const show = () => {
     hud.controls.showEnd('defeat', false, result);
     hud.board.fillHordeEnd(hud.controls.endSlots, rankedRun('horde'), { ...result, damage: 1240 });
@@ -65,7 +65,7 @@ const horde: StoryFn = async () => {
   const panel = new Panel();
   panel.button('Mostrar otra vez', show);
   panel.button('Sin pasar la 1.ª oleada', () => {
-    hud.controls.showEnd('defeat', false, { wave: 1, durationMs: 21_000 });
+    hud.controls.showEnd('defeat', false, { wave: 1, durationMs: 21_000, kills: 2 });
     hud.controls.note('Supera la primera oleada para entrar en el ranking.');
   });
 };
