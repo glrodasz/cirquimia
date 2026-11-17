@@ -73,4 +73,12 @@ Say in the PR body which limits were checked or changed.
 
 Every UI element and 3D piece has a story in Storybook at `/components` (`components/`, built by `npm run build`, run
 with `npm run storybook`). A PR that adds or changes UI, or a 3D piece, adds or updates its story. Stories call the
-game's real code and nothing in `src/` imports `components/`, so the game's bundle never grows. See `docs/components.md`.
+game's real code and nothing in `src/` imports `components/`, so the game's bundle never grows. Stories are grouped by
+atomic design (Tokens, Átomos, Moléculas, Organismos, Pantallas, 3D): put a new piece in the smallest group that fits.
+See `docs/components.md`.
+
+## Design tokens
+
+Colours and the grimoire font live in `tokens/*.json` (Global → System → Component). UI code reads component tokens
+only; new colours become a component token, not a literal. After editing the JSON run `npm run tokens` and commit
+`src/styles/design-tokens.css` (the build fails when it is stale). See `docs/components.md`.

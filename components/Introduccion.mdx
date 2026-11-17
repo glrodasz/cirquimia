@@ -4,12 +4,29 @@ import { Meta } from '@storybook/addon-docs/blocks';
 
 # Cirquimia · Componentes
 
-Cada pieza de la UI y del 3D, montada con el código real del juego (`src/`) y su hoja de estilos, así que lo que ves aquí es lo que ve quien juega.
+Cada pieza de la UI y del 3D, montada con el código real del juego (`src/`) y su hoja de estilos: lo que ves aquí es lo que ve quien juega.
 
-- **Barra de arriba:** tamaño de pantalla (iPhone, iPad, escritorio), idioma, táctil y tema.
-- **Controls** (abajo): las variantes de cada historia, como rivales y nivel en el HUD o la pieza del prado.
-- **Panel del lienzo:** las acciones en vivo (caminar, lanzar, golpear) y, en 3D, girar, alambre, sombras, draw calls y triángulos.
+## Cómo está ordenado
 
-Cada historia ocupa una página del juego entera, así que al cambiar de historia, de idioma o de Controls el lienzo se recarga.
+De lo más pequeño a lo más grande, con [atomic design](https://atomicdesign.bradfrost.com/):
 
-Nada del juego importa este catálogo: no añade peso al bundle. Cómo añadir una historia: `docs/components.md`.
+| Grupo | Qué hay | Ejemplos |
+|---|---|---|
+| **Tokens** | Los colores y fuentes como design tokens | [Colores](?path=/story/tokens--colors), [Tipografía](?path=/story/tokens--type) |
+| **Átomos** | Las piezas mínimas | [Iconos](?path=/story/átomos--icons), [Símbolos](?path=/story/átomos--symbols), [Botones](?path=/story/átomos--buttons) |
+| **Moléculas** | Átomos juntos con un trabajo | [Popover](?path=/story/moléculas--popover), [Teclas y stick](?path=/story/moléculas--move) |
+| **Organismos** | Secciones completas de la UI | [HUD](?path=/story/organismos-hud--duel), [Libro](?path=/story/organismos-libro--symbols), [Ranking](?path=/story/organismos-ranking--duel) |
+| **Pantallas** | El juego entero en un momento dado | [Combate](?path=/story/pantallas--combat), [Tutorial](?path=/story/pantallas--tutorial) |
+| **3D** | Personajes, prado y hechizos en grande | [Alquimista](?path=/story/3d-personajes--alchemist) |
+
+## Design tokens
+
+Tres niveles en `tokens/*.json`: **Global** (valores) → **Sistema** (roles que cambian entre claro y oscuro) → **Componente** (lo único que usa la UI). `npm run tokens` genera `src/styles/design-tokens.css` con solo los tokens que el juego usa, así que no añade peso.
+
+## En el móvil
+
+- Toca **☰** para ver los grupos. Cada grupo abre un índice; toca una tarjeta para abrir la historia.
+- En una historia, la barra de abajo muestra los **Controls** (variantes) y el panel **Acciones** del lienzo (plegado en el móvil) hace lo que se haría jugando.
+- Arriba: tamaño de pantalla, idioma, táctil y tema (claro por defecto).
+
+Al cambiar de historia, de idioma o de Controls el lienzo se recarga: cada historia ocupa una página del juego entera. Nada del juego importa este catálogo. Cómo añadir una historia: `docs/components.md`.

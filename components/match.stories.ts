@@ -4,7 +4,7 @@ import { scene } from './kit/boot';
 const load = () => import('./stories/match');
 
 export default {
-  title: 'Partida',
+  title: 'Organismos/Partida',
   parameters: { docs: { description: { component: 'Las hojas de inicio y fin de partida.' } } },
 } satisfies Meta;
 

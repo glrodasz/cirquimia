@@ -4,7 +4,7 @@ import { scene } from './kit/boot';
 const load = () => import('./stories/ranking');
 
 export default {
-  title: 'Ranking',
+  title: 'Organismos/Ranking',
   parameters: { docs: { description: { component: 'El ranking global, con la API simulada.' } } },
 } satisfies Meta;
 

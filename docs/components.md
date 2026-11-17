@@ -16,6 +16,42 @@
 - `/components` is excluded from the Pages Functions (`public/_routes.json`) and from the language redirect
   (`EXEMPT_PATHS` in `src/i18n/locale.ts`).
 
+## Organisation: atomic design
+
+The sidebar goes from the smallest piece to the whole game:
+
+| Group | What goes there | File |
+|---|---|---|
+| **Tokens** | Colours and type as design tokens, plus the colours still hardcoded | `tokens.stories.ts` |
+| **Átomos** | One element: icons, symbols, buttons, labels | `atoms.stories.ts` |
+| **Moléculas** | A few atoms with one job: popover, notices, keys and stick | `molecules.stories.ts` |
+| **Organismos** | A whole section of the UI: HUD, book, match cards, ranking, share card | `hud`, `book`, `match`, `ranking`, `share.stories.ts` |
+| **Pantallas** | The game at one moment: combat, training, tutorial | `scenes.stories.ts` |
+| **3D** | Characters, meadow and spells, large | `characters`, `meadow`, `spells.stories.ts` |
+
+A new piece goes in the smallest group that describes it. Each group's Docs page (`.storybook/docs-page.ts`) is an
+index of cards that open each story, with only the first story drawn and only on a wide screen, so it stays light on a
+phone (a page of 14 WebGL frames was not). Storybook opens in the light grimoire theme; dark is in the toolbar.
+
+## Design tokens
+
+The game's colours and the grimoire font are Quantum Design tokens in three levels,
+`tokens/global.json` → `tokens/system-light.json` / `system-dark.json` → `tokens/components.json` (the `Site.*`
+entries are the game's own).
+
+- **The UI only reads component tokens** (`var(--components-tokens--site--…)`). `index.html` keeps its short names
+  (`--hud-bg`, `--g-paper`, `--leather`…) as bridge aliases to them, so no rule had to change.
+- `npm run tokens` builds `src/styles/design-tokens.css` (`scripts/tokens.mjs`, on top of the kit's
+  `scripts/quantum-tokens.mjs`) with **only** the component tokens that `index.html` and `src/` use and what they
+  resolve through: ~3.4 KB, ~0.4 KB gzip. The full kit would be ~77 KB. Never edit the generated file.
+- `npm run build` fails if that file is out of date (`--check`). The `designTokens()` plugin in `vite.config.ts`
+  inlines it before the game's `<style>`, and Storybook's `previewHead` does the same.
+- Dark mode follows the game's own switch: `data-theme` on `<html>`, or the system's dark mode unless
+  `data-theme="light"`. The grimoire's paper and ink are `Colors.Fixed`: the same in both themes.
+- `npm run tokens:audit -- --scan src` lists the colours still written by hand (also shown in **Tokens › Colores aún
+  sin token**). Move them to tokens a component at a time, smallest pieces first.
+- To change a colour: edit the JSON, `npm run tokens`, check both themes in Storybook.
+
 ## How it works
 
 - `components/*.stories.ts`: the stories in CSF, one file per sidebar group. Each story is
@@ -37,7 +73,7 @@
 
 1. Export a function from `components/stories/<module>.ts` (in its `stories` record). It gets
    `{ lang, touch, args, setArgs }` and mounts the real module.
-2. Add the story to `components/<module>.stories.ts`: `export const X: StoryObj = { name: '…', ...scene(load, 'id', { doc, source }) }`.
+2. Add the story to the group's file (see the table above): `export const X: StoryObj = { name: '…', ...scene(load, 'id', { doc, source }) }`.
    Variants that need a remount are `args` + `argTypes`; option lists are literals there (a stories file must not
    import game code, which would read the language too early).
 3. Check it: `npm run storybook`, or `npm run build` and serve `dist/`.

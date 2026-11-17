@@ -2,6 +2,8 @@ import '@fontsource-variable/eb-garamond/wght.css';
 import '@fontsource-variable/eb-garamond/wght-italic.css';
 import '../components/kit/kit.css';
 import type { Preview } from '@storybook/html-vite';
+import { grimoire } from './theme';
+import { DocsPage } from './docs-page';
 
 // Docs pages are Storybook's own pages: the game's stylesheet (a fixed page that never scrolls) stays off there.
 // Each story on a Docs page is a frame of its own, with the game's styles.
@@ -36,15 +38,16 @@ const preview: Preview = {
       toolbar: { title: 'Tema', icon: 'mirror', items: [{ value: '', title: 'Del sistema' }, { value: 'light', title: 'Claro' }, { value: 'dark', title: 'Oscuro' }], dynamicTitle: true },
     },
   },
-  initialGlobals: { locale: 'es', touch: false, theme: '' },
+  // Light by default: the grimoire look. Dark is one click away in the toolbar.
+  initialGlobals: { locale: 'es', touch: false, theme: 'light' },
   parameters: {
     layout: 'fullscreen',
     viewport: { options: viewports },
     controls: { expanded: true },
-    // Each story owns a whole game page, so the docs show every one in a frame of its own.
-    docs: { story: { inline: false, iframeHeight: 520 } },
+    // Each story owns a whole game page: on a Docs page it is a frame of its own (see docs-page.ts).
+    docs: { theme: grimoire, page: DocsPage, canvas: { sourceState: 'none' }, story: { inline: false, iframeHeight: 520 } },
     options: {
-      storySort: { order: ['Introducción', 'Fundamentos', 'HUD', 'Libro', 'Partida', 'Ranking', 'Avisos', 'Compartir', '3D', ['Personajes', 'Prado', 'Hechizos'], 'Escenas'] },
+      storySort: { order: ['Introducción', 'Tokens', 'Átomos', 'Moléculas', 'Organismos', ['HUD', 'Libro', 'Partida', 'Ranking', 'Compartir'], 'Pantallas', '3D', ['Personajes', 'Prado', 'Hechizos']] },
     },
   },
 };

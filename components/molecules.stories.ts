@@ -1,16 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/html-vite';
 import { scene } from './kit/boot';
 
-const load = () => import('./stories/notices');
+const hud = () => import('./stories/hud');
+const notices = () => import('./stories/notices');
 
 export default {
-  title: 'Avisos',
-  parameters: { docs: { description: { component: 'Notas y avisos que salen durante el juego.' } } },
+  title: 'Moléculas',
+  parameters: { docs: { description: { component: 'Átomos juntos con un solo trabajo: una nota, un aviso, los controles de movimiento.' } } },
 } satisfies Meta;
 
 export const Popover: StoryObj = {
   name: 'Popover',
-  ...scene(load, 'popover', {
+  ...scene(notices, 'popover', {
     doc: 'La nota de grimorio con la que enseñan el tutorial y el entrenamiento, arriba o abajo de lo que señala.',
     source: 'src/popover.ts',
     backdrop: true,
@@ -19,25 +20,36 @@ export const Popover: StoryObj = {
 
 export const Missing: StoryObj = {
   name: 'Símbolo rechazado',
-  ...scene(load, 'missing', {
+  ...scene(notices, 'missing', {
     doc: 'Fuego o agua sin fuente cerca, o un muro dentro de un círculo de runas.',
     source: 'src/missing.ts',
     backdrop: true,
   }),
 };
 
-export const Hitme: StoryObj = {
-  name: '¡Golpéame!',
-  ...scene(load, 'hitme', {
-    doc: 'La etiqueta sobre el espantapájaros en el entrenamiento.',
-    source: 'src/dummy.ts',
+export const Spot: StoryObj = {
+  name: 'Píldoras destacadas',
+  ...scene(hud, 'hud-spot', {
+    doc: 'Tras la primera victoria, la siguiente partida señala las píldoras de rivales y dificultad durante 5 s.',
+    source: 'src/match.ts',
     backdrop: true,
+  }),
+};
+
+export const Move: StoryObj = {
+  name: 'Teclas y stick',
+  ...scene(hud, 'hud-move', {
+    doc: 'Escritorio: teclas WASD/flechas abajo a la izquierda. Táctil: el stick (activa «Táctil» en la barra).',
+    source: 'src/keysHint.ts, pad.ts',
+    backdrop: true,
+    args: { keys: 'wasd' },
+    argTypes: { keys: { name: 'Teclas', control: { type: 'inline-radio', labels: { wasd: 'WASD', arrows: 'Flechas' } }, options: ['wasd', 'arrows'] } },
   }),
 };
 
 export const Device: StoryObj = {
   name: 'También en tu móvil',
-  ...scene(load, 'device', {
+  ...scene(notices, 'device', {
     doc: 'Aviso de escritorio, una vez por visita.',
     source: 'src/deviceHint.ts',
     backdrop: true,
@@ -46,7 +58,7 @@ export const Device: StoryObj = {
 
 export const Gpu: StoryObj = {
   name: 'Aviso de GPU',
-  ...scene(load, 'gpu', {
+  ...scene(notices, 'gpu', {
     doc: 'Sin aceleración por hardware (software) o sin WebGL.',
     source: 'src/gpu.ts',
     args: { kind: 'software' },

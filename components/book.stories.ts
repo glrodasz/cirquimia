@@ -4,7 +4,7 @@ import { scene } from './kit/boot';
 const load = () => import('./stories/book');
 
 export default {
-  title: 'Libro',
+  title: 'Organismos/Libro',
   parameters: { docs: { description: { component: 'El grimorio: índice de símbolos y cómo jugar.' } } },
 } satisfies Meta;
 

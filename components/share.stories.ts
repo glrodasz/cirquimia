@@ -4,7 +4,7 @@ import { scene } from './kit/boot';
 const load = () => import('./stories/share');
 
 export default {
-  title: 'Compartir',
+  title: 'Organismos/Compartir',
   parameters: { docs: { description: { component: 'La imagen que se comparte al ganar.' } } },
 } satisfies Meta;
 

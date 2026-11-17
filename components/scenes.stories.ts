@@ -4,7 +4,7 @@ import { scene } from './kit/boot';
 const load = () => import('./stories/scenes');
 
 export default {
-  title: 'Escenas',
+  title: 'Pantallas',
   parameters: { docs: { description: { component: 'Piezas del juego juntas, con la cámara del juego.' } } },
 } satisfies Meta;
 
