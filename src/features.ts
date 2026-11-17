@@ -176,9 +176,11 @@ function menhires(f: Feature, c: Ctx) {
     const z = f.z + Math.sin(a) * ring;
     const fallen = i === fallenA || i === fallenB;
     const h = 0.9 + rand() * 0.5;
+    let lie = 0;
     if (fallen) {
       place(x, z, 0.12);
-      dummy.rotation.set(Math.PI / 2 - 0.08, 0, a + (rand() - 0.5) * 0.6);
+      lie = a + (rand() - 0.5) * 0.6;
+      dummy.rotation.set(Math.PI / 2 - 0.08, 0, lie);
       dummy.scale.set(0.42, h, 0.28);
     } else {
       place(x, z, h / 2 - 0.08);
@@ -186,7 +188,10 @@ function menhires(f: Feature, c: Ctx) {
       dummy.scale.set(0.42, h, 0.3);
     }
     c.stones.add(block(c, '#8a9294'));
-    c.obstacles.push({ x, z, r: 0.3 });
+    if (fallen) {
+      // Lying down it is a long low block: blocks along its length.
+      along(c, x, z, -Math.sin(lie), Math.cos(lie), h, 0.22);
+    } else c.obstacles.push({ x, z, r: 0.3 });
     for (let k = 0; k < 2; k++) {
       place(x + (rand() - 0.5) * 0.7, z + (rand() - 0.5) * 0.7, 0.02);
       dummy.rotation.set(rand(), rand() * 3, rand());
@@ -307,6 +312,25 @@ function tierraSuelta(f: Feature, c: Ctx) {
 
 // ---------------------------------------------------------------- Agua
 
+/** How far inside the waterline a pond's blocker ends: the boots reach the water, the body never wades in. */
+const SHORE = 0.06;
+
+/**
+ * Lays round blockers along a straight piece (a log, a fallen stone) from end to end, so it blocks over its
+ * whole length and nowhere else. `ax, az` is the piece's direction on the ground; `r` its half-thickness.
+ */
+/** Pieces longer than this (a fallen tree, a menhir) are not stepped round when walked straight into. */
+const LONG = 0.8;
+
+function along(c: Ctx, x: number, z: number, ax: number, az: number, length: number, r: number) {
+  const half = Math.max(0, length / 2 - r);
+  const n = Math.max(1, Math.ceil((half * 2) / r) + 1);
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 0 : -half + (2 * half * i) / (n - 1);
+    c.obstacles.push({ x: x + ax * t, z: z + az * t, r, long: length > LONG || undefined });
+  }
+}
+
 /** A still pond in its own hollow, with reeds, lily pads and shore stones. The water itself is not walkable. */
 function estanque(f: Feature, c: Ctx) {
   const { rand } = c;
@@ -314,7 +338,8 @@ function estanque(f: Feature, c: Ctx) {
   const level = dentBase({ x: f.x, z: f.z, r: R, depth: -0.5, rim: 0.04 }) - 0.1;
   const geo = new THREE.CircleGeometry(R * 0.92, 14);
   const pos = geo.attributes.position;
-  for (let i = 1; i < pos.count; i++) pos.setXY(i, pos.getX(i) * (0.92 + rand() * 0.12), pos.getY(i) * (0.92 + rand() * 0.12));
+  // Only a slight wobble on the shore, so the water's edge stays where the alchemist is stopped (SHORE below).
+  for (let i = 1; i < pos.count; i++) pos.setXY(i, pos.getX(i) * (0.96 + rand() * 0.06), pos.getY(i) * (0.96 + rand() * 0.06));
   geo.rotateX(-Math.PI / 2);
   const water = new THREE.Mesh(
     geo,
@@ -338,7 +363,8 @@ function estanque(f: Feature, c: Ctx) {
   );
   shallows.position.set(f.x, level + 0.004, f.z);
   c.group.add(deep, shallows);
-  c.obstacles.push({ x: f.x, z: f.z, r: R * 0.7 });
+  // Whoever walks up to the water stops with their boots at its edge: the body (0.12 round) ends on the waterline.
+  c.obstacles.push({ x: f.x, z: f.z, r: R * 0.92 - SHORE });
 
   for (let k = 0; k < 2; k++) {
     const a = rand() * Math.PI * 2;
@@ -403,12 +429,14 @@ function fogata(f: Feature, c: Ctx) {
     c.flames.push({ x: f.x + (rand() - 0.5) * 0.12 * FIRE, y: y + 0.05 * FIRE, z: f.z + (rand() - 0.5) * 0.12 * FIRE, s: (1 - k * 0.22) * FIRE, phase: rand() * 10, animated: f.animated });
   }
   c.obstacles.push({ x: f.x, z: f.z, r: 0.42 * FIRE });
-  const [lx, lz] = at(f, 0, 0.85 * FIRE + 0.1);
+  // The log to sit on faces the fire, far enough out that there is room to walk between them (no notch to get
+  // caught in); it blocks along its length, not as a round blob.
+  const [lx, lz] = at(f, 0, 1.2 * FIRE);
   place(lx, lz, 0.12 * FIRE);
-  dummy.rotation.set(0, f.rot, Math.PI / 2);
+  dummy.rotation.set(0, -f.rot, Math.PI / 2);
   dummy.scale.set(0.24 * FIRE, 0.9 * FIRE, 0.24 * FIRE);
   c.wood.add('#6b5a4c');
-  c.obstacles.push({ x: lx, z: lz, r: 0.3 * FIRE });
+  along(c, lx, lz, Math.cos(f.rot), Math.sin(f.rot), 0.9 * FIRE, 0.16 * FIRE);
   if (f.animated) addMotes(c, f, 10, 0.15 * FIRE, '#ffb36b', 0.7);
 }
 
@@ -594,7 +622,8 @@ function troncos(f: Feature, c: Ctx) {
   dummy.rotation.set(0, f.rot, Math.PI / 2);
   dummy.scale.set(0.3, 1.5, 0.3);
   c.wood.add('#6b5a4c');
-  c.obstacles.push({ x: f.x, z: f.z, r: 0.45 });
+  // The log lies along (cos rot, -sin rot): block its whole length, not a round blob around its middle.
+  along(c, f.x, f.z, Math.cos(f.rot), -Math.sin(f.rot), 1.5, 0.17);
   const stumps = 1 + Math.floor(rand() * 2);
   for (let k = 0; k < stumps; k++) {
     const [x, z] = at(f, (rand() - 0.5) * 1.4, 0.55 + rand() * 0.3);
