@@ -135,9 +135,12 @@ export async function submitScore(runId: string, initials: string, durationMs: n
   return res;
 }
 
-/** New initials for the score just saved from this run (one row written on the server). */
+/**
+ * New initials for the score just saved from this run. The device's earlier scores go along (`earlier`): the
+ * server gives the name to those still anonymous, so wins from before the player signed are theirs too.
+ */
 export function renameScore(runId: string, initials: string) {
-  return call<{ initials: string }>('/scores', { method: 'PATCH', body: JSON.stringify({ runId, initials }) });
+  return call<{ initials: string }>('/scores', { method: 'PATCH', body: JSON.stringify({ runId, initials, earlier: [...myScores()] }) });
 }
 
 /** The top of a board; `mine` (the player's own score ids) adds their best place below it when they are not on it. */

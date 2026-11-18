@@ -32,16 +32,17 @@ const ctx = (method: string, path: string, body: unknown, ip = '1.2.3.4') =>
     env: { DB: db },
   }) as never;
 
-async function won(initials?: string) {
-  const run = (await (await startRun(ctx('POST', 'runs', { rivals: 1, difficulty: 'normal' }))).json()) as { id: string };
+async function won(initials?: string, ip?: string) {
+  const run = (await (await startRun(ctx('POST', 'runs', { rivals: 1, difficulty: 'normal' }, ip))).json()) as { id: string };
   // Pretend the run opened a minute ago, so a 40 s match is plausible.
   db.raw.prepare('UPDATE runs SET created_at = ? WHERE id = ?').run(Date.now() - 60_000, run.id);
-  const res = await submitScore(ctx('POST', 'scores', { runId: run.id, initials, durationMs: 40_000, damage: 100 }));
+  const res = await submitScore(ctx('POST', 'scores', { runId: run.id, initials, durationMs: 40_000, damage: 100 }, ip));
   return { runId: run.id, status: res.status, body: (await res.json()) as { id: number; initials: string; anonymous: boolean } };
 }
 
 const row = (id: number) => db.raw.prepare('SELECT initials, anonymous FROM scores WHERE id = ?').get(id) as { initials: string; anonymous: number };
-const rename = async (runId: string, initials: string) => (await renameScore(ctx('PATCH', 'scores', { runId, initials }))).status;
+const rename = async (runId: string, initials: string, earlier?: number[], ip?: string) =>
+  (await renameScore(ctx('PATCH', 'scores', { runId, initials, earlier }, ip))).status;
 
 describe('every won match is saved', () => {
   it('saves a nameless match as ANON, flagged anonymous', async () => {
@@ -78,5 +79,27 @@ describe('every won match is saved', () => {
     db.raw.prepare('UPDATE scores SET created_at = ? WHERE id = ?').run(Date.now() - 2 * 60 * 60 * 1000, body.id);
     expect(await rename(runId, 'GLR')).toBe(409);
     expect(row(body.id).initials).toBe('AB');
+  });
+
+  it("signs the device's earlier anonymous wins too, but only its own", async () => {
+    const ip = '5.6.7.8';
+    const older = await won(undefined, ip);
+    const named = await won('ZZ', ip);
+    const stranger = await won(undefined, '9.9.9.9');
+    // Older than the rename window: still takes the name, being anonymous and from this device.
+    db.raw.prepare('UPDATE scores SET created_at = ? WHERE id = ?').run(Date.now() - 3 * 60 * 60 * 1000, older.body.id);
+    const latest = await won(undefined, ip);
+    const earlier = [older.body.id, named.body.id, stranger.body.id];
+    expect(await rename(latest.runId, 'MON', earlier, ip)).toBe(200);
+    expect(row(latest.body.id)).toEqual({ initials: 'MON', anonymous: 0 });
+    expect(row(older.body.id)).toEqual({ initials: 'MON', anonymous: 0 });
+    expect(row(named.body.id)).toEqual({ initials: 'ZZ', anonymous: 0 });
+    expect(row(stranger.body.id)).toEqual({ initials: 'ANON', anonymous: 1 });
+  });
+
+  it('ignores a malformed list of earlier scores', async () => {
+    const { runId, body } = await won();
+    expect((await renameScore(ctx('PATCH', 'scores', { runId, initials: 'QQ', earlier: 'DROP TABLE' }))).status).toBe(200);
+    expect(row(body.id).initials).toBe('QQ');
   });
 });

@@ -33,9 +33,12 @@ Cloudflare Pages Functions (`functions/api/runs.ts`, `functions/api/scores.ts`, 
   any is saved as `ANON` with `anonymous = 1`, so a player really called ANON (`anonymous = 0`) stays distinct. The server recomputes the
   score with the run's own difficulty, refuses impossible numbers (under 4 s or over 30 min, more than 40 damage
   a second or 300 per rival (900 on Hardcore, whose rivals heal a lot), a duration longer than the real time since the run opened), accepts one score per run and limits submissions per address.
-- `PATCH /api/scores {runId, initials}` renames the score just saved (leaving the initials line on the victory card, or Enter; the run id is the
+- `PATCH /api/scores {runId, initials, earlier?}` renames the score just saved (leaving the initials line on the victory card, or Enter; the run id is the
   proof, only within an hour of saving) and clears `anonymous`. One row written, none when the name is unchanged. The
-  new initials also become the device's handle for the next matches.
+  new initials also become the device's handle for the next matches. `earlier` (the device's own score ids, `cirquimia.myscores`)
+  names the player's older wins too, but only those still anonymous and saved from the same IP hash, so nobody can sign
+  someone else's. A device with no initials yet gets a signing step on its victory card: only the score and the initials
+  line with Firmar, and Ver ranking / Jugar de nuevo / Compartir appear once it signs (the score is already saved as ANON).
 - `GET /api/scores?period=today|week|month|all` returns the top 20, plus `me` (the best of the player's own scores, `&mine=<ids>`, with its real place) when it is lower down. Days, weeks (Monday to Sunday) and months are UTC. `&device=mobile|tablet|desktop` keeps only phones, tablets or computers (the ranking's Todos / Móvil / Tablet / Escritorio filter); the player's place is counted on that filtered board.
 
 The board shows only Mobile / Tablet / Desktop; each row also stores OS, device (iPhone, iPad, Android

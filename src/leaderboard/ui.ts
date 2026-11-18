@@ -174,15 +174,20 @@ export function mountLeaderboard(): Leaderboard {
     horde?: { wave: number; kills: number },
   ) => {
     const mode: BoardMode = horde ? 'horde' : 'duel';
+    // The first win without a name: the card asks for it before anything else, and the ways on (play again, the
+    // ranking, sharing) come once the player signs. The score is saved as ANON meanwhile, as always.
+    let gated = !savedInitials();
     const data: ShareData = { ...match, score: horde ? hordeScore(horde.wave, match.durationMs) : scoreFor(match.damage, match.difficulty, match.durationMs) };
     slot.hidden = false;
-    shared.hidden = !!horde;
+    shared.hidden = !!horde || gated;
+    actions.hidden = gated;
     slot.innerHTML =
       (horde
         ? `<div class="pts wave"><b>${t.rank.wave(horde.wave)}</b></div><div class="meta">⏱ ${formatTime(match.durationMs)}</div>`
         : `<div class="pts"><b>${data.score.toLocaleString(LANG)}</b> ${t.rank.points(data.score)}</div><div class="meta">${metaLine(match)}</div>`) +
       `<form class="sign" novalidate><label><span>${t.rank.initials}</span>` +
       `<input name="initials" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="ABCD" required></label>` +
+      (gated ? `<button type="submit" class="match-btn save"><span class="cap">${t.rank.sign}</span></button>` : '') +
       `</form>` +
       `<p class="note" role="status"></p>`;
     // Secondary on the left of "Play again", as one row of the two ways on.
@@ -223,6 +228,15 @@ export function mountLeaderboard(): Leaderboard {
     const mastoInput = masto.querySelector<HTMLInputElement>('input')!;
     let newId: number | null = null;
     input.value = savedInitials();
+    const ungate = () => {
+      if (!gated) return;
+      gated = false;
+      form.querySelector('.save')?.remove();
+      actions.hidden = false;
+      shared.hidden = !!horde;
+    };
+    // Straight onto the line with a keyboard; on touch the keyboard waits for the player's tap.
+    if (gated && matchMedia('(pointer: fine)').matches) input.focus({ preventScroll: true });
     input.addEventListener('input', () => {
       const clean = cleanInitials(input.value);
       if (clean !== input.value) input.value = clean;
@@ -304,6 +318,7 @@ export function mountLeaderboard(): Leaderboard {
     const saving = runs.current().then(async (id) => {
       if (!id) {
         form.hidden = true;
+        ungate();
         say(t.rank.unavailable);
         settle(null);
         return false;
@@ -311,6 +326,7 @@ export function mountLeaderboard(): Leaderboard {
       const res = await submitScore(id, savedInitials(), match.durationMs, match.damage, horde?.wave, horde?.kills);
       if (failed(res)) {
         form.hidden = true;
+        ungate();
         say(res === 'too-many' ? t.rank.tooMany : res === 'rejected' ? t.rank.rejected : t.rank.unavailable);
         settle(null);
         return false;
@@ -324,7 +340,7 @@ export function mountLeaderboard(): Leaderboard {
       if (document.activeElement !== input && cleanInitials(input.value) === committed) input.value = committed = named;
       Object.assign(data, { score: res.score, initials: named || undefined, rank: res.rank });
       card = draw();
-      say(named ? placed : `${placed}<br>${t.rank.anonymous}`);
+      say(named ? placed : `${placed}<br>${gated ? t.rank.signPrompt : t.rank.anonymous}`);
       settle(shareLink);
       return true;
     });
@@ -392,6 +408,18 @@ export function mountLeaderboard(): Leaderboard {
     // initials become the handle for the next matches. A blank or invalid line goes back to the saved name.
     form.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (gated) {
+        if (!validInitials(cleanInitials(input.value))) {
+          input.classList.remove('shake');
+          void input.offsetWidth;
+          input.classList.add('shake');
+          say(placed ? `${placed}<br>${t.rank.signHint}` : t.rank.signHint);
+          input.focus();
+          return;
+        }
+        void commit();
+        ungate();
+      }
       input.blur();
     });
     // Typed initials count even when the player never leaves the line: on phones a tap on "Play again" or
