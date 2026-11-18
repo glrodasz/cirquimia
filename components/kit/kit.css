@@ -1,0 +1,98 @@
+/* Storybook's canvas extras (backdrop, long pages, the Acciones panel); everything else is the game's stylesheet, untouched. */
+.kit-backdrop { position: fixed; inset: 0; z-index: 0; background: center / cover no-repeat; filter: saturate(.9); pointer-events: none; }
+html.kit-doc, html.kit-doc body { position: static; height: auto; min-height: 100%; overflow: auto; touch-action: auto; overscroll-behavior: auto; -webkit-user-select: text; user-select: text; }
+html.kit-doc body { padding: 20px 16px 60px !important; /* over Storybook's fullscreen layout */ background: #f5efe0; color: #1f1a15; font: 14px/1.45 system-ui, -apple-system, sans-serif; }
+/* Long pages are paper in both themes; the tiles inside follow the toolbar's theme, so dark variants still show. */
+:root[data-theme='dark'].kit-doc body { background: #e9dfc6; }
+.kit-doc h2 { margin: 28px 0 8px; color: #1f1a15; font: 700 20px/1.2 'EB Garamond Variable', Garamond, Georgia, serif; }
+.kit-doc h2:first-child { margin-top: 0; }
+.kit-doc p.kit-note { margin: 0 0 12px; opacity: .75; max-width: 70ch; }
+.kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.kit-tile { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--hud-border); border-radius: 12px; background: var(--hud-bg); font-size: 12px; }
+.kit-tile code { font: 11px/1.3 ui-monospace, Menlo, monospace; opacity: .8; word-break: break-all; }
+.kit-swatch { height: 46px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); background-image: linear-gradient(45deg, rgba(127,127,127,.25) 25%, transparent 25%, transparent 75%, rgba(127,127,127,.25) 75%), linear-gradient(45deg, rgba(127,127,127,.25) 25%, transparent 25%, transparent 75%, rgba(127,127,127,.25) 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; position: relative; overflow: hidden; }
+.kit-swatch i { position: absolute; inset: 0; }
+.kit-icon { display: grid; place-items: center; height: 64px; color: var(--hud-fg); }
+.kit-icon svg { width: 44px; height: 44px; overflow: visible; }
+.kit-icon .ring { fill: var(--hud-fg); opacity: .32; } .kit-icon .glyph { fill: #b5761f; } .kit-icon .red { fill: #d9483b; } .kit-icon .green { fill: #3fae5a; } .kit-icon .plum { fill: #9b6fd8; } .kit-icon .faint { fill: var(--hud-fg); opacity: .3; }
+.kit-icon .ink { fill: currentColor; }
+.kit-symbol { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center; justify-items: center; height: 70px; }
+.kit-symbol svg { width: 56px; height: 56px; overflow: visible; }
+.kit-symbol path { fill: var(--hud-fg); }
+.kit-type { padding: 14px 16px; border: 1px solid var(--hud-border); border-radius: 12px; margin-bottom: 10px; background: var(--hud-bg); }
+.kit-type small { display: block; margin-bottom: 4px; font: 11px ui-monospace, Menlo, monospace; opacity: .7; }
+.kit-shots { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.kit-shots figure { margin: 0; }
+.kit-shots img { display: block; max-width: 100%; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.kit-shots figcaption { margin-top: 6px; font-size: 12px; opacity: .7; }
+
+/* Story controls: a small grimoire strip, bottom left, out of the way of the HUD. */
+.kit-panel { position: fixed; z-index: 50; left: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; max-width: min(340px, calc(100vw - 20px)); max-height: 60vh; overflow-y: auto; padding: 8px 10px; border-radius: 12px; background: rgba(243,232,204,.94); color: #3a2b1d; box-shadow: 0 6px 20px rgba(0,0,0,.3), inset 0 0 0 1px rgba(90,60,25,.25); font: 12px/1.3 system-ui, -apple-system, sans-serif; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+.kit-panel.kit-folded > :not(.kit-head) { display: none; }
+.kit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 700 13px/1 'EB Garamond Variable', Garamond, Georgia, serif; color: #9a2f24; }
+.kit-head button { border: 0; background: none; color: inherit; font-size: 14px; cursor: pointer; padding: 2px 4px; }
+.kit-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.kit-row > span { margin-right: 2px; opacity: .7; }
+.kit-panel button.kit-btn, .kit-panel select { height: 26px; padding: 0 8px; border: 1px solid rgba(90,60,25,.35); border-radius: 7px; background: #fbf3de; color: #3a2b1d; font: 600 12px/1 system-ui, sans-serif; cursor: pointer; }
+.kit-panel button.kit-btn[aria-pressed='true'] { background: #3a2b1d; color: #fbf3de; }
+.kit-stats { font: 11px/1.35 ui-monospace, Menlo, monospace; opacity: .8; white-space: pre-wrap; }
+.kit-label { position: fixed; z-index: 4; transform: translate(-50%, 0); padding: 2px 8px; border-radius: 999px; background: rgba(243,232,204,.9); color: #3a2b1d; font: 600 12px/1.3 system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
+.kit-error { position: fixed; inset: 20px; z-index: 99; padding: 16px; border-radius: 12px; background: #fff0ee; color: #7a1d14; font: 13px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow: auto; }
+
+/* Docs pages (and the intro) are Storybook's own pages in the same canvas: they scroll like any page. The game's
+   fixed, non-scrolling page only applies once a story mounts (boot.ts adds .kit-story). */
+html:not(.kit-story) { overflow: auto; }
+html:not(.kit-story), html:not(.kit-story) body { position: static; height: auto; min-height: 100%; overflow-x: hidden; touch-action: auto; overscroll-behavior: auto; -webkit-user-select: text; user-select: text; }
+/* A story's frame on a Docs page is an inline iframe: its baseline gap made each story block scroll by 4px, and that
+   tiny scroller caught the wheel before the page did. */
+.docs-story iframe { display: block; }
+
+.kit-doc h3 { margin: 18px 0 8px; font: 600 15px/1.3 system-ui, -apple-system, sans-serif; color: #6b6258; }
+.kit-doc code { font: 12px/1.3 ui-monospace, Menlo, monospace; }
+
+/* Átomos › Botones: copies of the real HUD buttons, laid out as a sheet instead of pinned to the screen's corners. */
+.kit-away { visibility: hidden !important; pointer-events: none !important; }
+.kit-cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.kit-cell { margin: 0; display: flex; flex-direction: column; border: 1px solid rgba(90,60,25,.22); border-radius: 12px; overflow: hidden; background: #fbf6e8; }
+.kit-stage { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 92px; padding: 16px; background: #c9d3d1; }
+.kit-stage > * { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; }
+.kit-cell figcaption { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; font-size: 12px; }
+.kit-cell figcaption span { color: #6b6258; }
+
+/* Tokens › Colores */
+.kit-levels { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; counter-reset: lvl; }
+.kit-levels li { flex: 1 1 140px; display: flex; flex-direction: column; padding: 8px 12px; border-radius: 10px; background: #fbf6e8; border: 1px solid rgba(90,60,25,.22); }
+.kit-levels span { font-size: 12px; color: #6b6258; }
+.kit-tokens { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.kit-token { display: flex; gap: 12px; padding: 10px; border-radius: 12px; background: #fbf6e8; border: 1px solid rgba(90,60,25,.22); min-width: 0; }
+.kit-token-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px; }
+.kit-token-body b { font-size: 13px; word-break: break-word; }
+.kit-token-body > code { color: #9a2f24; word-break: break-all; font-size: 11px; }
+.kit-token small { color: #6b6258; }
+.kit-chain { margin: 0; padding: 0; list-style: none; color: #6b6258; font: 11px/1.35 ui-monospace, Menlo, monospace; word-break: break-word; }
+.kit-chain li::before { content: '→ '; opacity: .6; }
+.kit-pair { display: flex; flex: none; }
+.kit-chip { display: block; width: 40px; height: 40px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); position: relative; overflow: hidden; background-image: linear-gradient(45deg, rgba(127,127,127,.25) 25%, transparent 25%, transparent 75%, rgba(127,127,127,.25) 75%), linear-gradient(45deg, rgba(127,127,127,.25) 25%, transparent 25%, transparent 75%, rgba(127,127,127,.25) 75%); background-size: 10px 10px; background-position: 0 0, 5px 5px; }
+.kit-chip i { position: absolute; inset: 0; }
+.kit-pair .kit-chip:first-child { border-radius: 8px 0 0 8px; }
+.kit-pair .kit-chip + .kit-chip { border-radius: 0 8px 8px 0; }
+.kit-font { flex: none; display: grid; place-items: center; width: 80px; height: 40px; font-size: 26px; }
+.kit-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.kit-palette figure { margin: 0; display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 10px; background: #fbf6e8; border: 1px solid rgba(90,60,25,.18); min-width: 0; }
+.kit-palette figcaption { display: flex; flex-direction: column; min-width: 0; font-size: 12px; }
+.kit-palette figcaption code { font-size: 10.5px; color: #6b6258; word-break: break-all; }
+
+/* Docs pages (docs-page.ts): an index of the group, readable on a phone. */
+.kit-docs { max-width: 900px; }
+.kit-docs-lead { font-size: 16px; color: #6b6258; margin: 0 0 20px; }
+.kit-docs-list { list-style: none !important; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 24px 0 0 !important; padding: 0 !important; list-style: none; }
+.kit-docs-list li { margin: 0 !important; padding: 0 !important; list-style: none !important; }
+.kit-docs-list li::before, .kit-docs-list li::marker { content: none; display: none; }
+.kit-docs-list a { display: flex; flex-direction: column; gap: 4px; height: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(90,60,25,.25); background: #fffaf0; color: #3a2b1d !important; text-decoration: none !important; }
+.kit-docs-list a:hover { border-color: #9a2f24; }
+.kit-docs-list b { font: 600 17px/1.2 'EB Garamond Variable', Garamond, Georgia, serif; }
+.kit-docs-list p { margin: 0 !important; font-size: 13px !important; line-height: 1.4 !important; color: #6b6258; }
+.kit-docs-list code { font-size: 11px !important; white-space: normal !important; word-break: break-word; }
+.kit-docs-open { margin-top: auto; padding-top: 6px; color: #9a2f24; font-weight: 600; font-size: 13px; }
+/* Until a story mounts (while the canvas reloads on the next one) the page is paper, not an empty sky. */
+html:not(.kit-story) body { background: #f5efe0; }

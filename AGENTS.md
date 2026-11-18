@@ -55,7 +55,8 @@ Every new spell ships complete in the same PR. Go through this list and say in t
 7. **Training**: a step in the guide loop (`STEPS` in `src/guides.ts`, the strokes in drawing order) so it gets a box on the "Círculos disponibles" checklist; new single strokes also need a guide line and the `t.guides.draw` text.
 8. **Rivals** (`src/rivalMind.ts`): a `Tuning` chance per level if rivals may cast it (Fácil never combines).
 9. **Tests**: recognition or merge (`tests/gestures.test.ts`), the reticle (`tests/aim.test.ts`), and the rival tuning (`tests/rivalMind.test.ts`) when it applies.
-10. **Screenshots** of the effect on a phone and the book entry in the PR.
+10. **Storybook** (`components/`): a story for the effect in `components/spells.stories.ts` (the cast in `components/stories/spells.ts`), and any new UI or 3D piece gets a story (see `docs/components.md`).
+11. **Screenshots** of the effect on a phone and the book entry in the PR.
 
 ## Adding or changing a difficulty level (or rival behaviour)
 
@@ -67,3 +68,17 @@ Any change to a level in `TUNING` (`src/rivalMind.ts`), a new level, the rival c
 4. **Docs**: the limits in `docs/leaderboard.md`.
 
 Say in the PR body which limits were checked or changed.
+
+## Storybook (component catalogue)
+
+Every UI element and 3D piece has a story in Storybook at `/components` (`components/`, built by `npm run build`, run
+with `npm run storybook`). A PR that adds or changes UI, or a 3D piece, adds or updates its story. Stories call the
+game's real code and nothing in `src/` imports `components/`, so the game's bundle never grows. Stories are grouped by
+atomic design (Tokens, Átomos, Moléculas, Organismos, Pantallas, 3D): put a new piece in the smallest group that fits.
+See `docs/components.md`.
+
+## Design tokens
+
+Colours and the grimoire font live in `tokens/*.json` (Global → System → Component). UI code reads component tokens
+only; new colours become a component token, not a literal. After editing the JSON run `npm run tokens` and commit
+`src/styles/design-tokens.css` (the build fails when it is stale). See `docs/components.md`.

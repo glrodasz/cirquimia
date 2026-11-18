@@ -7,3 +7,5 @@ dist/
 .env.*
 dist-itch/
 cirquimia-itch.zip
+storybook-static/
+*storybook.log

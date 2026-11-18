@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "functions"]
+  "include": ["src", "functions", "components", ".storybook"]
 }
