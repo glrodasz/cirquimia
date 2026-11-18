@@ -414,6 +414,7 @@ export function mountMatchControls(match: MatchControls) {
         slot.innerHTML = '';
       }
       for (const extra of ends.querySelectorAll('.match-btn:not(.again)')) extra.remove();
+      ends.hidden = false; // the ranking hides it until a first win is signed
       const n = match.rivals;
       const level = DIFFICULTY_LABEL[match.difficulty];
       const won = outcome === 'victory';

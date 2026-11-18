@@ -350,9 +350,9 @@ export async function submitScore(ctx: Ctx): Promise<Response> {
  * fresh. One row written, and only when the name really changes.
  */
 export async function renameScore(ctx: Ctx): Promise<Response> {
-  const db = ctx.env.DB;
-  if (!db) return fail('unavailable', 503);
-  await ensureSchema(db);
+  const s = await setup(ctx);
+  if (!s) return fail('unavailable', 503);
+  const { db } = s;
   const body = await readBody(ctx.request);
   const runId = body?.runId;
   const initials = body?.initials;
@@ -367,6 +367,14 @@ export async function renameScore(ctx: Ctx): Promise<Response> {
     const row = await db.prepare('SELECT initials, anonymous, created_at FROM scores WHERE run_id = ?').bind(runId).first<{ initials: string; anonymous: number; created_at: number }>();
     if (!row || Date.now() - row.created_at > RENAME_TTL_MS || row.initials !== initials || row.anonymous) return fail('unknown-score', 409);
   }
+  // The player's earlier wins left without a name take it too: only anonymous ones, among the ids this device
+  // saved (`earlier`, client.ts myScores), and only from the same network, so nobody can sign someone else's.
+  const earlier = parseMine(Array.isArray(body?.earlier) ? body.earlier.join(',') : null);
+  if (earlier.length)
+    await db
+      .prepare(`UPDATE scores SET initials = ?1, anonymous = 0 WHERE anonymous = 1 AND ip_hash = ?2 AND id IN (${earlier.join(',')})`)
+      .bind(initials, s.ip)
+      .run();
   return json({ initials });
 }
 
